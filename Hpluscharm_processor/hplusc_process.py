@@ -12,7 +12,8 @@ import awkward as ak
 from coffea.analysis_tools import Weights
 from functools import partial
 import numba
-
+def flatten(ar): # flatten awkward into a 1d array to hist
+    return ak.flatten(ar, axis=None)
 
 @numba.njit
 def find_4lep(events_leptons, builder):
@@ -167,64 +168,89 @@ class NanoProcessor(processor.ProcessorABC):
         output['cutflow'][dataset]['all'] += len(events.Muon)
         ## Muon cuts
         # muon twiki: https://twiki.cern.ch/twiki/bin/view/CMS/SWGuideMuonIdRun2
+        event_mu = events.Muon[ak.argsort(events.Muon.pt, axis=1)]
         event_mu = events.Muon[(events.Muon.pt > 5) & (abs(events.Muon.eta < 2.4))& (events.Muon.tightId>=1)&(events.Muon.pfRelIso03_all<0.35)&(events.Muon.sip3d>4)&(events.Muon.dxy<0.5)&(events.Muon.dz<1)]
         
                   
         # ## Electron cuts
         # # electron twiki: https://twiki.cern.ch/twiki/bin/viewauth/CMS/CutBasedElectronIdentificationRun2
+        event_e = events.Electron[ak.argsort(events.Electron.pt, axis=1)]
         event_e = events.Electron[(events.Electron.pt > 7) & (abs(events.Electron.eta) < 2.5)&(events.Electron.cutBased>3)&(events.Electron.sip3d<4)& (events.Electron.dxy<0.5)&(events.Electron.dz<1) ]
+        #
         
         
         req_lep = (ak.count(event_e.pt,axis=1)>=4)|(ak.count(event_mu.pt,axis=1)>=4)| ((ak.count(event_mu.pt,axis=1)>=2)&(ak.count(event_e.pt,axis=1)>=2))
        
 
-        output['cutflow'][dataset]['selected leptons'] += ak.sum(ak.num(events[req_lep].Muon))
+        # output['cutflow'][dataset]['selected leptons'] += ak.count(events[req_lep])
         #########
-        event_e = event_e[ak.num(event_e)>=2]
-        event_mu = event_mu[ak.num(event_mu)>=2]
-        event_e = event_e[ak.argsort(event_e.pt,axis=1)]
-        event_mu = event_mu[ak.argsort(event_mu.pt,axis=1)]
-        event_4e = event_e[ak.num(event_e)>=4]
-        event_4mu = event_mu[ak.num(event_mu)>=4] 
+        # event_e = event_e[ak.num(event_e)>=2]
+        # event_mu = event_mu[ak.num(event_mu)>=2]
+       
+        # event_4e = event_e[ak.num(event_e)>=4]
+        # event_4mu = event_mu[ak.num(event_mu)>=4] 
         pair_2e = find_2lep(event_e, ak.ArrayBuilder()).snapshot()
         pair_2mu = find_2lep(event_mu, ak.ArrayBuilder()).snapshot()           
-        pair_4mu = find_4lep(event_4mu, ak.ArrayBuilder()).snapshot()
-        pair_4e = find_4lep(event_4e, ak.ArrayBuilder()).snapshot()
+        pair_4mu = find_4lep(event_mu, ak.ArrayBuilder()).snapshot()
+        pair_4e = find_4lep(event_e, ak.ArrayBuilder()).snapshot()
+   
         ak.behavior.update(vector.behavior)
-        if (ak.all(ak.num(pair_2e))&ak.all(ak.num(pair_2mu))):
-            pair_2mu  = [event_e[pair_2mu[idx]] for idx in "01"]
-            pair_2e  = [event_mu[pair_2e[idx]] for idx in "01"]
-            _hcand= pair_2e[0] + pair_2e[1] + pair_2mu[0] + pair_2mu[1]
+      
+        masked2e2mu=(ak.num(pair_2mu)>0)&(ak.num(pair_2e)>0)
+        masked4e = ak.num(pair_4e)>0
+        masked4mu = ak.num(pair_4mu)>0
+        pair_emu_2e = ak.mask(pair_2e,masked2e2mu)
+        pair_emu_2mu = ak.mask(pair_2mu,masked2e2mu)
+        pair_4e = ak.mask(pair_4e,masked4e)
+        pair_4mu = ak.mask(pair_4mu,masked4mu)
+        if(ak.all(ak.num(pair_2e)+ak.num(pair_2mu)<2)&ak.all(ak.num(pair_4e)==0)&ak.all(ak.num(pair_4mu)==0)):return output
+        # print(ak.type(ak.num(pair_emu_2e)))
+        # print(ak.type(pair_4e))
+        print(ak.sum(ak.num(pair_emu_2e)>0),ak.sum(ak.num(pair_emu_2mu)>0))
+        check_2e = pair_2e[ak.num(pair)]
+        check_2mu = pair_emu_2mu[ak.num(pair_emu_2mu>0)]
+        print(check_2e,check_2mu)
+        if (ak.any(ak.num(pair_emu_2e)>0)&ak.any(ak.num(pair_emu_2mu))):
+        # if (ak.any(ak.num(pair_2e)>0)&ak.any(ak.num(pair_2mu)>0)):
+            # print(ak.type(pair_2e2mu),ak.type(pair_2e),ak.type(pair_2mu))
+            pair_emu_2e = [event_e[pair_emu_2e[idx]] for idx in "01"]
+            pair_emu_2mu = [event_mu[pair_emu_2mu[idx]] for idx in "01"]
+        
+            print(pair_emu_2e[0])
+            print(pair_emu_2e[1])
+            print(pair_emu_2mu[0])
+            print(pair_emu_2mu[1])
+            _hcand= pair_emu_2e[0] + pair_emu_2e[1] + pair_emu_2mu[0] + pair_emu_2mu[1]
             ak.behavior.update(vector.behavior)
             pair_4lep = ak.zip({
-                "z1": ak.zip({
-                    "lep1": pair_2mu[0],
-                    "lep2": pair_2mu[1],
-                    "p4": pair_2mu[0] + pair_2mu[1],
-                    "pt": (pair_2mu[0] + pair_2mu[1]).pt,
-                    "eta": (pair_2mu[0] + pair_2mu[1]).eta,
-                    "phi": (pair_2mu[0] + pair_2mu[1]).phi,
-                    "mass": (pair_2mu[0] + pair_2mu[1]).mass,
-                }),
-                "z2": ak.zip({
-                    "lep1": pair_2e[0],
-                    "lep2": pair_2e[1],
-                    "p4": pair_2e[0] + pair_2e[1],
-                    "pt": (pair_2e[0] + pair_2e[1]).pt,
-                    "eta": (pair_2e[0] + pair_2e[1]).eta,
-                    "phi": (pair_2e[0] + pair_2e[1]).phi,
-                    "mass": (pair_2e[0] + pair_2e[1]).mass,
-                }),
-                 "cand" : ak.zip({
-                    "pt": _hcand.pt,
-                    "eta": _hcand.eta,
-                    "phi": _hcand.phi,
-                    "mass": _hcand.mass,
-                },with_name="PtEtaPhiMLorentzVector",)
-            })
+                    "z1": ak.zip({
+                        "lep1": pair_emu_2mu[0],
+                        "lep2": pair_emu_2mu[1],
+                        "p4": pair_emu_2mu[0] + pair_emu_2mu[1],
+                        "pt": (pair_emu_2mu[0] + pair_emu_2mu[1]).pt,
+                        "eta": (pair_emu_2mu[0] + pair_emu_2mu[1]).eta,
+                        "phi": (pair_emu_2mu[0] + pair_emu_2mu[1]).phi,
+                        "mass": (pair_emu_2mu[0] + pair_emu_2mu[1]).mass,
+                    }),
+                    "z2": ak.zip({
+                        "lep1": pair_emu_2e[0],
+                        "lep2": pair_emu_2e[1],
+                        "p4": pair_emu_2e[0] + pair_emu_2e[1],
+                        "pt": (pair_emu_2e[0] + pair_emu_2e[1]).pt,
+                        "eta": (pair_emu_2e[0] + pair_emu_2e[1]).eta,
+                        "phi": (pair_emu_2e[0] + pair_emu_2e[1]).phi,
+                        "mass": (pair_emu_2e[0] + pair_emu_2e[1]).mass,
+                    }),
+                    "cand" : ak.zip({
+                        "pt": _hcand.pt,
+                        "eta": _hcand.eta,
+                        "phi": _hcand.phi,
+                        "mass": _hcand.mass,
+                    },with_name="PtEtaPhiMLorentzVector",)
+                })
                 
-        elif ak.num(pair_4mu,axis=0) > 0:
-            pair_4mu = [event_4mu[pair_4mu[idx]] for idx in "0123"]
+        elif ak.any(ak.num(pair_4mu)>0):
+            pair_4mu = [event_mu[pair_4mu[idx]] for idx in "0123"]
             _hcand= pair_4mu[0] + pair_4mu[1] + pair_4mu[2] + pair_4mu[3]
             ak.behavior.update(vector.behavior)
             pair_4lep = ak.zip({
@@ -254,8 +280,8 @@ class NanoProcessor(processor.ProcessorABC):
                 },with_name="PtEtaPhiMLorentzVector",)
             })
 
-        elif ak.num(pair_4e,axis=0) > 0:
-            pair_4e = [event_4e[pair_4e[idx]] for idx in "0123"]
+        elif ak.any(ak.num(pair_4e)>0):
+            pair_4e = [event_e[pair_4e[idx]] for idx in "0123"]
             _hcand= pair_4e[0] + pair_4e[1] + pair_4e[2] + pair_4e[3]
             ak.behavior.update(vector.behavior)
             pair_4lep = ak.zip({
@@ -284,7 +310,7 @@ class NanoProcessor(processor.ProcessorABC):
                     "mass": _hcand.mass,
                 },with_name="PtEtaPhiMLorentzVector",)
             })
-        else: return output
+        else : return output
         req_zmass=(pair_4lep.z1.p4.mass>12)&(pair_4lep.z1.p4.mass<120)&(pair_4lep.z2.p4.mass>12)&(pair_4lep.z2.p4.mass<120)&((pair_4lep.z1.p4.mass>40)|(pair_4lep.z2.p4.mass>40))
         req_ghost_removal = (pair_4lep.z1.lep1.delta_r(pair_4lep.z1.lep2)>0.02) & (pair_4lep.z1.lep1.delta_r(pair_4lep.z2.lep1)>0.02)&(pair_4lep.z1.lep1.delta_r(pair_4lep.z2.lep2)>0.02)&(pair_4lep.z1.lep2.delta_r(pair_4lep.z2.lep1)>0.02)&(pair_4lep.z1.lep1.delta_r(pair_4lep.z2.lep2)>0.02)&(pair_4lep.z2.lep1.delta_r(pair_4lep.z2.lep2)>0.02)
         req_leppt = (((pair_4lep.z1.lep1.pt>20)&(pair_4lep.z1.lep2.pt>10))|((pair_4lep.z2.lep1.pt>20)&(pair_4lep.z2.lep2.pt>10)))
@@ -294,212 +320,49 @@ class NanoProcessor(processor.ProcessorABC):
         best_z1 =  ak.singletons(ak.argmin(abs(pair_4lep.z1.p4.mass - 91.1876), axis=1))
            
         pair_4lep = pair_4lep[best_z1]
-        print(ak.to_list(pair_4lep))
-        # print(ak.to_list(events.Jet))
-        output['cutflow'][dataset]['selected Z pairs'] += ak.sum(ak.num(pair_4lep))
+        output['cutflow'][dataset]['selected Z pairs'] += ak.sum(ak.num(pair_4lep)>0)
+        print(ak.count(pair_4lep),ak.num(pair_4lep)>0,ak.sum(ak.num(pair_4lep) > 0))
         ###########
         
-        # print(pair_4lep.z1.lep1.metric_table(events.Jet,axis=2))
-        # print(ak.to_list(pair_4lep))
-        # print(ak.to_list(events.Jet))
-        # print(events.Jet.nearest(pair_4lep.z1.lep1,axis=2))
-        print(pair_4lep.z1.lep1.metric_table(events.Jet))
-        sel_jet = events.Jet[(events.Jet.pt > 25) & (abs(events.Jet.eta) <= 2.4)&((events.Jet.puId > 0)|(events.Jet.pt>50)) &(events.Jet.jetId>5)]
-        
-        # req_jets = (ak.count(event_jet.puId,axis=1) >= 1) 
-        # &(events.Jet.nearest(pair_4lep.z1.lep2,axis=2,threshold=0.4))&(events.Jet.nearest(pair_4lep.z2.lep1,axis=2,threshold=0.4))&(events.Jet.nearest(pair_4lep.z2.lep2,axis=2,threshold=0.4))
-        output['cutflow'][dataset]['selected jets'] += ak.sum(ak.num(sel_jet))
-        
-        print(ak.type(sel_jet))        
+        sel_jet = events.Jet[(events.Jet.pt > 25) & (abs(events.Jet.eta) <= 2.4)&((events.Jet.puId > 0)|(events.Jet.pt>50)) &(events.Jet.jetId>5)&ak.all(events.Jet.metric_table(pair_4lep.z1.lep1)>0.4,axis=2)&ak.all(events.Jet.metric_table(pair_4lep.z1.lep2)>0.4,axis=2)&ak.all(events.Jet.metric_table(pair_4lep.z2.lep1)>0.4,axis=2)&ak.all(events.Jet.metric_table(pair_4lep.z2.lep2)>0.4,axis=2)]
+        sel_jet = ak.mask(sel_jet,ak.num(pair_4lep)>0)
+        print(ak.count(sel_jet),ak.num(sel_jet)>0,ak.sum(ak.num(sel_jet) > 0))
+        output['cutflow'][dataset]['selected jets'] +=ak.sum(ak.num(sel_jet) > 0)
        
-         # output['nj'].fill(dataset=dataset,nj=ak.flatten(ak.num(maskjet),axis=None))
-            # output['zs_dr'].fill(dataset=dataset,dr=ak.flatten(pair_4lep.z1.p4.delta_r(pair_4lep.z2.p4)))
-            # output['z1_pt'].fill(dataset=dataset,pt=ak.flatten(pair_4lep.z1.p4.pt))
-            # output['z1_eta'].fill(dataset=dataset,eta=ak.flatten(pair_4lep.z1.p4.eta))
-            # output['z1_phi'].fill(dataset=dataset,phi=ak.flatten(pair_4lep.z1.p4.phi))
-            # output['z1_mass'].fill(dataset=dataset,mass=ak.flatten(pair_4lep.z1.p4.mass))
-            # output['z2_pt'].fill(dataset=dataset,pt=ak.flatten(pair_4lep.z2.p4.pt))
-            # output['z2_eta'].fill(dataset=dataset,eta=ak.flatten(pair_4lep.z2.p4.eta))
-            # output['z2_phi'].fill(dataset=dataset,phi=ak.flatten(pair_4lep.z2.p4.phi))
-            # output['z2_mass'].fill(dataset=dataset,mass=ak.flatten(pair_4lep.z2.p4.mass))
-            # output['higgs_pt'].fill(dataset=dataset,pt=ak.flatten(Higgs.pt))
-            # output['higgs_eta'].fill(dataset=dataset,eta=ak.flatten(Higgs.eta))
-            # output['higgs_phi'].fill(dataset=dataset,phi=ak.flatten(Higgs.phi))
-            # output['higgs_mass'].fill(dataset=dataset,mass=ak.flatten(Higgs.mass))
-            # genweiev=ak.flatten(ak.broadcast_arrays(weights.weight()[event_level],maskjet.metric_table(maskH))[0])
-            # print("jhdrL",maskjet.metric_table(maskH))
-            # output['hj_dr'].fill(dataset=dataset,dr=ak.flatten(maskjet.metric_table(maskH),axis=None))
-            # for histname, h in output.items():
-            #     if 'jet' in histname or 'btag' in histname:
-            #         if(isRealData):
-            #             fields = {l: ak.flatten(sel_jet[l], axis=None) for l in h.fields if l in dir(sel_jet)}
-            #             h.fill(dataset=dataset,flav=5, **fields)
-                        
-            #         else:
-            #             fields = {l: ak.flatten(sel_jet[histname.replace('jet_','')]) for l in h.fields if l in dir(sel_jet)}
-            #             genweiev=ak.flatten(ak.broadcast_arrays(weights.weight()[event_level],sel_jet['pt'])[0])
-            #             h.fill(dataset=dataset,flav=ak.flatten(sel_jet.hadronFlavour), **fields)
-            #     elif 'lep1_' in histname:
-            #         fields = {l: ak.flatten(pair_4lep.z1.lep1[histname.replace('lep1_','')]) for l in h.fields if l in dir(pair_4lep.z1.lep1)}
-            #         genweiev=ak.flatten(ak.broadcast_arrays(weights.weight()[event_level],pair_4lep.z1.lep1['pt'])[0])
-            #         h.fill(dataset=dataset, **fields)
-            #     elif 'lep2_' in histname:
-            #         fields = {l: ak.flatten(pair_4lep.z1.lep2[histname.replace('lep2_','')]) for l in h.fields if l in dir(pair_4lep.z1.lep2)}
-            #         h.fill(dataset=dataset, **fields)
-            #     elif 'lep3_' in histname:
-            #         fields = {l: ak.flatten(pair_4lep.z2.lep1[histname.replace('lep3_','')]) for l in h.fields if l in dir(pair_4lep.z2.lep2)}
-            #         h.fill(dataset=dataset, **fields)
-            #     elif 'lep4_' in histname:
-            #         fields = {l: ak.flatten(pair_4lep.z2.lep2[histname.replace('lep4_','')]) for l in h.fields if l in dir(pair_4lep.z2.lep2)}
-            #         h.fill(dataset=dataset, **fields)  
+        output['nj'].fill(dataset=dataset,nj=flatten(ak.num(sel_jet)))
+        output['zs_dr'].fill(dataset=dataset,dr=flatten(pair_4lep.z1.p4.delta_r(pair_4lep.z2.p4)))
+        output['hj_dr'].fill(dataset=dataset,dr=flatten(pair_4lep.cand.metric_table(sel_jet)))
+        for histname, h in output.items():
+            if 'jet' in histname or 'btag' in histname:
+                fields = {l: flatten(sel_jet[histname.replace('jet_','')]) for l in h.fields if l in dir(sel_jet)}
+                h.fill(dataset=dataset,flav=flatten(sel_jet.hadronFlavour), **fields)
+            elif 'lep1_' in histname:
+                fields = {l: flatten(pair_4lep.z1.lep1[histname.replace('lep1_','')]) for l in h.fields if l in dir(pair_4lep.z1.lep1)}
+                h.fill(dataset=dataset, **fields)
+            elif 'lep2_' in histname:
+                fields = {l: flatten(pair_4lep.z1.lep2[histname.replace('lep2_','')]) for l in h.fields if l in dir(pair_4lep.z1.lep2)}
+                h.fill(dataset=dataset, **fields)
+            elif 'lep3_' in histname:
+                fields = {l: flatten(pair_4lep.z2.lep1[histname.replace('lep3_','')]) for l in h.fields if l in dir(pair_4lep.z2.lep2)}
+                h.fill(dataset=dataset, **fields)
+            elif 'lep4_' in histname:
+                fields = {l: flatten(pair_4lep.z2.lep2[histname.replace('lep4_','')]) for l in h.fields if l in dir(pair_4lep.z2.lep2)}
+                h.fill(dataset=dataset, **fields)  
+            elif 'h_' in histname:
+                fields = {l: flatten(pair_4lep.cand[histname.replace('h_','')]) for l in h.fields if l in dir(pair_4lep.cand)}
+                h.fill(dataset=dataset, **fields)
+            elif 'z1_' in histname:
+                fields = {l: flatten(pair_4lep.z1[histname.replace('z1_','')]) for l in h.fields if l in dir(pair_4lep.z1)}
+                h.fill(dataset=dataset, **fields)  
+            elif 'z2_' in histname:
+                fields = {l: flatten(pair_4lep.z2[histname.replace('z2_','')]) for l in h.fields if l in dir(pair_4lep.z2)}
+                h.fill(dataset=dataset, **fields)  
         
-        # # output['cutflow'][dataset]['selected lepton&jets'] += ak.sum(ak.num(selev,axis=0))
+        
 
         # #########
         
-        # # Per muon
-        # smu = selev.Muon[(selev.Muon.pt > 5) & (abs(selev.Muon.eta < 2.4))& (selev.Muon.tightId==1)&(selev.Muon.pfRelIso03_all<0.35)&(selev.Muon.sip3d<4)&(selev.Muon.dxy<0.5)&(selev.Muon.dz<1)]
-        
-        
-                  
-        # # ## Electron cuts
-        # # # electron twiki: https://twiki.cern.ch/twiki/bin/viewauth/CMS/CutBasedElectronIdentificationRun2
-        # sele =  selev.Electron[(selev.Electron.pt > 7) & (abs(selev.Electron.eta) < 2.5)&(selev.Electron.mvaFall17V2Iso_WP90==1)&(selev.Electron.sip3d<4)& (selev.Electron.dxy<0.5)&(selev.Electron.dz<1)]
-        
-        
-        
-        
-        
 
-        # # Per jet : https://twiki.cern.ch/twiki/bin/viewauth/CMS/PileupJetID
-        
-        # sel_jet = selev.Jet[(selev.Jet.pt > 25) & (abs(selev.Jet.eta) <= 2.4)&((selev.Jet.puId > 0)|(selev.Jet.pt>50)) &(selev.Jet.jetId>5)]
-        
-        # if(ak.num(selev,axis=0)>0):
-            
-        #     sele = sele[ak.argsort(sele.pt,axis=1)]
-        #     smu = smu[ak.argsort(smu.pt,axis=1)]
-        #     print(ak.type(selev),ak.type(sele),ak.type(smu))
-        #     pair_2e = find_2lep(sele, ak.ArrayBuilder()).snapshot()
-        #     pair_2mu = find_2lep(smu, ak.ArrayBuilder()).snapshot()
-        #     s4ele = sele[ak.num(sele)>=4]
-        #     s4mu = smu[ak.num(smu)>=4]            
-        #     pair_4mu = find_4lep(s4mu, ak.ArrayBuilder()).snapshot()
-        #     pair_4e = find_4lep(s4ele, ak.ArrayBuilder()).snapshot()
-        #     if (ak.all(ak.num(pair_2e))&ak.all(ak.num(pair_2mu))):
-        #         pair_2mu  = [sele[pair_2mu[idx]] for idx in "01"]
-        #         pair_2e  = [smu[pair_2e[idx]] for idx in "01"]
-        #         pair_4lep = ak.zip({
-        #         "z1": ak.zip({
-        #             "lep1": pair_2mu[0],
-        #             "lep2": pair_2mu[1],
-        #             "p4": pair_2mu[0] + pair_2mu[1],
-        #         }),
-        #         "z2": ak.zip({
-        #            "lep1": pair_2e[0],
-        #             "lep2": pair_2e[1],
-        #             "p4": pair_2e[0] + pair_2e[1],
-        #         }),
-        #     })
-                
-        #     elif ak.num(pair_4mu,axis=0) > 0:
-        #         pair_4mu = [s4mu[pair_4mu[idx]] for idx in "0123"]
-        #         pair_4lep = ak.zip({
-        #         "z1": ak.zip({
-        #             "lep1": pair_4mu[0],
-        #             "lep2": pair_4mu[1],
-        #             "p4": pair_4mu[0] + pair_4mu[1],
-        #         }),
-        #         "z2": ak.zip({
-        #             "lep1": pair_4mu[2],
-        #             "lep2": pair_4mu[3],
-        #             "p4": pair_4mu[2] + pair_4mu[3],
-        #         }),
-        #     })
-
-        #     elif ak.num(pair_4e,axis=0) > 0:
-        #         pair_4e = [s4ele[pair_4e[idx]] for idx in "0123"]
-        #         pair_4lep = ak.zip({
-        #         "z1": ak.zip({
-        #             "lep1": pair_4e[0],
-        #             "lep2": pair_4e[1],
-        #             "p4": pair_4e[0] + pair_4e[1],
-        #         }),
-        #         "z2": ak.zip({
-        #             "lep1": pair_4e[2],
-        #             "lep2": pair_4e[3],
-        #             "p4": pair_4e[2] + pair_4e[3],
-        #         }),
-        #     })
-        #     else:
-        #         print("???") 
-        #         return output
-        #     print(ak.type(pair_4lep))
-        #     print("pair_4lep",ak.num(pair_4lep),pair_4lep)
-        #     zmass_cut=(pair_4lep.z1.p4.mass>12)&(pair_4lep.z1.p4.mass<120)&(pair_4lep.z2.p4.mass>12)&(pair_4lep.z2.p4.mass<120)&((pair_4lep.z1.p4.mass>40)|(pair_4lep.z2.p4.mass>40))
-        #     ghost_removal = (pair_4lep.z1.lep1.delta_r(pair_4lep.z1.lep2)>0.02) & (pair_4lep.z1.lep1.delta_r(pair_4lep.z2.lep1)>0.02)&(pair_4lep.z1.lep1.delta_r(pair_4lep.z2.lep2)>0.02)&(pair_4lep.z1.lep2.delta_r(pair_4lep.z2.lep1)>0.02)&(pair_4lep.z1.lep1.delta_r(pair_4lep.z2.lep2)>0.02)&(pair_4lep.z2.lep1.delta_r(pair_4lep.z2.lep2)>0.02)
-        #     leppt = (((pair_4lep.z1.lep1.pt>20)&(pair_4lep.z1.lep2.pt>10))|((pair_4lep.z2.lep1.pt>20)&(pair_4lep.z2.lep2.pt>10)))
-        #     hmass = (pair_4lep.z2.p4+pair_4lep.z1.p4).mass>70
-        #     pair_4lep = pair_4lep[zmass_cut&ghost_removal&leppt&hmass]
-             
-        #     best_z1 =  ak.singletons(ak.argmin(abs(pair_4lep.z1.p4.mass - 91.1876), axis=1))
-           
-        #     pair_4lep = pair_4lep[best_z1]
-
-        #     Higgs=pair_4lep.z1.p4+pair_4lep.z2.p4
-        #     print("Higgs",ak.num(Higgs),Higgs)
-        #     print("seljet",ak.num(sel_jet),sel_jet)
-        #     maskjet=ak.mask(sel_jet,ak.num(Higgs)>0)
-
-        #     # genweiev=ak.flatten(ak.broadcast_ar rays(weights.weight()[event_level],pair_4lep.z2.p4.pt)[0])
-        #     # Higgs= ak.pad_none(Higgs,len(selev),axis=-1)
-        #     maskjet = maskjet[ak.all((maskjet.metric_table(pair_4lep.z1.lep1)>0.4),axis=2)&ak.all((maskjet.metric_table(pair_4lep.z1.lep2)>0.4),axis=2)&ak.all((maskjet.metric_table(pair_4lep.z2.lep1)>0.4),axis=2)&ak.all((maskjet.metric_table(pair_4lep.z2.lep2)>0.4),axis=2)]
-        #     mask4lep = ak.mask(pair_4lep,ak.num(maskjet)>0)
-        #     print("mask4lep",mask4lep)
-            
-            
-            
-
-            # output['nj'].fill(dataset=dataset,nj=ak.flatten(ak.num(maskjet),axis=None))
-            # output['zs_dr'].fill(dataset=dataset,dr=ak.flatten(pair_4lep.z1.p4.delta_r(pair_4lep.z2.p4)))
-            # output['z1_pt'].fill(dataset=dataset,pt=ak.flatten(pair_4lep.z1.p4.pt))
-            # output['z1_eta'].fill(dataset=dataset,eta=ak.flatten(pair_4lep.z1.p4.eta))
-            # output['z1_phi'].fill(dataset=dataset,phi=ak.flatten(pair_4lep.z1.p4.phi))
-            # output['z1_mass'].fill(dataset=dataset,mass=ak.flatten(pair_4lep.z1.p4.mass))
-            # output['z2_pt'].fill(dataset=dataset,pt=ak.flatten(pair_4lep.z2.p4.pt))
-            # output['z2_eta'].fill(dataset=dataset,eta=ak.flatten(pair_4lep.z2.p4.eta))
-            # output['z2_phi'].fill(dataset=dataset,phi=ak.flatten(pair_4lep.z2.p4.phi))
-            # output['z2_mass'].fill(dataset=dataset,mass=ak.flatten(pair_4lep.z2.p4.mass))
-            # output['higgs_pt'].fill(dataset=dataset,pt=ak.flatten(Higgs.pt))
-            # output['higgs_eta'].fill(dataset=dataset,eta=ak.flatten(Higgs.eta))
-            # output['higgs_phi'].fill(dataset=dataset,phi=ak.flatten(Higgs.phi))
-            # output['higgs_mass'].fill(dataset=dataset,mass=ak.flatten(Higgs.mass))
-            # genweiev=ak.flatten(ak.broadcast_arrays(weights.weight()[event_level],maskjet.metric_table(maskH))[0])
-            # print("jhdrL",maskjet.metric_table(maskH))
-            # output['hj_dr'].fill(dataset=dataset,dr=ak.flatten(maskjet.metric_table(maskH),axis=None))
-            # for histname, h in output.items():
-            #     if 'jet' in histname or 'btag' in histname:
-            #         if(isRealData):
-            #             fields = {l: ak.flatten(sel_jet[l], axis=None) for l in h.fields if l in dir(sel_jet)}
-            #             h.fill(dataset=dataset,flav=5, **fields)
-                        
-            #         else:
-            #             fields = {l: ak.flatten(sel_jet[histname.replace('jet_','')]) for l in h.fields if l in dir(sel_jet)}
-            #             genweiev=ak.flatten(ak.broadcast_arrays(weights.weight()[event_level],sel_jet['pt'])[0])
-            #             h.fill(dataset=dataset,flav=ak.flatten(sel_jet.hadronFlavour), **fields)
-            #     elif 'lep1_' in histname:
-            #         fields = {l: ak.flatten(pair_4lep.z1.lep1[histname.replace('lep1_','')]) for l in h.fields if l in dir(pair_4lep.z1.lep1)}
-            #         genweiev=ak.flatten(ak.broadcast_arrays(weights.weight()[event_level],pair_4lep.z1.lep1['pt'])[0])
-            #         h.fill(dataset=dataset, **fields)
-            #     elif 'lep2_' in histname:
-            #         fields = {l: ak.flatten(pair_4lep.z1.lep2[histname.replace('lep2_','')]) for l in h.fields if l in dir(pair_4lep.z1.lep2)}
-            #         h.fill(dataset=dataset, **fields)
-            #     elif 'lep3_' in histname:
-            #         fields = {l: ak.flatten(pair_4lep.z2.lep1[histname.replace('lep3_','')]) for l in h.fields if l in dir(pair_4lep.z2.lep2)}
-            #         h.fill(dataset=dataset, **fields)
-            #     elif 'lep4_' in histname:
-            #         fields = {l: ak.flatten(pair_4lep.z2.lep2[histname.replace('lep4_','')]) for l in h.fields if l in dir(pair_4lep.z2.lep2)}
-            #         h.fill(dataset=dataset, **fields)  
             
        
 
