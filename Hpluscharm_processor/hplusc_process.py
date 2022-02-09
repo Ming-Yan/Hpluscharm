@@ -169,18 +169,15 @@ class NanoProcessor(processor.ProcessorABC):
         ## Muon cuts
         # muon twiki: https://twiki.cern.ch/twiki/bin/view/CMS/SWGuideMuonIdRun2
         event_mu = events.Muon[ak.argsort(events.Muon.pt, axis=1)]
-        event_mu = events.Muon[(events.Muon.pt > 5) & (abs(events.Muon.eta < 2.4))& (events.Muon.tightId>=1)&(events.Muon.pfRelIso03_all<0.35)&(events.Muon.sip3d>4)&(events.Muon.dxy<0.5)&(events.Muon.dz<1)]
+        event_mu = events.Muon[(events.Muon.pt > 5) & (abs(events.Muon.eta) < 2.4)& (events.Muon.tightId>=1)&(events.Muon.pfRelIso03_all<0.35)&(events.Muon.sip3d<4)&(abs(events.Muon.dxy)<0.5)&(abs(events.Muon.dz)<1)]
         
                   
         # ## Electron cuts
         # # electron twiki: https://twiki.cern.ch/twiki/bin/viewauth/CMS/CutBasedElectronIdentificationRun2
         event_e = events.Electron[ak.argsort(events.Electron.pt, axis=1)]
-        event_e = events.Electron[(events.Electron.pt > 7) & (abs(events.Electron.eta) < 2.5)&(events.Electron.cutBased>3)&(events.Electron.sip3d<4)& (events.Electron.dxy<0.5)&(events.Electron.dz<1) ]
+        event_e = events.Electron[(events.Electron.pt > 7) & (abs(events.Electron.eta) < 2.5)&(events.Electron.cutBased>=3)&(events.Electron.sip3d<4)& (abs(events.Electron.dxy)<0.5)&(abs(events.Electron.dz)<1) ]
         #
         
-        
-        req_lep = (ak.count(event_e.pt,axis=1)>=4)|(ak.count(event_mu.pt,axis=1)>=4)| ((ak.count(event_mu.pt,axis=1)>=2)&(ak.count(event_e.pt,axis=1)>=2))
-       
 
         # output['cutflow'][dataset]['selected leptons'] += ak.count(events[req_lep])
         #########
@@ -203,84 +200,85 @@ class NanoProcessor(processor.ProcessorABC):
         pair_emu_2mu = ak.mask(pair_2mu,masked2e2mu)
         pair_4e = ak.mask(pair_4e,masked4e)
         pair_4mu = ak.mask(pair_4mu,masked4mu)
-        if(ak.all(ak.num(pair_2e)+ak.num(pair_2mu)<2)&ak.all(ak.num(pair_4e)==0)&ak.all(ak.num(pair_4mu)==0)):return output
+        # if(ak.all(ak.num(pair_2e)+ak.num(pair_2mu)<2)&ak.all(ak.num(pair_4e)==0)&ak.all(ak.num(pair_4mu)==0)):return output
         # print(ak.type(ak.num(pair_emu_2e)))
-        # print(ak.type(pair_4e))
-        print(ak.sum(ak.num(pair_emu_2e)>0),ak.sum(ak.num(pair_emu_2mu)>0))
-        check_2e = pair_2e[ak.num(pair)]
-        check_2mu = pair_emu_2mu[ak.num(pair_emu_2mu>0)]
-        print(check_2e,check_2mu)
-        if (ak.any(ak.num(pair_emu_2e)>0)&ak.any(ak.num(pair_emu_2mu))):
-        # if (ak.any(ak.num(pair_2e)>0)&ak.any(ak.num(pair_2mu)>0)):
-            # print(ak.type(pair_2e2mu),ak.type(pair_2e),ak.type(pair_2mu))
-            pair_emu_2e = [event_e[pair_emu_2e[idx]] for idx in "01"]
-            pair_emu_2mu = [event_mu[pair_emu_2mu[idx]] for idx in "01"]
+      
         
-            print(pair_emu_2e[0])
-            print(pair_emu_2e[1])
-            print(pair_emu_2mu[0])
-            print(pair_emu_2mu[1])
-            _hcand= pair_emu_2e[0] + pair_emu_2e[1] + pair_emu_2mu[0] + pair_emu_2mu[1]
-            ak.behavior.update(vector.behavior)
-            pair_4lep = ak.zip({
-                    "z1": ak.zip({
-                        "lep1": pair_emu_2mu[0],
-                        "lep2": pair_emu_2mu[1],
-                        "p4": pair_emu_2mu[0] + pair_emu_2mu[1],
-                        "pt": (pair_emu_2mu[0] + pair_emu_2mu[1]).pt,
-                        "eta": (pair_emu_2mu[0] + pair_emu_2mu[1]).eta,
-                        "phi": (pair_emu_2mu[0] + pair_emu_2mu[1]).phi,
-                        "mass": (pair_emu_2mu[0] + pair_emu_2mu[1]).mass,
-                    }),
-                    "z2": ak.zip({
-                        "lep1": pair_emu_2e[0],
-                        "lep2": pair_emu_2e[1],
-                        "p4": pair_emu_2e[0] + pair_emu_2e[1],
-                        "pt": (pair_emu_2e[0] + pair_emu_2e[1]).pt,
-                        "eta": (pair_emu_2e[0] + pair_emu_2e[1]).eta,
-                        "phi": (pair_emu_2e[0] + pair_emu_2e[1]).phi,
-                        "mass": (pair_emu_2e[0] + pair_emu_2e[1]).mass,
-                    }),
-                    "cand" : ak.zip({
-                        "pt": _hcand.pt,
-                        "eta": _hcand.eta,
-                        "phi": _hcand.phi,
-                        "mass": _hcand.mass,
-                    },with_name="PtEtaPhiMLorentzVector",)
-                })
+        
+        # if (ak.any(ak.num(pair_emu_2e)>0)&ak.any(ak.num(pair_emu_2mu)>0)):
+        # # if (ak.any(ak.num(pair_2e)>0)&ak.any(ak.num(pair_2mu)>0)):
+        #     # print(ak.type(pair_2e2mu),ak.type(pair_2e),ak.type(pair_2mu))
+        #     # print("PREV  pair_emu_2e",ak.to_list(pair_emu_2e))
+        #     # print("PREV  pair_emu_2mu0",ak.to_list(pair_emu_2mu))
+        #     pair_emu_2e = [event_e[pair_emu_2e[idx]] for idx in "01"]
+        #     pair_emu_2mu = [event_mu[pair_emu_2mu[idx]] for idx in "01"]
+        
+        #     # print("pair_emu_2e0",ak.to_list(pair_emu_2e[0]))
+        #     # print("pair_emu_2e1",ak.to_list(pair_emu_2e[1]))
+        #     # print("pair_emu_2mu0",ak.to_list(pair_emu_2mu[0]))
+        #     # print("pair_emu_2mu1",ak.to_list(pair_emu_2mu[1]))
+        #     _hcand= pair_emu_2e[0] + pair_emu_2e[1] + pair_emu_2mu[0] + pair_emu_2mu[1]
+        #     ak.behavior.update(vector.behavior)
+        #     pair_4lep = ak.zip({
+        #             "z1": ak.zip({
+        #                 "lep1": pair_emu_2mu[0],
+        #                 "lep2": pair_emu_2mu[1],
+        #                 "p4": pair_emu_2mu[0] + pair_emu_2mu[1],
+        #                 "pt": (pair_emu_2mu[0] + pair_emu_2mu[1]).pt,
+        #                 "eta": (pair_emu_2mu[0] + pair_emu_2mu[1]).eta,
+        #                 "phi": (pair_emu_2mu[0] + pair_emu_2mu[1]).phi,
+        #                 "mass": (pair_emu_2mu[0] + pair_emu_2mu[1]).mass,
+        #             }),
+        #             "z2": ak.zip({
+        #                 "lep1": pair_emu_2e[0],
+        #                 "lep2": pair_emu_2e[1],
+        #                 "p4": pair_emu_2e[0] + pair_emu_2e[1],
+        #                 "pt": (pair_emu_2e[0] + pair_emu_2e[1]).pt,
+        #                 "eta": (pair_emu_2e[0] + pair_emu_2e[1]).eta,
+        #                 "phi": (pair_emu_2e[0] + pair_emu_2e[1]).phi,
+        #                 "mass": (pair_emu_2e[0] + pair_emu_2e[1]).mass,
+        #             }),
+        #             "cand" : ak.zip({
+        #                 "pt": _hcand.pt,
+        #                 "eta": _hcand.eta,
+        #                 "phi": _hcand.phi,
+        #                 "mass": _hcand.mass,
+        #             },with_name="PtEtaPhiMLorentzVector",)
+        #         })
                 
-        elif ak.any(ak.num(pair_4mu)>0):
-            pair_4mu = [event_mu[pair_4mu[idx]] for idx in "0123"]
-            _hcand= pair_4mu[0] + pair_4mu[1] + pair_4mu[2] + pair_4mu[3]
-            ak.behavior.update(vector.behavior)
-            pair_4lep = ak.zip({
-                "z1": ak.zip({
-                    "lep1": pair_4mu[0],
-                    "lep2": pair_4mu[1],
-                    "p4": pair_4mu[0] + pair_4mu[1],
-                    "pt": (pair_4mu[0] + pair_4mu[1]).pt,
-                    "eta": (pair_4mu[0] + pair_4mu[1]).eta,
-                    "phi": (pair_4mu[0] + pair_4mu[1]).phi,
-                    "mass": (pair_4mu[0] + pair_4mu[1]).mass,
-                }),
-                "z2": ak.zip({
-                    "lep1": pair_4mu[2],
-                    "lep2": pair_4mu[3],
-                    "p4": pair_4mu[2] + pair_4mu[3],
-                    "pt": (pair_4mu[2] + pair_4mu[3]).pt,
-                    "eta": (pair_4mu[2] + pair_4mu[3]).eta,
-                    "phi": (pair_4mu[2] + pair_4mu[3]).phi,
-                    "mass": (pair_4mu[2] + pair_4mu[3]).mass,
-                }),
-                "cand" : ak.zip({
-                    "pt": _hcand.pt,
-                    "eta": _hcand.eta,
-                    "phi": _hcand.phi,
-                    "mass": _hcand.mass,
-                },with_name="PtEtaPhiMLorentzVector",)
-            })
+        # el
+        # if ak.any(ak.num(pair_4mu)>0):
+        #     pair_4mu = [event_mu[pair_4mu[idx]] for idx in "0123"]
+        #     _hcand= pair_4mu[0] + pair_4mu[1] + pair_4mu[2] + pair_4mu[3]
+        #     ak.behavior.update(vector.behavior)
+        #     pair_4lep = ak.zip({
+        #         "z1": ak.zip({
+        #             "lep1": pair_4mu[0],
+        #             "lep2": pair_4mu[1],
+        #             "p4": pair_4mu[0] + pair_4mu[1],
+        #             "pt": (pair_4mu[0] + pair_4mu[1]).pt,
+        #             "eta": (pair_4mu[0] + pair_4mu[1]).eta,
+        #             "phi": (pair_4mu[0] + pair_4mu[1]).phi,
+        #             "mass": (pair_4mu[0] + pair_4mu[1]).mass,
+        #         }),
+        #         "z2": ak.zip({
+        #             "lep1": pair_4mu[2],
+        #             "lep2": pair_4mu[3],
+        #             "p4": pair_4mu[2] + pair_4mu[3],
+        #             "pt": (pair_4mu[2] + pair_4mu[3]).pt,
+        #             "eta": (pair_4mu[2] + pair_4mu[3]).eta,
+        #             "phi": (pair_4mu[2] + pair_4mu[3]).phi,
+        #             "mass": (pair_4mu[2] + pair_4mu[3]).mass,
+        #         }),
+        #         "cand" : ak.zip({
+        #             "pt": _hcand.pt,
+        #             "eta": _hcand.eta,
+        #             "phi": _hcand.phi,
+        #             "mass": _hcand.mass,
+        #         },with_name="PtEtaPhiMLorentzVector",)
+        #     })
 
-        elif ak.any(ak.num(pair_4e)>0):
+        if ak.any(ak.num(pair_4e)>0):
             pair_4e = [event_e[pair_4e[idx]] for idx in "0123"]
             _hcand= pair_4e[0] + pair_4e[1] + pair_4e[2] + pair_4e[3]
             ak.behavior.update(vector.behavior)
@@ -316,6 +314,7 @@ class NanoProcessor(processor.ProcessorABC):
         req_leppt = (((pair_4lep.z1.lep1.pt>20)&(pair_4lep.z1.lep2.pt>10))|((pair_4lep.z2.lep1.pt>20)&(pair_4lep.z2.lep2.pt>10)))
         req_hmass = (pair_4lep.z2.p4+pair_4lep.z1.p4).mass>70
         pair_4lep = pair_4lep[req_zmass&req_ghost_removal&req_leppt&req_hmass]
+        
             
         best_z1 =  ak.singletons(ak.argmin(abs(pair_4lep.z1.p4.mass - 91.1876), axis=1))
            
@@ -348,8 +347,8 @@ class NanoProcessor(processor.ProcessorABC):
             elif 'lep4_' in histname:
                 fields = {l: flatten(pair_4lep.z2.lep2[histname.replace('lep4_','')]) for l in h.fields if l in dir(pair_4lep.z2.lep2)}
                 h.fill(dataset=dataset, **fields)  
-            elif 'h_' in histname:
-                fields = {l: flatten(pair_4lep.cand[histname.replace('h_','')]) for l in h.fields if l in dir(pair_4lep.cand)}
+            elif 'higgs_' in histname:
+                fields = {l: flatten(pair_4lep.cand[histname.replace('higgs_','')]) for l in h.fields if l in dir(pair_4lep.cand)}
                 h.fill(dataset=dataset, **fields)
             elif 'z1_' in histname:
                 fields = {l: flatten(pair_4lep.z1[histname.replace('z1_','')]) for l in h.fields if l in dir(pair_4lep.z1)}
