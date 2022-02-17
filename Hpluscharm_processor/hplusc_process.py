@@ -13,7 +13,7 @@ import awkward as ak
 from coffea.analysis_tools import Weights
 from functools import partial
 import numba
-from util import reduce_and, reduce_or, nano_mask_or, get_ht, normalize, make_p4
+from helpers.util import reduce_and, reduce_or, nano_mask_or, get_ht, normalize, make_p4
 
 def flatten(ar): # flatten awkward into a 1d array to hist
     return ak.flatten(ar, axis=None)
