@@ -77,7 +77,7 @@ def get_main_parser():
     parser.add_argument('--skipbadfiles', action='store_true', help='Skip bad files.')
     parser.add_argument('--only', type=str, default=None, help='Only process specific dataset or file')
     parser.add_argument('--limit', type=int, default=None, metavar='N', help='Limit to the first N files of each dataset in sample JSON')
-    parser.add_argument('--chunk', type=int, default=50000, metavar='N', help='Number of events per process chunk')
+    parser.add_argument('--chunk', type=int, default=500000, metavar='N', help='Number of events per process chunk')
     parser.add_argument('--max', type=int, default=None, metavar='N', help='Max number of chunks to run in total')
     return parser
 
@@ -143,8 +143,9 @@ if __name__ == '__main__':
         sys.exit(0)
 
     # load workflow
-   
-    from hplusc_process import NanoProcessor
+    if args.workflow =="old":
+        from hplusc_process_old import NanoProcessor
+    else :from hplusc_process import NanoProcessor
     processor_instance = NanoProcessor()
 
     if args.executor not in ['futures', 'iterative', 'dask/lpc', 'dask/casa']:
