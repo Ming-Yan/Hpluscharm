@@ -10,7 +10,7 @@ import awkward as ak
 import numpy as np
 import vector
 
-from func import parametrized
+from helpers.func import parametrized
 
 logger = logging.getLogger(__name__)
 

@@ -79,6 +79,7 @@ def get_main_parser():
     parser.add_argument('--limit', type=int, default=None, metavar='N', help='Limit to the first N files of each dataset in sample JSON')
     parser.add_argument('--chunk', type=int, default=500000, metavar='N', help='Number of events per process chunk')
     parser.add_argument('--max', type=int, default=None, metavar='N', help='Max number of chunks to run in total')
+    parser.add_argument('--memory', type=int, default=4, metavar='N', help='Memory of slurm ')
     return parser
 
 
@@ -166,8 +167,7 @@ if __name__ == '__main__':
         env_extra = [
             'export XRD_RUNFORKHANDLER=1',
             f'export X509_USER_PROXY={_x509_path}',
-            f'export X509_CERT_DIR=/cvmfs/grid.cern.ch/etc/grid-security/certificates'
-            #'{os.environ["X509_CERT_DIR"]}',
+            f'export X509_CERT_DIR={os.environ["X509_CERT_DIR"]}',
             f"export PYTHONPATH=$PYTHONPATH:{os.getcwd()}",
         ]
         condor_extra = [
@@ -301,8 +301,9 @@ if __name__ == '__main__':
                 queue='all',
                 cores=args.workers,
                 processes=args.workers,
-                memory="200 GB",
-                retries=10,
+                #memory="200 GB",
+                #retries=10,
+                memory = "%d GB" %(args.memory),
                 walltime='00:30:00',
                 env_extra=env_extra,
             )
