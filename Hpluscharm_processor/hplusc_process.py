@@ -12,9 +12,35 @@ import awkward as ak
 # from utils.correction import *
 from coffea.analysis_tools import Weights
 from functools import partial
-import numba
-from helpers.util import reduce_and, reduce_or, nano_mask_or, get_ht, normalize, make_p4
 
+# from helpers.util import reduce_and, reduce_or, nano_mask_or, get_ht, normalize, make_p4
+
+import numba
+
+@numba.njit
+def find_4lep(events_leptons, builder):
+    for leptons in events_leptons:
+        builder.begin_list()
+        nlep = len(leptons)
+        for i0 in range(nlep):
+            for i1 in range(i0 + 1, nlep):
+                if leptons[i0].charge + leptons[i1].charge != 0:
+                    continue
+                for i2 in range(nlep):
+                    for i3 in range(i2 + 1, nlep):
+                        if len({i0, i1, i2, i3}) < 4:
+                            continue
+                        if leptons[i2].charge + leptons[i3].charge != 0:
+                            continue
+                        builder.begin_tuple(4)
+                        builder.index(0).integer(i0)
+                        builder.index(1).integer(i1)
+                        builder.index(2).integer(i2)
+                        builder.index(3).integer(i3)
+                        builder.end_tuple()
+        builder.end_list()
+
+    return builder
 def flatten(ar): # flatten awkward into a 1d array to hist
     return ak.flatten(ar, axis=None)
 def normalize(val, cut):
@@ -24,8 +50,6 @@ def normalize(val, cut):
             else:
                 ar = ak.to_numpy(ak.fill_none(val[cut], np.nan))
                 return ar
-
-
 class NanoProcessor(processor.ProcessorABC):
     # Define histograms
     def __init__(self):     
@@ -228,21 +252,99 @@ class NanoProcessor(processor.ProcessorABC):
                 ak.concatenate([event_e, event_mu], axis=1),
                 "PtEtaPhiMCandidate",
             )
+        # print(ak.type(event_e))
+
         # good_leptons = ak.concatenate([event_e, event_mu], axis=1)
-               
-        pair_4lep = ak.combinations(
-                good_leptons,
-                n=4,
-                replacement=False,
-                axis=-1,
-                fields=["lep1", "lep2","lep3","lep4"]
-            )
+        # print(ak.type(good_leptons))       
+        # pair_4lep = ak.combinations(
+        #         good_leptons,
+        #         n=4,
+        #         replacement=False,
+        #         axis=-1,
+        #         fields=["lep1", "lep2","lep3","lep4"]
+        #     )
+        # print((pair_4lep[0].lep_flav+pair_4lep[1].lep_flav==0).tolist())
+        # print(ak.any(pair_4lep[0].lep_flav+pair_4lep[1].lep_flav==0,axis=-1))
+        # print(ak.type(pair_4lep.fields))
+        # print(ak.any(pair_4lep[0].lep_flav+pair_4lep[1].lep_flav==0).tolist())
+        # if ak.any(pair_4lep[0].lep_flav+pair_4lep[1].lep_flav==0):
+        #     if ak.any(abs((pair_4lep[0]+pair_4lep[1]).mass-91.18) < abs((pair_4lep.lep3+pair_4lep.lep4).mass-91.18)):
+        #         tmpz1 = pair_4lep[0]+pair_4lep[1]
+        #         tmpz2 = pair_4lep.lep3+pair_4lep.lep4
+        #     else :
+        #         tmpz2 = pair_4lep[0]+pair_4lep[1]
+        #         tmpz1 = pair_4lep.lep3+pair_4lep.lep4
+        # elif ak.any(pair_4lep[0].lep_flav+pair_4lep.lep3.lep_flav)==0:
+        #     if ak.any(abs((pair_4lep[0]+pair_4lep.lep3).mass-91.18) <abs((pair_4lep[1]+pair_4lep.lep4).mass-91.18)):
+        #         tmpz1 = pair_4lep[0]+pair_4lep.lep3
+        #         tmpz2 = pair_4lep[1]+pair_4lep.lep4
+        #     else :
+        #         tmpz2 = pair_4lep[0]+pair_4lep.lep3
+        #         tmpz1 = pair_4lep[1]+pair_4lep.lep4
+        # else :
+        #     if ak.any(abs((pair_4lep[0]+pair_4lep.lep4).mass-91.18) <abs((pair_4lep[1]+pair_4lep.lep3).mass-91.18)):
+        #         tmpz1 = pair_4lep[0]+pair_4lep.lep4
+        #         tmpz2 = pair_4lep[1]+pair_4lep.lep3
+        #     else :
+        #         tmpz2 = pair_4lep[0]+pair_4lep.lep4
+        #         tmpz1 = pair_4lep[1]+pair_4lep.lep3
+        # z1 = ak.zip({
+        #             "pt": tmpz1.pt,
+        #             "eta": tmpz1.eta,
+        #             "phi": tmpz1.phi,
+        #             "mass": tmpz1.mass,
+        #         },with_name="PtEtaPhiMLorentzVector",)
+        # z2 = ak.zip({
+        #             "pt": tmpz2.pt,
+        #             "eta": tmpz2.eta,
+        #             "phi": tmpz2.phi,
+        #             "mass": tmpz2.mass,
+        #         },with_name="PtEtaPhiMLorentzVector",)
+        fourmuon = find_4lep(event_e, ak.ArrayBuilder()).snapshot()
+
+        fourmuon = [event_e[fourmuon[idx]] for idx in "0123"]
+        # pair_4lep = find_4lep(event_e, ak.ArrayBuilder()).snapshot()
+        # pair_4lep = [good_leptons[pair_4lep[idx]] for idx in "0123"]
+        # ak.behavior.update(vector.behavior)
+        # pair_4lep_comb = ak.zip({
+        #     "z1" : ak.zip({
+        #             "lep1": pair_4lep[0],
+        #             "lep2": pair_4lep[1],
+        #             "pt": (pair_4lep[0]+pair_4lep[1]).pt,
+        #             "eta": (pair_4lep[0]+pair_4lep[1]).eta,
+        #             "phi": (pair_4lep[0]+pair_4lep[1]).phi,
+        #             "mass": (pair_4lep[0]+pair_4lep[1]).mass,
+        #         },with_name="PtEtaPhiMLorentzVector",),
+        #     "z2" :ak.zip({
+        #                 "lep3": pair_4lep[2],
+        #                 "lep4": pair_4lep[3],
+        #                 "pt": (pair_4lep.lep3+pair_4lep.lep4).pt,
+        #                 "eta": (pair_4lep.lep3+pair_4lep.lep4).eta,
+        #                 "phi": (pair_4lep.lep3+pair_4lep.lep4).phi,
+        #                 "mass": (pair_4lep.lep3+pair_4lep.lep4).mass,
+        #             },with_name="PtEtaPhiMLorentzVector",),  
+        #     "higgs" :  ak.zip({
+        #                 "pt": (pair_4lep[0]+pair_4lep[1]+pair_4lep.lep3+pair_4lep.lep4).pt,
+        #                 "eta": (pair_4lep[0]+pair_4lep[1]+pair_4lep.lep3+pair_4lep.lep4).eta,
+        #                 "phi": (pair_4lep[0]+pair_4lep[1]+pair_4lep.lep3+pair_4lep.lep4).phi,
+        #                 "mass": (pair_4lep[0]+pair_4lep[1]+pair_4lep.lep3+pair_4lep.lep4).mass,
+        #             },with_name="PtEtaPhiMLorentzVector",)
+        # })
+        '''
+        bestz1 = ak.singletons(ak.argmin(abs(pair_4lep_comb.z1.mass - 91.1876), axis=1))
+        pair_4lep_comb = pair_4lep_comb[bestz1]
+        req_opp_charge = ak.any((pair_4lep[0].lep_flav+pair_4lep[1].lep_flav+pair_4lep.lep3.lep_flav+pair_4lep.lep4.lep_flav==0),axis=-1,mask_identity=False)
+        # req_zmass = ak.any((((z1.mass>12)&(z1.mass<120))&((z2.mass>12)&(z2.mass<120))&(z1.mass>40)),axis=-1,mask_identity=False)
+        req_zmass = ak.any((((pair_4lep[0]+pair_4lep[1]).mass>12) & ((pair_4lep[0]+pair_4lep[1]).mass<120) &((pair_4lep.lep3+pair_4lep.lep4).mass>12)&((pair_4lep.lep3+pair_4lep.lep4).mass<120)&(((pair_4lep[0]+pair_4lep[1]).mass>40)|((pair_4lep.lep3+pair_4lep.lep4).mass>40)))|(((pair_4lep[0]+pair_4lep.lep3).mass>12) & ((pair_4lep[0]+pair_4lep.lep3).mass<120) &((pair_4lep.lep4+pair_4lep[1]).mass>12)&((pair_4lep.lep4+pair_4lep[1]).mass<120)&(((pair_4lep.lep4+pair_4lep[1]).mass>40)|((pair_4lep.lep3+pair_4lep[0]).mass>40)))|(((pair_4lep[0]+pair_4lep.lep4).mass>12) & ((pair_4lep[0]+pair_4lep.lep4).mass<120) &((pair_4lep.lep3+pair_4lep[1]).mass>12)&((pair_4lep.lep3+pair_4lep[1]).mass<120)&(((pair_4lep.lep3+pair_4lep[1]).mass>40)|((pair_4lep.lep4+pair_4lep[0]).mass>40))),axis=-1)
+
+        # req_ghost_removal = ak.any((make_p4(pair_4lep[0]).delta_r(make_p4(pair_4lep[1]))>0.02)&(make_p4(pair_4lep[1]).delta_r(make_p4(pair_4lep.lep3))>0.02)&(make_p4(pair_4lep[0]).delta_r(make_p4(pair_4lep.lep4))>0.02)&(make_p4(pair_4lep.lep3).delta_r(make_p4(pair_4lep.lep4))>0.02),axis=-1,mask_identity=False)
+        req_ghost_removal = ak.any(((pair_4lep[0]).delta_r((pair_4lep[1]))>0.02)&((pair_4lep[1]).delta_r((pair_4lep.lep3))>0.02)&((pair_4lep[0]).delta_r((pair_4lep.lep4))>0.02)&((pair_4lep.lep3).delta_r((pair_4lep.lep4))>0.02),axis=-1,mask_identity=False)
+
+        req_hmass = ak.any((pair_4lep[0]+pair_4lep[1]+pair_4lep.lep3+pair_4lep.lep4).mass>70,axis=-1,mask_identity=False)
         
-        req_opp_charge = ak.any(pair_4lep.lep1.lep_flav+pair_4lep.lep2.lep_flav+pair_4lep.lep3.lep_flav+pair_4lep.lep4.lep_flav==0,axis=-1)
-        req_zmass = ak.any((((pair_4lep.lep1+pair_4lep.lep2).mass>12) & ((pair_4lep.lep1+pair_4lep.lep2).mass<120) &((pair_4lep.lep3+pair_4lep.lep4).mass>12)&((pair_4lep.lep3+pair_4lep.lep4).mass<120)&(((pair_4lep.lep1+pair_4lep.lep2).mass>40)|((pair_4lep.lep3+pair_4lep.lep4).mass>40)))|(((pair_4lep.lep1+pair_4lep.lep3).mass>12) & ((pair_4lep.lep1+pair_4lep.lep3).mass<120) &((pair_4lep.lep4+pair_4lep.lep2).mass>12)&((pair_4lep.lep4+pair_4lep.lep2).mass<120)&(((pair_4lep.lep4+pair_4lep.lep2).mass>40)|((pair_4lep.lep3+pair_4lep.lep1).mass>40)))|(((pair_4lep.lep1+pair_4lep.lep4).mass>12) & ((pair_4lep.lep1+pair_4lep.lep4).mass<120) &((pair_4lep.lep3+pair_4lep.lep2).mass>12)&((pair_4lep.lep3+pair_4lep.lep2).mass<120)&(((pair_4lep.lep3+pair_4lep.lep2).mass>40)|((pair_4lep.lep4+pair_4lep.lep1).mass>40))),axis=-1)
-        req_ghost_removal = ak.any((make_p4(pair_4lep.lep1).delta_r(make_p4(pair_4lep.lep2))>0.02)&(make_p4(pair_4lep.lep2).delta_r(make_p4(pair_4lep.lep3))>0.02)&(make_p4(pair_4lep.lep1).delta_r(make_p4(pair_4lep.lep4))>0.02)&(make_p4(pair_4lep.lep3).delta_r(make_p4(pair_4lep.lep4))>0.02),axis=-1)
-        req_hmass = ak.any((pair_4lep.lep1+pair_4lep.lep2+pair_4lep.lep3+pair_4lep.lep4).mass>70,axis=-1)
-        # selection.add('fourepair',ak.to_numpy(req_ghost_removal&req_opp_charge&req_zmass&req_hmass))
+
+        # print((req_ghost_removal&req_opp_charge&req_zmass&req_hmass).tolist())
+        selection.add('fourpair',ak.to_numpy(req_ghost_removal&req_opp_charge&req_zmass&req_hmass))
         mask4e =  req_ghost_removal&req_opp_charge&req_zmass&req_hmass & (ak.num(event_e)>=4)& (event_e[:,0].pt>20) & (event_e[:,1].pt>10)
         mask4mu =  req_ghost_removal&req_opp_charge&req_zmass&req_hmass & (ak.num(event_mu)>=4)& (event_mu[:,0].pt>20) &(event_mu[:,1].pt>10)
         mask2e2mu = req_ghost_removal&req_opp_charge&req_zmass&req_hmass & (ak.num(event_e)>=2)& (ak.num(event_mu) >=2 )& (((event_mu[:,0].pt>20)&(event_mu[:,1].pt>10))|((event_e[:,0].pt>20)&(event_e[:,1].pt>10)))
@@ -258,74 +360,35 @@ class NanoProcessor(processor.ProcessorABC):
         
                
         # ###########
-        seljet = (events.Jet.pt > 20) & (abs(events.Jet.eta) <= 2.4)&((events.Jet.puId > 0)|(events.Jet.pt>50)) &(events.Jet.jetId>5)&ak.all(events.Jet.metric_table(pair_4lep.lep1)>0.4,axis=2)&ak.all(events.Jet.metric_table(pair_4lep.lep2)>0.4,axis=2)&ak.all(events.Jet.metric_table(pair_4lep.lep3)>0.4,axis=2)&ak.all(events.Jet.metric_table(pair_4lep.lep4)>0.4,axis=2)
+        seljet = (events.Jet.pt > 20) & (abs(events.Jet.eta) <= 2.4)&((events.Jet.puId > 0)|(events.Jet.pt>50)) &(events.Jet.jetId>5)&ak.all(events.Jet.metric_table(pair_4lep[0])>0.4,axis=2)&ak.all(events.Jet.metric_table(pair_4lep[1])>0.4,axis=2)&ak.all(events.Jet.metric_table(pair_4lep.lep3)>0.4,axis=2)&ak.all(events.Jet.metric_table(pair_4lep.lep4)>0.4,axis=2)
         selection.add('jetsel',ak.to_numpy(ak.sum(seljet,axis=1)>0))
         eventcsv_jet = events.Jet[ak.argsort(events.Jet.btagDeepCvL,axis=1,ascending=False)]
         eventflav_jet = events.Jet[ak.argsort(events.Jet.btagDeepFlavCvL,axis=1,ascending=False)]
         # eventpn_jet = events.Jet[ak.argsort(events.Jet.particleNetAK4_CvL,axis=1,ascending=False)]
         eventpt_jet = events.Jet[ak.argsort(events.Jet.pt,axis=1,ascending=False)]
 
-        sel_jet = eventcsv_jet[(eventcsv_jet.pt > 20) & (abs(eventcsv_jet.eta) <= 2.4)&((eventcsv_jet.puId > 0)|(eventcsv_jet.pt>50)) &(eventcsv_jet.jetId>5)&ak.all(eventcsv_jet.metric_table(pair_4lep.lep1)>0.4,axis=2)&ak.all(eventcsv_jet.metric_table(pair_4lep.lep2)>0.4,axis=2)&ak.all(eventcsv_jet.metric_table(pair_4lep.lep3)>0.4,axis=2)&ak.all(eventcsv_jet.metric_table(pair_4lep.lep4)>0.4,axis=2)]
+        sel_jet = eventcsv_jet[(eventcsv_jet.pt > 20) & (abs(eventcsv_jet.eta) <= 2.4)&((eventcsv_jet.puId > 0)|(eventcsv_jet.pt>50)) &(eventcsv_jet.jetId>5)&ak.all(eventcsv_jet.metric_table(pair_4lep[0])>0.4,axis=2)&ak.all(eventcsv_jet.metric_table(pair_4lep[1])>0.4,axis=2)&ak.all(eventcsv_jet.metric_table(pair_4lep.lep3)>0.4,axis=2)&ak.all(eventcsv_jet.metric_table(pair_4lep.lep4)>0.4,axis=2)]
         sel_jet = ak.mask(sel_jet,ak.num(pair_4lep)>0)
-        pair_4lep = ak.mask(pair_4lep,ak.num(sel_jet)>0)
+        pair_4lep = ak.mask(pair_4lep,ak.num(eventcsv_jet)>0)
         sel_cjet_csv = ak.pad_none(sel_jet,1,axis=1)
         sel_cjet_csv= sel_cjet_csv[:,0]
 
-        sel_jetflav =  eventflav_jet[(eventflav_jet.pt > 20) & (abs(eventflav_jet.eta) <= 2.4)&((eventflav_jet.puId > 0)|(eventflav_jet.pt>50)) &(eventflav_jet.jetId>5)&ak.all(eventflav_jet.metric_table(pair_4lep.lep1)>0.4,axis=2)&ak.all(eventflav_jet.metric_table(pair_4lep.lep2)>0.4,axis=2)&ak.all(eventflav_jet.metric_table(pair_4lep.lep3)>0.4,axis=2)&ak.all(eventflav_jet.metric_table(pair_4lep.lep4)>0.4,axis=2)]
+        sel_jetflav =  eventflav_jet[(eventflav_jet.pt > 20) & (abs(eventflav_jet.eta) <= 2.4)&((eventflav_jet.puId > 0)|(eventflav_jet.pt>50)) &(eventflav_jet.jetId>5)&ak.all(eventflav_jet.metric_table(pair_4lep[0])>0.4,axis=2)&ak.all(eventflav_jet.metric_table(pair_4lep[1])>0.4,axis=2)&ak.all(eventflav_jet.metric_table(pair_4lep.lep3)>0.4,axis=2)&ak.all(eventflav_jet.metric_table(pair_4lep.lep4)>0.4,axis=2)]
         sel_jetflav = ak.mask(sel_jetflav,ak.num(pair_4lep)>0)
         sel_cjet_flav = ak.pad_none(sel_jetflav,1,axis=1)
         sel_cjet_flav = sel_cjet_flav[:,0]
 
-        # sel_jetpn =  eventpn_jet[(eventpn_jet.pt > 20) & (abs(eventpn_jet.eta) <= 2.4)&((eventpn_jet.puId > 0)|(eventpn_jet.pt>50)) &(eventpn_jet.jetId>5)&ak.all(eventpn_jet.metric_table(pair_4lep.lep1)>0.4,axis=2)&ak.all(eventpn_jet.metric_table(pair_4lep.lep2)>0.4,axis=2)&ak.all(eventpn_jet.metric_table(pair_4lep.lep3)>0.4,axis=2)&ak.all(eventpn_jet.metric_table(pair_4lep.lep4)>0.4,axis=2)]
+        # sel_jetpn =  eventpn_jet[(eventpn_jet.pt > 20) & (abs(eventpn_jet.eta) <= 2.4)&((eventpn_jet.puId > 0)|(eventpn_jet.pt>50)) &(eventpn_jet.jetId>5)&ak.all(eventpn_jet.metric_table(pair_4lep[0])>0.4,axis=2)&ak.all(eventpn_jet.metric_table(pair_4lep[1])>0.4,axis=2)&ak.all(eventpn_jet.metric_table(pair_4lep.lep3)>0.4,axis=2)&ak.all(eventpn_jet.metric_table(pair_4lep.lep4)>0.4,axis=2)]
         # sel_jetpn = ak.mask(sel_jetpn,ak.num(pair_4lep)>0)
         # sel_cjet_pn = ak.pad_none(sel_jetpn,1,axis=1)
         # sel_cjet_pn = sel_cjet_pn[:,0]
 
-        sel_jetpt =  eventpt_jet[(eventpt_jet.pt > 20) & (abs(eventpt_jet.eta) <= 2.4)&((eventpt_jet.puId > 0)|(eventpt_jet.pt>50)) &(eventpt_jet.jetId>5)&ak.all(eventpt_jet.metric_table(pair_4lep.lep1)>0.4,axis=2)&ak.all(eventpt_jet.metric_table(pair_4lep.lep2)>0.4,axis=2)&ak.all(eventpt_jet.metric_table(pair_4lep.lep3)>0.4,axis=2)&ak.all(eventpt_jet.metric_table(pair_4lep.lep4)>0.4,axis=2)]
+        sel_jetpt =  eventpt_jet[(eventpt_jet.pt > 20) & (abs(eventpt_jet.eta) <= 2.4)&((eventpt_jet.puId > 0)|(eventpt_jet.pt>50)) &(eventpt_jet.jetId>5)&ak.all(eventpt_jet.metric_table(pair_4lep[0])>0.4,axis=2)&ak.all(eventpt_jet.metric_table(pair_4lep[1])>0.4,axis=2)&ak.all(eventpt_jet.metric_table(pair_4lep.lep3)>0.4,axis=2)&ak.all(eventpt_jet.metric_table(pair_4lep.lep4)>0.4,axis=2)]
         
         sel_jetpt = ak.mask(sel_jetpt,ak.num(pair_4lep)>0)
         sel_cjet_pt = ak.pad_none(sel_jetpt,1,axis=1)
         sel_cjet_pt = sel_cjet_pt[:,0]
-        if ak.any(pair_4lep.lep1.lep_flav+pair_4lep.lep2.lep_flav)==0 :
-            if ak.any((pair_4lep.lep1+pair_4lep.lep2).mass > (pair_4lep.lep3+pair_4lep.lep4).mass):
-                tmpz1 = pair_4lep.lep1+pair_4lep.lep2
-                tmpz2 = pair_4lep.lep3+pair_4lep.lep4
-            else :
-                tmpz2 = pair_4lep.lep1+pair_4lep.lep2
-                tmpz1 = pair_4lep.lep3+pair_4lep.lep4
-        elif ak.any(pair_4lep.lep1.lep_flav+pair_4lep.lep3.lep_flav)==0:
-            if ak.any((pair_4lep.lep1+pair_4lep.lep3).mass >(pair_4lep.lep2+pair_4lep.lep4).mass):
-                tmpz1 = pair_4lep.lep1+pair_4lep.lep3
-                tmpz2 = pair_4lep.lep2+pair_4lep.lep4
-            else :
-                tmpz2 = pair_4lep.lep1+pair_4lep.lep3
-                tmpz1 = pair_4lep.lep2+pair_4lep.lep4
-        else :
-            if ak.any((pair_4lep.lep1+pair_4lep.lep4).mass >(pair_4lep.lep2+pair_4lep.lep3).mass):
-                tmpz1 = pair_4lep.lep1+pair_4lep.lep4
-                tmpz2 = pair_4lep.lep2+pair_4lep.lep3
-            else :
-                tmpz2 = pair_4lep.lep1+pair_4lep.lep4
-                tmpz1 = pair_4lep.lep2+pair_4lep.lep3
-        z1 = ak.zip({
-                    "pt": tmpz1.pt,
-                    "eta": tmpz1.eta,
-                    "phi": tmpz1.phi,
-                    "mass": tmpz1.mass,
-                },with_name="PtEtaPhiMLorentzVector",)
-        z2 = ak.zip({
-                    "pt": tmpz2.pt,
-                    "eta": tmpz2.eta,
-                    "phi": tmpz2.phi,
-                    "mass": tmpz2.mass,
-                },with_name="PtEtaPhiMLorentzVector",)
-        higgs =  ak.zip({
-                    "pt": (pair_4lep.lep1+pair_4lep.lep2+pair_4lep.lep3+pair_4lep.lep4).pt,
-                    "eta": (pair_4lep.lep1+pair_4lep.lep2+pair_4lep.lep3+pair_4lep.lep4).eta,
-                    "phi": (pair_4lep.lep1+pair_4lep.lep2+pair_4lep.lep3+pair_4lep.lep4).phi,
-                    "mass": (pair_4lep.lep1+pair_4lep.lep2+pair_4lep.lep3+pair_4lep.lep4).mass,
-                },with_name="PtEtaPhiMLorentzVector",)
-          
+        
         
         output['cutflow'][dataset]['selected jets'] +=ak.sum(ak.num(sel_jet) > 0)
         # output['cutflow'][dataset]['selected jets'] +=ak.sum(ak.num(sel_jet) > 0)
@@ -334,7 +397,7 @@ class NanoProcessor(processor.ProcessorABC):
         
         for histname, h in output.items():
             for ch in lepflav:
-                cut = selection.all('jetsel','lepsel',ch)
+                cut = selection.all('jetsel','lepsel','fourpair',ch)
                 if 'jetcsv_' in histname:
                     fields = {l: normalize(sel_cjet_csv[histname.replace('jetcsv_','')],cut) for l in h.fields if l in dir(sel_cjet_csv)}
                     h.fill(dataset=dataset, lepflav =ch,flav=normalize(sel_cjet_csv.hadronFlavour+1*((sel_cjet_csv.partonFlavour == 0 ) & (sel_cjet_csv.hadronFlavour==0)),cut), **fields)    
@@ -349,12 +412,12 @@ class NanoProcessor(processor.ProcessorABC):
                     h.fill(dataset=dataset, lepflav =ch,flav=normalize(sel_cjet_pt.hadronFlavour+1*((sel_cjet_pt.partonFlavour == 0 ) & (sel_cjet_pt.hadronFlavour==0)),cut), **fields)  
                    
                 elif 'lep1_' in histname:
-                    lep1cut=pair_4lep.lep1[cut]           
+                    lep1cut=pair_4lep[0][cut]           
                     fields = {l: ak.fill_none(ak.flatten(lep1cut[histname.replace('lep1_','')]),np.nan) for l in h.fields if l in dir(lep1cut)}
 
                     h.fill(dataset=dataset,lepflav=ch, **fields)
                 elif 'lep2_' in histname:
-                    lep2cut=pair_4lep.lep2[cut]
+                    lep2cut=pair_4lep[1][cut]
                     fields = {l: ak.fill_none(ak.flatten(lep2cut[histname.replace('lep2_','')]),np.nan) for l in h.fields if l in dir(lep2cut)}
                     h.fill(dataset=dataset,lepflav=ch, **fields)
                 elif 'lep3_' in histname:
@@ -381,6 +444,7 @@ class NanoProcessor(processor.ProcessorABC):
                     output['nj'].fill(dataset=dataset,lepflav=ch,nj=normalize(ak.num(sel_jet),cut))
                     output['zs_dr'].fill(dataset=dataset,lepflav =ch, dr=flatten(z1[cut].delta_r(z2[cut])))
                     output['hj_dr'].fill(dataset=dataset,lepflav =ch,dr=flatten(higgs[cut].delta_r(sel_cjet_flav[cut])))
+        '''
         return output
 
     def postprocess(self, accumulator):
