@@ -287,7 +287,7 @@ class NanoProcessor(processor.ProcessorABC):
         sel_cjet_pt = ak.pad_none(sel_jetpt,1,axis=1)
         sel_cjet_pt = sel_cjet_pt[:,0]
         if ak.any(pair_4lep.lep1.lep_flav+pair_4lep.lep2.lep_flav)==0 :
-            if ak.any((pair_4lep.lep1+pair_4lep.lep2).mass > (pair_4lep.lep3+pair_4lep).lep4.mass):
+            if ak.any((pair_4lep.lep1+pair_4lep.lep2).mass > (pair_4lep.lep3+pair_4lep.lep4).mass):
                 tmpz1 = pair_4lep.lep1+pair_4lep.lep2
                 tmpz2 = pair_4lep.lep3+pair_4lep.lep4
             else :
