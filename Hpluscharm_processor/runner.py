@@ -148,6 +148,12 @@ if __name__ == '__main__':
         from hplusc_process_old import NanoProcessor
     elif args.workflow =="HWW2l2nu":
         from hplusc_HWW2l2nu_process import NanoProcessor
+    elif args.workflow =="HWWluqq":
+        from hplusc_HWW2Q_process import NanoProcessor
+    elif args.workflow =="HZZ2l2q":
+        from hplusc_HZZ2l2q_process import NanoProcessor
+    elif args.workflow =="HZZ2l2nu":
+        from hplusc_HZZ2l2nu_process import NanoProcessor
     else :from hplusc_process import NanoProcessor
     processor_instance = NanoProcessor()
 
@@ -210,10 +216,12 @@ if __name__ == '__main__':
                         label="coffea_parsl_slurm",
                         address=address_by_hostname(),
                         prefetch_capacity=0,
+                        max_workers=10,
+                        mem_per_worker=2,
                         provider=SlurmProvider(
                             channel=LocalChannel(script_dir='logs_parsl'),
                             launcher=SrunLauncher(),
-                            max_blocks=(args.scaleout) + 10,
+                            # max_blocks=(args.scaleout) + 10,
                             init_blocks=args.scaleout,
                             partition='all',
                             worker_init="\n".join(env_extra),
@@ -229,13 +237,14 @@ if __name__ == '__main__':
                     HighThroughputExecutor(
                         label='coffea_parsl_condor',
                         address=address_by_query(),
-                        max_workers=1,
+                        max_workers=args.workers,
+                        mem_per_worker=args.memory,
                         provider=CondorProvider(
                             nodes_per_block=1,
-                            init_blocks=1,
-                            max_blocks=1,
+                            init_blocks=args.scaleout,
+                            max_blocks=args.scaleout+2,
                             worker_init="\n".join(env_extra + condor_extra),
-                            walltime="00:20:00",
+                            walltime="00:120:00",
                         ),
                     )
                 ]
@@ -303,8 +312,6 @@ if __name__ == '__main__':
                 queue='all',
                 cores=args.workers,
                 processes=args.workers,
-                #memory="200 GB",
-                #retries=10,
                 memory = "%d GB" %(args.memory),
                 walltime='00:30:00',
                 env_extra=env_extra,
