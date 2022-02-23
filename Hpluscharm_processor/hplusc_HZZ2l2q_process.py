@@ -69,25 +69,7 @@ class NanoProcessor(processor.ProcessorABC):
                 'Ele23_Ele12_CaloIdL_TrackIdL_IsoVL',
             ],
         }   
-        self._emuhlt =  {
-            '2016': [
-                'Mu8_TrkIsoVVL_Elle23_CaloIdL_TrackIdL_IsoVL',
-                'Mu23_TrkIsoVVL_Ele12_CaloIdL_TrackIdL_IsoVL',
-                'Mu8_TrkIsoVVL_Elle23_CaloIdL_TrackIdL_IsoVL_DZ',
-                'Mu23_TrkIsoVVL_Ele12_CaloIdL_TrackIdL_IsoVL_DZ',
-            ],
-            '2017': [
-                'Mu23_TrkIsoVVL_Ele12_CaloIdL_TrackIdL_IsoVL',
-                'Mu12_TrkIsoVVL_Ele23_CaloIdL_TrackIdL_IsoVL',
-                'Mu12_TrkIsoVVL_Ele23_CaloIdL_TrackIdL_IsoVL_DZ',
-                'Mu23_TrkIsoVVL_Ele12_CaloIdL_TrackIdL_IsoVL_DZ',    
-            ],
-            '2018': [
-               'Mu12_TrkIsoVVL_Ele23_CaloIdL_TrackIdL_IsoVL_DZ',
-                'Mu23_TrkIsoVVL_Ele12_CaloIdL_TrackIdL_IsoVL_DZ',  
-            ],
-        }   
-        print(self._muhlt)
+        
         # print(self._muhlt[self._year])
         # Define axes
         # Should read axes from NanoAOD config
@@ -195,13 +177,9 @@ class NanoProcessor(processor.ProcessorABC):
                 trigger_mm = trigger_mm | events.HLT[t]
         for t in self._ehlt[self._year]:
             if t in events.HLT.fields:
-                trigger_ee = trigger_ee | events.HLT[t]
-        for t in self._emuhlt[self._year]:
-            if t in events.HLT.fields:
-                trigger_em = trigger_em | events.HLT[t]
+                trigger_ee = trigger_ee | events.HLT[t]       
         selection.add('trigger_ee', ak.to_numpy(trigger_ee))
         selection.add('trigger_mm', ak.to_numpy(trigger_mm))
-        selection.add('trigger_em', ak.to_numpy(trigger_em))
             
 
         
@@ -222,7 +200,7 @@ class NanoProcessor(processor.ProcessorABC):
         event_e = event_e[elesel]
         event_e = ak.pad_none(event_e,2,axis=1)
         nele = ak.sum(elesel,axis=1)
-        selection.add('lepsel',ak.to_numpy((nele+nmu==2)))
+        selection.add('lepsel',ak.to_numpy((nele==2)|(nmu==2)))
         
         good_leptons = ak.with_name(
                 ak.concatenate([event_e, event_mu], axis=1),
@@ -240,24 +218,23 @@ class NanoProcessor(processor.ProcessorABC):
                     "energy":events.MET.sumEt,
                 },with_name="PtEtaPhiMLorentzVector",)
        
-        req_global = (good_leptons[:,0].pt>25) & (ll_cand.mass>12) & (ll_cand.pt>30) & (good_leptons[:,0].charge+good_leptons[:,1].charge==0) & (events.MET.pt>20) & (good_leptons[:,0].delta_r(good_leptons[:,1]>0.02))
-        req_sr = (mT(good_leptons[:,1],met)>30) & (mT(ll_cand,met)>60) 
+        req_global = (good_leptons[:,0].pt>25) & (ll_cand.pt>20) & (good_leptons[:,0].charge+good_leptons[:,1].charge==0) & (events.MET.pt>20) & ((abs(ll_cand.mass-91.)<15) | (abs(events.MET.pt-91.)<15))
+        req_sr = (abs(met.delta_phi(good_leptons[:,0]))>0.2) & (abs(met.delta_phi(good_leptons[:,1]))>0.2) & (ak.all(events.Jet[events.Jet.pt>20].metric_table(met)>0.4,axis=2))
+        req_zmassll =  (abs(ll_cand.mass-91.)<15)
         
         selection.add('global_selection',ak.to_numpy(req_global))
         selection.add('SR',ak.to_numpy(req_sr))
+        selection.add('req_llz',ak.to_numpy(req_zmassll))
         mask2e =  req_global & (ak.num(event_e)==2)& (event_e[:,0].pt>25) & (event_e[:,1].pt>13)
         mask2mu =  req_global & (ak.num(event_mu)==2)& (event_mu[:,0].pt>25) &(event_mu[:,1].pt>13)
-        maskemu = req_global & (ak.num(event_e)==1)& (ak.num(event_mu) ==2 )& (((event_mu[:,0].pt>25)&(event_mu[:,1].pt>13))|((event_e[:,0].pt>25)&(event_e[:,1].pt>10)))
         
-        mask2lep = [ak.any(tup) for tup in zip(maskemu, mask2mu, mask2e)]
+        mask2lep = [ak.any(tup) for tup in zip(mask2mu, mask2e)]
         good_leptons = ak.mask(good_leptons,mask2lep)
        
         
-        output['cutflow'][dataset]['selected Z pairs'] += ak.sum(ak.num(good_leptons)>0)
         output['cutflow'][dataset]['selected Z pairs'] += ak.sum((ak.num(good_leptons)>0) & (ak.num(req_sr)>0))
         selection.add('ee',ak.to_numpy((ak.num(event_e)==2)& (event_e[:,0].pt>25) & (event_e[:,1].pt>13)))
         selection.add('mumu',ak.to_numpy((ak.num(event_mu)==2)& (event_mu[:,0].pt>25) &(event_mu[:,1].pt>13)))
-        selection.add('emu',ak.to_numpy((ak.num(event_e)==1)& (ak.num(event_mu) ==1 )& (((event_mu[:,0].pt>25)&(event_mu[:,1].pt>13))|((event_e[:,0].pt>25)&(event_e[:,1].pt>13)))))
         
                
         # ###########

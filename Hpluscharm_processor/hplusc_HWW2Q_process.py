@@ -88,7 +88,6 @@ class NanoProcessor(processor.ProcessorABC):
             ],
         }   
         print(self._muhlt)
-        # print(self._muhlt[self._year])
         # Define axes
         # Should read axes from NanoAOD config
         dataset_axis = hist.Cat("dataset", "Primary dataset")
@@ -240,8 +239,8 @@ class NanoProcessor(processor.ProcessorABC):
                     "energy":events.MET.sumEt,
                 },with_name="PtEtaPhiMLorentzVector",)
        
-        req_global = (good_leptons[:,0].pt>25) & (ll_cand.mass>12) & (ll_cand.pt>30) & (good_leptons[:,0].charge+good_leptons[:,1].charge==0) & (events.MET.pt>20) & (good_leptons[:,0].delta_r(good_leptons[:,1]>0.02))
-        req_sr = (mT(good_leptons[:,1],met)>30) & (mT(ll_cand,met)>60) 
+        req_global = (good_leptons[:,0].pt>25) & (ll_cand.mass>12) & (ll_cand.pt>30) & (good_leptons[:,0].charge+good_leptons[:,1].charge==0) & (events.MET.pt>20)
+        req_sr = (mT(good_leptons[:,1],met)>30) & (mT(ll_cand,met)>60)
         
         selection.add('global_selection',ak.to_numpy(req_global))
         selection.add('SR',ak.to_numpy(req_sr))
@@ -253,7 +252,6 @@ class NanoProcessor(processor.ProcessorABC):
         good_leptons = ak.mask(good_leptons,mask2lep)
        
         
-        output['cutflow'][dataset]['selected Z pairs'] += ak.sum(ak.num(good_leptons)>0)
         output['cutflow'][dataset]['selected Z pairs'] += ak.sum((ak.num(good_leptons)>0) & (ak.num(req_sr)>0))
         selection.add('ee',ak.to_numpy((ak.num(event_e)==2)& (event_e[:,0].pt>25) & (event_e[:,1].pt>13)))
         selection.add('mumu',ak.to_numpy((ak.num(event_mu)==2)& (event_mu[:,0].pt>25) &(event_mu[:,1].pt>13)))
@@ -286,7 +284,7 @@ class NanoProcessor(processor.ProcessorABC):
         # sel_cjet_pn = ak.pad_none(sel_jetpn,1,axis=1)
         # sel_cjet_pn = sel_cjet_pn[:,0]
 
-        sel_jetpt =  eventpt_jet[(eventpt_jet.pt > 20) & (abs(eventpt_jet.eta) <= 2.4)&((eventpt_jet.puId > 0)|(eventpt_jet.pt>50)) &(eventpt_jet.jetId>5)&ak.all(eventpt_jet.metric_table(good_leptons[:,0])>0.4,axis=2)]
+        sel_jetpt =  eventpt_jet[(eventpt_jet.pt > 20) & (abs(eventpt_jet.eta) <= 2.4)&((eventpt_jet.puId > 0)|(eventpt_jet.pt>50)) &(eventpt_jet.jetId>5)&ak.all(eventpt_jet.metric_table(good_leptons[:,0])>0.4,axis=2)&ak.all(eventflav_jet.metric_table(good_leptons[:,1])>0.4,axis=2)]
         
         sel_jetpt = ak.mask(sel_jetpt,ak.num(good_leptons)>0)
         sel_cjet_pt = ak.pad_none(sel_jetpt,1,axis=1)
