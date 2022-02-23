@@ -146,6 +146,8 @@ if __name__ == '__main__':
     # load workflow
     if args.workflow =="old":
         from hplusc_process_old import NanoProcessor
+    elif args.workflow =="HWW2l2nu":
+        from hplusc_HWW2l2nu_process import NanoProcessor
     else :from hplusc_process import NanoProcessor
     processor_instance = NanoProcessor()
 
