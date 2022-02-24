@@ -78,7 +78,7 @@ def get_main_parser():
     parser.add_argument('--only', type=str, default=None, help='Only process specific dataset or file')
     parser.add_argument('--limit', type=int, default=None, metavar='N', help='Limit to the first N files of each dataset in sample JSON')
     parser.add_argument('--chunk', type=int, default=500000, metavar='N', help='Number of events per process chunk')
-    parser.add_argument('--max', type=int, default=None, metavar='N', help='Max number of chunks to run in total')
+    parser.add_argument('--max', type=int, default=4, metavar='N', help='Max number of chunks to run in total')
     parser.add_argument('--memory', type=int, default=4, metavar='N', help='Memory of slurm ')
     return parser
 
@@ -175,12 +175,15 @@ if __name__ == '__main__':
         env_extra = [
             'export XRD_RUNFORKHANDLER=1',
             f'export X509_USER_PROXY={_x509_path}',
-            f'export X509_CERT_DIR={os.environ["X509_CERT_DIR"]}',
-            f"export PYTHONPATH=$PYTHONPATH:{os.getcwd()}",
+            f'export X509_CERT_DIR={os.environ["X509_CERT_DIR"]} ',
+            f'export PYTHONPATH=$PYTHONPATH:{os.getcwd()}',
         ]
+       
         condor_extra = [
             f'source {os.environ["HOME"]}/.bashrc',
-        ]
+            'source activate coffea'
+            ]
+        
 
     #########
     # Execute
@@ -237,14 +240,14 @@ if __name__ == '__main__':
                     HighThroughputExecutor(
                         label='coffea_parsl_condor',
                         address=address_by_query(),
-                        max_workers=args.workers,
+                        max_workers=10,
                         mem_per_worker=args.memory,
                         provider=CondorProvider(
-                            nodes_per_block=1,
-                            init_blocks=args.scaleout,
-                            max_blocks=args.scaleout+2,
+                            # nodes_per_block=1,
+                            init_blocks=1,
+                            max_blocks=(args.workers)+5,
                             worker_init="\n".join(env_extra + condor_extra),
-                            walltime="00:120:00",
+                            walltime="00:100:00",
                         ),
                     )
                 ]
