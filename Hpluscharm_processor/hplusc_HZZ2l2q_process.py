@@ -241,7 +241,7 @@ class NanoProcessor(processor.ProcessorABC):
                 "mass": (ll_cands+jj_cands.jet2).mass
             },with_name="PtEtaPhiMLorentzVector",
         )
-        req_global = ak.any(ak.any((ll_cands.lep1.pt>25) & (ll_cands.lep1.charge+ll_cands.lep2.charge==0)  & (ll_cands.mass<120) & (ll_cands.mass>60),axis=-1),axis=-1) #& (make_p4(ll_cands.lep1).delta_r(make_p4(ll_cands.lep2))>0.02),axis=-1),axis=-1)
+        req_global = ak.any(ak.any((ll_cands.lep1.pt>25) & (ll_cands.lep1.charge+ll_cands.lep2.charge==0)  & (ll_cands.mass<120) & (ll_cands.mass>60),axis=-1),axis=-1) & ak.any(ak.any(make_p4(ll_cands.lep1).delta_r(jj_cands.jet1)>0.4,axis=-1),axis=-1) & ak.any(ak.any(make_p4(ll_cands.lep1).delta_r(jj_cands.jet2)>0.4,axis=-1),axis=-1)& ak.any(ak.any(make_p4(ll_cands.lep2).delta_r(jj_cands.jet1)>0.4,axis=-1),axis=-1)& ak.any(ak.any(make_p4(ll_cands.lep2).delta_r(jj_cands.jet2)>0.4,axis=-1),axis=-1) #& (make_p4(ll_cands.lep1).delta_r(make_p4(ll_cands.lep2))>0.02),axis=-1),axis=-1)
         req_zllmass =  ak.any(ak.any((abs(ll_cands.mass-91.)<15),axis=-1),axis=-1)
         req_zqqmass = ak.any(ak.any(jj_cands.mass<116,axis=-1),axis=-1)
         req_hmass =  ak.any(ak.any(higgs_cand.mass<250,axis=-1),axis=-1)
