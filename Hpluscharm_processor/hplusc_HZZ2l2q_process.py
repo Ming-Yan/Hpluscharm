@@ -260,11 +260,9 @@ class NanoProcessor(processor.ProcessorABC):
                
         # ###########
 
-        # print(ak.all(cjet.metric_table(ll_cands.lep1)>0.4,axis=-1))
-        # print(ak.type(ak.all(cjet.metric_table(good_leptons)>0.4,axis=1)))
         seljet = (cjet.pt > 20) & (abs(cjet.eta) <= 2.4)&((cjet.puId > 0)|(cjet.pt>50)) &(cjet.jetId>5)&(ak.all(ak.all(cjet.delta_r(ll_cands.lep1)>0.4,axis=-1),axis=-1))&(ak.all(ak.all(cjet.delta_r(ll_cands.lep2)>0.4,axis=-1),axis=-1))
         sel_cjet = ak.mask(cjet,seljet)
-        selection.add('jetsel',ak.to_numpy(seljet))
+        selection.add('cjetsel',ak.to_numpy(seljet))
         
         output['cutflow'][dataset]['global selection'] += ak.sum(req_global)
         output['cutflow'][dataset]['dilepton mass'] += ak.sum(req_zllmass&req_global)
@@ -282,7 +280,7 @@ class NanoProcessor(processor.ProcessorABC):
 
         for histname, h in output.items():
             for ch in lepflav:
-                cut = selection.all('jetsel','lepsel','global_selection','Z_selection','H_selection',ch)
+                cut = selection.all('jetsel','lepsel','global_selection','Z_selection','H_selection','cjetsel',ch)
                 lep1cut=ll_cands.lep1[cut]  
                 lep2cut=ll_cands.lep2[cut]
                 llcut = ll_cands[cut]
