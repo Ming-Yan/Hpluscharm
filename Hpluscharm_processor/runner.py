@@ -47,7 +47,8 @@ def get_main_parser():
                         )
 
     # Scale out
-    parser.add_argument('--executor', 
+    parser.add_argument(
+                        '--executor', 
                         choices=[
                             'iterative', 'futures', 'parsl/slurm', 'parsl/condor', 
                             'dask/condor', 'dask/slurm', 'dask/lpc', 'dask/lxplus', 'dask/casa',
@@ -78,8 +79,8 @@ def get_main_parser():
     parser.add_argument('--only', type=str, default=None, help='Only process specific dataset or file')
     parser.add_argument('--limit', type=int, default=None, metavar='N', help='Limit to the first N files of each dataset in sample JSON')
     parser.add_argument('--chunk', type=int, default=500000, metavar='N', help='Number of events per process chunk')
-    parser.add_argument('--max', type=int, default=4, metavar='N', help='Max number of chunks to run in total')
-    parser.add_argument('--memory', type=int, default=4, metavar='N', help='Memory of slurm ')
+    parser.add_argument('--maxs', type=int, default=4, metavar='N', help='Max number of chunks to run in total')
+    parser.add_argument('--memory', type=int, default=2, metavar='N', help='Memory of slurm ')
     return parser
 
 
@@ -148,8 +149,8 @@ if __name__ == '__main__':
         from hplusc_process_old import NanoProcessor
     elif args.workflow =="HWW2l2nu":
         from hplusc_HWW2l2nu_process import NanoProcessor
-    elif args.workflow =="HWWluqq":
-        from hplusc_HWW2Q_process import NanoProcessor
+    elif args.workflow =="HWW2qlnu":
+        from hplusc_HWW2qlnu_process import NanoProcessor
     elif args.workflow =="HZZ2l2q":
         from hplusc_HZZ2l2q_process import NanoProcessor
     elif args.workflow =="HZZ2l2nu":
@@ -202,7 +203,7 @@ if __name__ == '__main__':
                                               'workers': args.workers
                                           },
                                           chunksize=args.chunk,
-                                          maxchunks=args.max)
+                                          maxchunks=args.maxs)
     elif 'parsl' in args.executor:
         import parsl
         from parsl.providers import LocalProvider, CondorProvider, SlurmProvider
@@ -240,14 +241,16 @@ if __name__ == '__main__':
                     HighThroughputExecutor(
                         label='coffea_parsl_condor',
                         address=address_by_query(),
-                        max_workers=10,
-                        mem_per_worker=args.memory,
+                        # max_workers=10,
+                        max_workers=1,
+                        # mem_per_worker=args.memory,
+                        worker_debug=True,
                         provider=CondorProvider(
-                            # nodes_per_block=1,
-                            init_blocks=1,
-                            max_blocks=(args.workers)+5,
+                            nodes_per_block=1,
+                            init_blocks=args.workers,
+                            max_blocks=(args.workers)+2,
                             worker_init="\n".join(env_extra + condor_extra),
-                            walltime="00:100:00",
+                            walltime="00:20:00",
                         ),
                     )
                 ]
@@ -256,7 +259,6 @@ if __name__ == '__main__':
             raise NotImplementedError
 
         dfk = parsl.load(htex_config)
-
         output = processor.run_uproot_job(sample_dict,
                                           treename='Events',
                                           processor_instance=processor_instance,
@@ -266,9 +268,8 @@ if __name__ == '__main__':
                                               'schema': processor.NanoAODSchema,
                                               'config': None,
                                           },
-                                          chunksize=args.chunk,
-                                          maxchunks=args.max)
-
+                                          chunksize=args.chunk)
+        #maxchunks=args.max)
     elif 'dask' in args.executor:
         from dask_jobqueue import SLURMCluster, HTCondorCluster
         from distributed import Client
