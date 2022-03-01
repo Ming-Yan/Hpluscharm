@@ -70,7 +70,6 @@ class NanoProcessor(processor.ProcessorABC):
             ],
         }   
         
-        # print(self._muhlt[self._year])
         # Define axes
         # Should read axes from NanoAOD config
         dataset_axis = hist.Cat("dataset", "Primary dataset")
@@ -85,14 +84,9 @@ class NanoProcessor(processor.ProcessorABC):
         eta_axis  = hist.Bin("eta",  r" $\eta$", 25, -2.5, 2.5)
         phi_axis  = hist.Bin("phi",  r" $\phi$", 30, -3, 3)
         mass_axis = hist.Bin("mass", r" $m$ [GeV]", 50, 0, 300)
-        mt_axis =  hist.Bin("mt", r" $m_{T}$ [GeV]", 30, 0, 300)
         dr_axis = hist.Bin("dr","$\Delta$R",20,0,5)
+        costheta_axis = hist.Bin("costheta", "cos$\theta$",20,-1,1)
         # MET vars
-        signi_axis = hist.Bin("significance", r"MET $\sigma$",20,0,10)
-        covXX_axis = hist.Bin("covXX",r"MET covXX",20,0,10)
-        covXY_axis = hist.Bin("covXY",r"MET covXY",20,0,10)
-        covYY_axis = hist.Bin("covYY",r"MET covYY",20,0,10)
-        sumEt_axis = hist.Bin("sumEt", r" MET sumEt", 50, 0, 300)
         
         # axis.StrCategory([], name='region', growth=True),
         disc_list = [ 'btagDeepCvL', 'btagDeepCvB','btagDeepFlavCvB','btagDeepFlavCvL']#,'particleNetAK4_CvL','particleNetAK4_CvB']
@@ -101,25 +95,16 @@ class NanoProcessor(processor.ProcessorABC):
             btag_axes.append(hist.Bin(d, d , 50, 0, 1))  
         _hist_event_dict = {
                 'nj'  : hist.Hist("Counts", dataset_axis,  lepflav_axis, njet_axis),
-                'nbj' : hist.Hist("Counts", dataset_axis, lepflav_axis, nbjet_axis),
-                'ncj' : hist.Hist("Counts", dataset_axis, lepflav_axis, ncjet_axis),
-                'hj_dr'  : hist.Hist("Counts", dataset_axis, lepflav_axis, dr_axis),
-                'MET_sumEt' : hist.Hist("Counts", dataset_axis, lepflav_axis, sumEt_axis),
-                'MET_significance' : hist.Hist("Counts", dataset_axis, lepflav_axis, signi_axis),
-                'MET_covXX' : hist.Hist("Counts", dataset_axis, lepflav_axis, covXX_axis),
-                'MET_covXY' : hist.Hist("Counts", dataset_axis, lepflav_axis, covXY_axis),
-                'MET_covYY' : hist.Hist("Counts", dataset_axis, lepflav_axis, covYY_axis),
-                'MET_phi' : hist.Hist("Counts", dataset_axis, lepflav_axis, phi_axis),
-                'MET_pt' : hist.Hist("Counts", dataset_axis, lepflav_axis, pt_axis),
-                'mT1' : hist.Hist("Counts", dataset_axis, lepflav_axis, mt_axis),
-                'mT2' : hist.Hist("Counts", dataset_axis, lepflav_axis, mt_axis),
-                'mTh':hist.Hist("Counts", dataset_axis, lepflav_axis, mt_axis),
-                'dphi_lep1':hist.Hist("Counts", dataset_axis, lepflav_axis, phi_axis),
-                'dphi_lep2':hist.Hist("Counts", dataset_axis, lepflav_axis, phi_axis),
-                'dphi_ll':hist.Hist("Counts", dataset_axis, lepflav_axis, phi_axis),
-
+                'hc_dr'  : hist.Hist("Counts", dataset_axis, lepflav_axis, dr_axis),
+                'zs_dr' : hist.Hist("Counts", dataset_axis, lepflav_axis, dr_axis),
+                'cj_dr': hist.Hist("Counts", dataset_axis, lepflav_axis, dr_axis),
+                'costheta_ll'  : hist.Hist("Counts", dataset_axis, lepflav_axis, costheta_axis),
+                'costheta_qq'  : hist.Hist("Counts", dataset_axis, lepflav_axis, costheta_axis),
+                'costheta_pz'  : hist.Hist("Counts", dataset_axis, lepflav_axis, costheta_axis),
+                'phi_zz'  : hist.Hist("Counts", dataset_axis, lepflav_axis, phi_axis),
+                'phi_lq'  : hist.Hist("Counts", dataset_axis, lepflav_axis, phi_axis),
             }
-        objects=['jetcsv','jetflav','jetpn','jetpt','lep1','lep2']
+        objects=['cjet','lep1','lep2','jet1','jet2','jj','ll','higgs']
         
         for i in objects:
             if  'jet' in i: 
@@ -135,10 +120,9 @@ class NanoProcessor(processor.ProcessorABC):
             
         
         for disc, axis in zip(disc_list,btag_axes):
-            _hist_event_dict["jetcsv_%s" %(disc)] = hist.Hist("Counts", dataset_axis,lepflav_axis,flav_axis, axis)
-            _hist_event_dict["jetflav_%s" %(disc)] = hist.Hist("Counts", dataset_axis,lepflav_axis,flav_axis, axis)
-            _hist_event_dict["jetpn_%s" %(disc)] = hist.Hist("Counts", dataset_axis,lepflav_axis,flav_axis, axis)
-            _hist_event_dict["jetpt_%s" %(disc)] = hist.Hist("Counts", dataset_axis,lepflav_axis,flav_axis, axis)
+            _hist_event_dict["cjet_%s" %(disc)] = hist.Hist("Counts", dataset_axis,lepflav_axis,flav_axis, axis)
+            _hist_event_dict["jet1_%s" %(disc)] = hist.Hist("Counts", dataset_axis,lepflav_axis,flav_axis, axis)
+            _hist_event_dict["jet2_%s" %(disc)] = hist.Hist("Counts", dataset_axis,lepflav_axis,flav_axis, axis)
         self.event_hists = list(_hist_event_dict.keys())
     
         self._accumulator = processor.dict_accumulator(
@@ -171,7 +155,6 @@ class NanoProcessor(processor.ProcessorABC):
         output['cutflow'][dataset]['all'] += len(events.Muon)
         trigger_ee = np.zeros(len(events), dtype='bool')
         trigger_mm = np.zeros(len(events), dtype='bool')
-        trigger_em = np.zeros(len(events), dtype='bool')
         for t in self._muhlt[self._year]:
             if t in events.HLT.fields:
                 trigger_mm = trigger_mm | events.HLT[t]
@@ -186,134 +169,172 @@ class NanoProcessor(processor.ProcessorABC):
         ## Muon cuts
         # muon twiki: https://twiki.cern.ch/twiki/bin/view/CMS/SWGuideMuonIdRun2
         event_mu = events.Muon[ak.argsort(events.Muon.pt, axis=1,ascending=False)]
-        musel = ((event_mu.pt > 13) & (abs(event_mu.eta) < 2.4)&(event_mu.mvaId>=3) &(event_mu.pfRelIso03_all<0.35)&(event_mu.sip3d<10)&(abs(event_mu.dxy)<0.5)&(abs(event_mu.dz)<1))
+        musel = ((event_mu.pt > 13) & (abs(event_mu.eta) < 2.4)&(event_mu.mvaId>=3) &(event_mu.pfRelIso03_all<0.35)&(abs(event_mu.dxy)<0.5)&(abs(event_mu.dz)<1))
         event_mu["lep_flav"] = 13*event_mu.charge
         
         event_mu = event_mu[musel]
-        event_mu= ak.pad_none(event_mu,2,axis=1)
         nmu = ak.sum(musel,axis=1)
+        event_mu= ak.pad_none(event_mu,2,axis=1)
+        
         # ## Electron cuts
         # # electron twiki: https://twiki.cern.ch/twiki/bin/viewauth/CMS/CutBasedElectronIdentificationRun2
         event_e = events.Electron[ak.argsort(events.Electron.pt, axis=1,ascending=False)]
         event_e["lep_flav"] = 11*event_e.charge
-        elesel = ((event_e.pt > 13) & (abs(event_e.eta) < 2.5)&(event_e.mvaFall17V2Iso_WP90==1)&(event_e.sip3d<10)& (abs(event_e.dxy)<0.5)&(abs(event_e.dz)<1))
+        elesel = ((event_e.pt > 13) & (abs(event_e.eta) < 2.5)&(event_e.mvaFall17V2Iso_WP90==1)& (abs(event_e.dxy)<0.5)&(abs(event_e.dz)<1))
         event_e = event_e[elesel]
-        event_e = ak.pad_none(event_e,2,axis=1)
         nele = ak.sum(elesel,axis=1)
+        event_e = ak.pad_none(event_e,2,axis=1)
+        
         selection.add('lepsel',ak.to_numpy((nele==2)|(nmu==2)))
-        
-        good_leptons = ak.with_name(
-                ak.concatenate([event_e, event_mu], axis=1),
-                "PtEtaPhiMCandidate", )
+        event_jet = events.Jet[ak.argsort(events.Jet.btagDeepFlavCvL, axis=1,ascending=False)]
+        jet_sel = (event_jet.pt > 20) & (abs(event_jet.eta) <= 2.4)&((event_jet.puId > 0)|(event_jet.pt>50)) &(event_jet.jetId>5)
+        event_jet =event_jet[jet_sel]
+        njet = ak.sum(jet_sel,axis=1)
+        event_jet = ak.pad_none(event_jet,3,axis=1)
+        selection.add('jetsel',ak.to_numpy(njet>=3))
+        cjet = event_jet[:,0]
+     
+        rest_jet = event_jet[:,1:]
+        # good_leptons = ak.with_name(
+                # ak.concatenate([event_e, event_mu], axis=1),
+                # "PtEtaPhiMCandidate", )
+        good_leptons = ak.concatenate([event_e, event_mu], axis=1)
+        pair_2lep = ak.combinations(
+                good_leptons,
+                n=2,
+                replacement=False,
+                axis=-1,
+                fields=["lep1", "lep2"],
+            )
         ll_cand = ak.zip({
-                    "p4" : good_leptons[:,0]+good_leptons[:,1],
-                    "pt": (good_leptons[:,0]+good_leptons[:,1]).pt,
-                    "eta": (good_leptons[:,0]+good_leptons[:,1]).eta,
-                    "phi": (good_leptons[:,0]+good_leptons[:,1]).phi,
-                    "mass": (good_leptons[:,0]+good_leptons[:,1]).mass,
+                    # "p4": pair_2lep.lep1+pair_2lep.lep2,
+                    "lep1": pair_2lep.lep1,
+                    "lep2": pair_2lep.lep2,
+                    "pt": (pair_2lep.lep1+pair_2lep.lep2).pt,
+                    "eta": (pair_2lep.lep1+pair_2lep.lep2).eta,
+                    "phi": (pair_2lep.lep1+pair_2lep.lep2).phi,
+                    "mass": (pair_2lep.lep1+pair_2lep.lep2).mass,
                 },with_name="PtEtaPhiMLorentzVector",)
-        met = ak.zip({
-                    "pt":  events.MET.pt,
-                    "phi": events.MET.phi,
-                    "energy":events.MET.sumEt,
+        # good_jets = ak.with_name(event_jet,"PtEtaPhiMCandidate")
+        pair_2j = ak.combinations(
+                rest_jet,
+                n=2,
+                replacement=False,
+                fields = ['jet1','jet2']
+            )
+        jj_cand =ak.zip({
+                    # "p4": pair_2j.jet1+pair_2j.jet2,
+                    "jet1" : pair_2j.jet1,
+                    "jet2" : pair_2j.jet2,
+                    "pt": (pair_2j.jet1+pair_2j.jet2).pt,
+                    "eta": (pair_2j.jet1+pair_2j.jet2).eta,
+                    "phi": (pair_2j.jet1+pair_2j.jet2).phi,
+                    "mass": (pair_2j.jet1+pair_2j.jet2).mass,
                 },with_name="PtEtaPhiMLorentzVector",)
-       
-        req_global = (good_leptons[:,0].pt>25) & (ll_cand.pt>20) & (good_leptons[:,0].charge+good_leptons[:,1].charge==0) & (events.MET.pt>20) & ((abs(ll_cand.mass-91.)<15) | (abs(events.MET.pt-91.)<15))
-        req_sr = (abs(met.delta_phi(good_leptons[:,0]))>0.2) & (abs(met.delta_phi(good_leptons[:,1]))>0.2) & (ak.all(events.Jet[events.Jet.pt>20].metric_table(met)>0.4,axis=2))
-        req_zmassll =  (abs(ll_cand.mass-91.)<15)
         
+        higgs_cands, (ll_cands,jj_cands)= ll_cand.metric_table(jj_cand,axis=1,metric=lambda jj_cand, ll_cand: (jj_cand+ll_cand),return_combinations=True)
+        higgs_cand = ak.zip(
+            {
+                "pt": (ll_cands+jj_cands).pt,
+                "eta": (ll_cands+jj_cands).eta,
+                "phi": (ll_cands+jj_cands).phi,
+                "mass": (ll_cands+jj_cands.jet2).mass
+            },with_name="PtEtaPhiMLorentzVector",
+        )
+        req_global = ak.any(ak.any((ll_cands.lep1.pt>25) & (ll_cands.lep1.charge+ll_cands.lep2.charge==0)  & (ll_cands.mass<120) & (ll_cands.mass>60),axis=-1),axis=-1) #& (make_p4(ll_cands.lep1).delta_r(make_p4(ll_cands.lep2))>0.02),axis=-1),axis=-1)
+        req_zllmass =  ak.any(ak.any((abs(ll_cands.mass-91.)<15),axis=-1),axis=-1)
+        req_zqqmass = ak.any(ak.any(jj_cands.mass<116,axis=-1),axis=-1)
+        req_hmass =  ak.any(ak.any(higgs_cand.mass<250,axis=-1),axis=-1)
+
         selection.add('global_selection',ak.to_numpy(req_global))
-        selection.add('SR',ak.to_numpy(req_sr))
-        selection.add('req_llz',ak.to_numpy(req_zmassll))
-        mask2e =  req_global & (ak.num(event_e)==2)& (event_e[:,0].pt>25) & (event_e[:,1].pt>13)
-        mask2mu =  req_global & (ak.num(event_mu)==2)& (event_mu[:,0].pt>25) &(event_mu[:,1].pt>13)
-        
+        selection.add('Z_selection',ak.to_numpy(req_zllmass&req_zqqmass))
+        selection.add('H_selection',ak.to_numpy(req_hmass))
+
+        mask2e =  req_hmass & req_zllmass&req_zqqmass&req_global & (ak.num(event_e)==2)& (event_e[:,0].pt>25) & (event_e[:,1].pt>13)
+        mask2mu =  req_hmass & req_zllmass&req_zqqmass&req_global & (ak.num(event_mu)==2)& (event_mu[:,0].pt>25) &(event_mu[:,1].pt>13)
         mask2lep = [ak.any(tup) for tup in zip(mask2mu, mask2e)]
+        # mask2jet = req_hmass & req_zllmass&req_global&req_zqqmass
+        # event_jet = ak.mask(event_jet,mask2jet)
         good_leptons = ak.mask(good_leptons,mask2lep)
-       
-        
-        output['cutflow'][dataset]['selected Z pairs'] += ak.sum((ak.num(good_leptons)>0) & (ak.num(req_sr)>0))
-        selection.add('ee',ak.to_numpy((ak.num(event_e)==2)& (event_e[:,0].pt>25) & (event_e[:,1].pt>13)))
-        selection.add('mumu',ak.to_numpy((ak.num(event_mu)==2)& (event_mu[:,0].pt>25) &(event_mu[:,1].pt>13)))
         
                
         # ###########
-        seljet = (events.Jet.pt > 20) & (abs(events.Jet.eta) <= 2.4)&((events.Jet.puId > 0)|(events.Jet.pt>50)) &(events.Jet.jetId>5)&ak.all(events.Jet.metric_table(good_leptons[:,0])>0.4,axis=2)&ak.all(events.Jet.metric_table(good_leptons[:,1])>0.4,axis=2)
-        selection.add('jetsel',ak.to_numpy(ak.sum(seljet,axis=1)>0))
-        eventcsv_jet = events.Jet[ak.argsort(events.Jet.btagDeepCvL,axis=1,ascending=False)]
-        eventflav_jet = events.Jet[ak.argsort(events.Jet.btagDeepFlavCvL,axis=1,ascending=False)]
-        # eventpn_jet = events.Jet[ak.argsort(events.Jet.particleNetAK4_CvL,axis=1,ascending=False)]
-        eventpt_jet = events.Jet[ak.argsort(events.Jet.pt,axis=1,ascending=False)]
 
-        sel_jet = eventcsv_jet[(eventcsv_jet.pt > 20) & (abs(eventcsv_jet.eta) <= 2.4)&((eventcsv_jet.puId > 0)|(eventcsv_jet.pt>50)) &(eventcsv_jet.jetId>5)&ak.all(eventcsv_jet.metric_table(good_leptons[:,0])>0.4,axis=2)&ak.all(eventcsv_jet.metric_table(good_leptons[:,1])>0.4,axis=2)]
-        # sel_jet = eventcsv_jet[ak.all(eventcsv_jet.metric_table(good_leptons[:,1])>0.4,axis=2)&ak.all(eventcsv_jet.metric_table(pair_4lep.lep3)>0.4,axis=2)&ak.all(eventcsv_jet.metric_table(pair_4lep.lep4)>0.4,axis=2)]
-
-        sel_jet = ak.mask(sel_jet,ak.num(good_leptons)>0)
-        good_leptons = ak.mask(good_leptons,ak.num(sel_jet)>0)
-        sel_cjet_csv = ak.pad_none(sel_jet,1,axis=1)
-        sel_cjet_csv= sel_cjet_csv[:,0]
-
-        sel_jetflav =  eventflav_jet[(eventflav_jet.pt > 20) & (abs(eventflav_jet.eta) <= 2.4)&((eventflav_jet.puId > 0)|(eventflav_jet.pt>50)) &(eventflav_jet.jetId>5)&ak.all(eventflav_jet.metric_table(good_leptons[:,0])>0.4,axis=2)&ak.all(eventflav_jet.metric_table(good_leptons[:,1])>0.4,axis=2)]
-        sel_jetflav = ak.mask(sel_jetflav,ak.num(good_leptons)>0)
-        sel_cjet_flav = ak.pad_none(sel_jetflav,1,axis=1)
-        sel_cjet_flav = sel_cjet_flav[:,0]
-
-        # sel_jetpn =  eventpn_jet[(eventpn_jet.pt > 20) & (abs(eventpn_jet.eta) <= 2.4)&((eventpn_jet.puId > 0)|(eventpn_jet.pt>50)) &(eventpn_jet.jetId>5)&ak.all(eventpn_jet.metric_table(good_leptons[:,0])>0.4,axis=2)&ak.all(eventpn_jet.metric_table(good_leptons[:,1])>0.4,axis=2)&ak.all(eventpn_jet.metric_table(pair_4lep.lep3)>0.4,axis=2)&ak.all(eventpn_jet.metric_table(pair_4lep.lep4)>0.4,axis=2)]
-        # sel_jetpn = ak.mask(sel_jetpn,ak.num(pair_4lep)>0)
-        # sel_cjet_pn = ak.pad_none(sel_jetpn,1,axis=1)
-        # sel_cjet_pn = sel_cjet_pn[:,0]
-
-        sel_jetpt =  eventpt_jet[(eventpt_jet.pt > 20) & (abs(eventpt_jet.eta) <= 2.4)&((eventpt_jet.puId > 0)|(eventpt_jet.pt>50)) &(eventpt_jet.jetId>5)&ak.all(eventpt_jet.metric_table(good_leptons[:,0])>0.4,axis=2)]
+        # print(ak.all(cjet.metric_table(ll_cands.lep1)>0.4,axis=-1))
+        # print(ak.type(ak.all(cjet.metric_table(good_leptons)>0.4,axis=1)))
+        seljet = (cjet.pt > 20) & (abs(cjet.eta) <= 2.4)&((cjet.puId > 0)|(cjet.pt>50)) &(cjet.jetId>5)&(ak.all(ak.all(cjet.delta_r(ll_cands.lep1)>0.4,axis=-1),axis=-1))&(ak.all(ak.all(cjet.delta_r(ll_cands.lep2)>0.4,axis=-1),axis=-1))
+        sel_cjet = ak.mask(cjet,seljet)
+        selection.add('jetsel',ak.to_numpy(seljet))
         
-        sel_jetpt = ak.mask(sel_jetpt,ak.num(good_leptons)>0)
-        sel_cjet_pt = ak.pad_none(sel_jetpt,1,axis=1)
-        sel_cjet_pt = sel_cjet_pt[:,0]
+        output['cutflow'][dataset]['global selection'] += ak.sum(req_global)
+        output['cutflow'][dataset]['dilepton mass'] += ak.sum(req_zllmass&req_global)
+        output['cutflow'][dataset]['dijet mass'] +=ak.sum(req_zllmass&req_global&req_zqqmass)
+        output['cutflow'][dataset]['tag one jet'] +=ak.sum(req_zllmass&req_global&req_zqqmass&seljet)
+        output['cutflow'][dataset]['jet efficiency'] +=ak.sum(req_zllmass&req_global&req_zqqmass&seljet&(njet>=3))
+        output['cutflow'][dataset]['electron efficiency'] +=ak.sum(req_zllmass&req_global&req_zqqmass&seljet&(njet>=3)&(nele==2))
+        output['cutflow'][dataset]['muon efficiency'] +=ak.sum(req_zllmass&req_global&req_zqqmass&seljet&(njet>=3)&(nmu==2))
         
-          
-        
-        output['cutflow'][dataset]['selected jets'] +=ak.sum(ak.num(sel_jet) > 0)
-        # output['cutflow'][dataset]['selected jets'] +=ak.sum(ak.num(sel_jet) > 0)
+        selection.add('ee',ak.to_numpy((ak.num(event_e)==2)& (event_e[:,0].pt>25) & (event_e[:,1].pt>13)))
+        selection.add('mumu',ak.to_numpy((ak.num(event_mu)==2)& (event_mu[:,0].pt>25) &(event_mu[:,1].pt>13)))
 
-        lepflav = ['ee','mumu','emu']
-        lep1=good_leptons[:,0] 
-        lep2=good_leptons[:,1]
+
+        lepflav = ['ee','mumu']
+
         for histname, h in output.items():
             for ch in lepflav:
-                cut = selection.all('jetsel','lepsel','global_selection','SR',ch)
-                if 'jetcsv_' in histname:
-                    fields = {l: normalize(sel_cjet_csv[histname.replace('jetcsv_','')],cut) for l in h.fields if l in dir(sel_cjet_csv)}
-                    h.fill(dataset=dataset, lepflav =ch,flav=normalize(sel_cjet_csv.hadronFlavour+1*((sel_cjet_csv.partonFlavour == 0 ) & (sel_cjet_csv.hadronFlavour==0)),cut), **fields)    
-                elif 'jetflav_' in histname:
-                    fields = {l: normalize(sel_cjet_flav[histname.replace('jetflav_','')],cut) for l in h.fields if l in dir(sel_cjet_flav)}
-                    h.fill(dataset=dataset, lepflav =ch,flav=normalize(sel_cjet_flav.hadronFlavour+1*((sel_cjet_flav.partonFlavour == 0 ) & (sel_cjet_flav.hadronFlavour==0)),cut), **fields)  
-                # elif 'jetpn_' in histname:
-                #     fields = {l: normalize(sel_cjet_pn[histname.replace('jetpn_','')],cut) for l in h.fields if l in dir(sel_cjet_pn)}
-                #     h.fill(dataset=dataset,lepflav =ch, flav=normalize(sel_cjet_pn.hadronFlavour+1*((sel_cjet_pn.partonFlavour == 0 ) & (sel_cjet_pn.hadronFlavour==0)),cut), **fields)    
-                elif 'jetpt_' in histname:
-                    fields = {l: normalize(sel_cjet_pt[histname.replace('jetpt_','')],cut) for l in h.fields if l in dir(sel_cjet_pt)}
-                    h.fill(dataset=dataset, lepflav =ch,flav=normalize(sel_cjet_pt.hadronFlavour+1*((sel_cjet_pt.partonFlavour == 0 ) & (sel_cjet_pt.hadronFlavour==0)),cut), **fields)  
+                cut = selection.all('jetsel','lepsel','global_selection','Z_selection','H_selection',ch)
+                lep1cut=ll_cands.lep1[cut]  
+                lep2cut=ll_cands.lep2[cut]
+                llcut = ll_cands[cut]
+                jjcut = jj_cands[cut]
+                jet1cut=jj_cands.jet1[cut]
+                jet2cut=jj_cands.jet2[cut]
+                hcut = higgs_cand[cut]  
                    
+                charmcut = sel_cjet[cut]
+                
+                if 'cjet_' in histname:
+                    fields = {l: normalize(sel_cjet[histname.replace('cjet_','')],cut) for l in h.fields if l in dir(sel_cjet)}
+                    h.fill(dataset=dataset, lepflav =ch,flav=normalize(sel_cjet.hadronFlavour+1*((sel_cjet.partonFlavour == 0 ) & (sel_cjet.hadronFlavour==0)),cut), **fields)    
+                
+                elif 'jet1_' in histname:
+                    fields = {l: flatten(jet1cut[histname.replace('jet1_','')]) for l in h.fields if l in dir(jet1cut)}
+                    h.fill(dataset=dataset, lepflav =ch,flav=flatten((jet1cut.hadronFlavour+1*((jet1cut.partonFlavour == 0 ) & (jet1cut.hadronFlavour==0)))), **fields) 
+                elif 'jet2_' in histname:
+                    fields = {l: flatten(jet2cut[histname.replace('jet2_','')]) for l in h.fields if l in dir(jet2cut)}
+                    h.fill(dataset=dataset, lepflav =ch,flav=flatten((jet2cut.hadronFlavour+1*((jet2cut.partonFlavour == 0 ) & (jet2cut.hadronFlavour==0)))), **fields)    
                 elif 'lep1_' in histname:
-                    
-                    fields = {l: normalize(lep1[histname.replace('lep1_','')],cut) for l in h.fields if l in dir(lep1)}
-
+                    fields = {l: flatten(lep1cut[histname.replace('lep1_','')]) for l in h.fields if l in dir(lep1cut)}
                     h.fill(dataset=dataset,lepflav=ch, **fields)
                 elif 'lep2_' in histname:
-                    
-                    fields = {l: normalize(lep2[histname.replace('lep2_','')],cut)  for l in h.fields if l in dir(lep2)}
+                    fields = {l: flatten(lep2cut[histname.replace('lep2_','')]) for l in h.fields if l in dir(lep2cut)}
                     h.fill(dataset=dataset,lepflav=ch, **fields)
-                elif 'MET_' in histname:
-                    fields = {l: normalize(events.MET[histname.replace('MET_','')],cut) for l in h.fields if l in dir(events.MET)}
+                elif 'll_' in histname:
+                    fields = {l: flatten(llcut[histname.replace('ll_','')]) for l in h.fields if l in dir(llcut)}
                     h.fill(dataset=dataset, lepflav =ch, **fields)  
-                
+                elif 'jj_' in histname:
+                    fields = {l:  flatten(jjcut[histname.replace('jj_','')]) for l in h.fields if l in dir(jjcut)}
+                    h.fill(dataset=dataset, lepflav =ch, **fields)
+                elif 'higgs_' in histname:
+                    fields = {l:  flatten(hcut[histname.replace('higgs_','')]) for l in h.fields if l in dir(hcut)}
+                    h.fill(dataset=dataset, lepflav =ch, **fields)  
                 else :
-                    output['nj'].fill(dataset=dataset,lepflav=ch,nj=normalize(ak.num(sel_jet),cut))                    
-                    output['mT1'].fill(dataset=dataset,lepflav=ch,mt=normalize(mT(good_leptons[:,0],met),cut))
-                    output['mT2'].fill(dataset=dataset,lepflav=ch,mt=normalize(mT(good_leptons[:,1],met),cut))
-                    output['mTh'].fill(dataset=dataset,lepflav=ch,mt=normalize(mT(ll_cand,met),cut))
-                    output['dphi_ll'].fill(dataset=dataset,lepflav=ch,phi=normalize(met.delta_phi(ll_cand),cut))
-                    output['dphi_lep1'].fill(dataset=dataset,lepflav=ch,phi=normalize(met.delta_phi(lep1),cut))
-                    output['dphi_lep2'].fill(dataset=dataset,lepflav=ch,phi=normalize(met.delta_phi(lep2),cut))
+                    output['hc_dr'].fill(dataset=dataset,lepflav=ch,dr=flatten(hcut.delta_r(charmcut)))                    
+                    output['zs_dr'].fill(dataset=dataset,lepflav=ch,dr=flatten(llcut.delta_r(jjcut))) 
+                    output['cj_dr'].fill(dataset=dataset,lepflav=ch,dr=flatten(jjcut.delta_r(charmcut)))
+                    
+                    ll_hCM = llcut.boost(-1*hcut.boostvec)#boost to higgs frame
+                    poslep = make_p4(ak.where(lep1cut.charge>0,lep1cut,lep2cut))
+                    poslep_hCM = poslep.boost(-1*hcut.boostvec)
+                    poslep_ZCM = poslep_hCM.boost(-1*llcut.boostvec)
+                    jet_hCM =jet1cut.boost(-1*hcut.boostvec)
+                    jet_ZCM = jet_hCM.boost(-1*jjcut.boostvec)
+                    
+                    output['costheta_pz'].fill(dataset=dataset,lepflav=ch,costheta=flatten(np.cos(ll_hCM.theta))) 
+                    output['costheta_ll'].fill(dataset=dataset,lepflav=ch,costheta=flatten(np.cos(poslep_ZCM.theta))) 
+                    output['costheta_pz'].fill(dataset=dataset,lepflav=ch,costheta=flatten(np.cos(jet_ZCM.theta))) 
+                    output['phi_zz'].fill(dataset=dataset,lepflav=ch,phi=flatten(ll_hCM.phi)) 
+                    output['phi_lq'].fill(dataset=dataset,lepflav=ch,phi=flatten(jet_ZCM.delta_phi(poslep_ZCM)))
                     
         return output
 
