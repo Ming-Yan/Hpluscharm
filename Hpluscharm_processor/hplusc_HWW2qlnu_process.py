@@ -145,13 +145,13 @@ class NanoProcessor(processor.ProcessorABC):
         isRealData = not hasattr(events, "genWeight")
         selection = processor.PackedSelection()
         if(isRealData):output['sumw'][dataset] += 1.
-        else:output['sumw'][dataset] += ak.sum(events.genWeight)
+        else:output['sumw'][dataset] += ak.sum(events.genWeight/abs(events.genWeight))
         # req_lumi=np.ones(len(events), dtype='bool')
         # if(isRealData): req_lumi=lumiMasks['2017'](events.run, events.luminosityBlock)
         weights = Weights(len(events), storeIndividual=True)
-        if isRealData:weights.add('genweight',len(events)*1.)
+        if isRealData:weights.add('genweight',np.ones(events))
         else:
-            weights.add('genweight',events.genWeight)
+            weights.add('genweight',events.genWeight/abs(events.genWeight))
             # weights.add('puweight', compiled['2017_pileupweight'](events.Pileup.nPU))
         ##############
         output['cutflow'][dataset]['all'] += len(events.Muon)
@@ -165,7 +165,7 @@ class NanoProcessor(processor.ProcessorABC):
                 trigger_ee = trigger_ee | events.HLT[t]
         
         selection.add('trigger_ee', ak.to_numpy(trigger_ee))
-        selection.add('trigger_mm', ak.to_numpy(trigger_mm))
+        selection.add('trigger_mumu', ak.to_numpy(trigger_mm))
         
 
         
@@ -222,15 +222,16 @@ class NanoProcessor(processor.ProcessorABC):
                     "energy":events.MET.sumEt,
                 },with_name="PtEtaPhiMLorentzVector",)
         
-        req_global = (good_leptons.pt>30)& (events.MET.pt>20) & ak.any((make_p4(jj_cand.jet1).delta_r(good_leptons)>0.4),axis=-1)& ak.any((make_p4(jj_cand.jet2).delta_r(good_leptons)>0.4),axis=-1)
+        req_global = (good_leptons.pt>30)& (events.MET.pt>30) & ak.any((make_p4(jj_cand.jet1).delta_r(good_leptons)>0.4),axis=-1)& ak.any((make_p4(jj_cand.jet2).delta_r(good_leptons)>0.4),axis=-1)
         req_wqqmass = ak.any(jj_cand.mass<116,axis=-1)
        
         
-        req_sr = mT(make_p4(good_leptons),met)>60 & ak.any(met.delta_phi(jj_cand)<np.pi/2.,axis=-1)
+        req_sr = mT(make_p4(good_leptons),met)>60 & ak.any(met.delta_phi(jj_cand)<np.pi/2.,axis=-1) 
         
         selection.add('global_selection',ak.to_numpy(req_global))
         selection.add('wqq',ak.to_numpy(req_wqqmass))
         selection.add('mT_deltaphi',ak.to_numpy(req_sr))
+        
 
         mask2e =  req_sr&req_global & (ak.num(event_e)==1)& (event_e[:,0].pt>30) 
         mask2mu =  req_sr&req_global & (ak.num(event_mu)==1)& (event_mu[:,0].pt>30)

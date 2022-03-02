@@ -177,16 +177,16 @@ class NanoProcessor(processor.ProcessorABC):
         isRealData = not hasattr(events, "genWeight")
         selection = processor.PackedSelection()
         if(isRealData):output['sumw'][dataset] += 1.
-        else:output['sumw'][dataset] += ak.sum(events.genWeight)
+        else:output['sumw'][dataset] += ak.sum(events.genWeight/abs(events.genWeight))
         # req_lumi=np.ones(len(events), dtype='bool')
         # if(isRealData): req_lumi=lumiMasks['2017'](events.run, events.luminosityBlock)
         weights = Weights(len(events), storeIndividual=True)
-        if isRealData:weights.add('genweight',len(events)*1.)
+        if isRealData:weights.add('genweight',np.ones(len(events)))
         else:
-            weights.add('genweight',events.genWeight)
+            weights.add('genweight',events.genWeight/abs(events.genWeight))
             # weights.add('puweight', compiled['2017_pileupweight'](events.Pileup.nPU))
         ##############
-        output['cutflow'][dataset]['all'] += len(events.Muon)
+        output['cutflow'][dataset]['all'] += ak.sum(events.genWeight/abs(events.genWeight))
         trigger_ee = np.zeros(len(events), dtype='bool')
         trigger_mm = np.zeros(len(events), dtype='bool')
         trigger_em = np.zeros(len(events), dtype='bool')
@@ -200,10 +200,9 @@ class NanoProcessor(processor.ProcessorABC):
             if t in events.HLT.fields:
                 trigger_em = trigger_em | events.HLT[t]
         selection.add('trigger_ee', ak.to_numpy(trigger_ee))
-        selection.add('trigger_mm', ak.to_numpy(trigger_mm))
-        selection.add('trigger_em', ak.to_numpy(trigger_em))
+        selection.add('trigger_mumu', ak.to_numpy(trigger_mm))
+        selection.add('trigger_emu', ak.to_numpy(trigger_em))
         
-
         
         ## Muon cuts
         # muon twiki: https://twiki.cern.ch/twiki/bin/view/CMS/SWGuideMuonIdRun2
@@ -251,7 +250,7 @@ class NanoProcessor(processor.ProcessorABC):
         
         req_global = ak.any((leppair.lep1.pt>25) & (ll_cand.mass>12) & (ll_cand.pt>30) & (leppair.lep1.charge+leppair.lep2.charge==0) & (events.MET.pt>20) & (make_p4(leppair.lep1).delta_r(make_p4(leppair.lep2))>0.02),axis=-1)
 
-        req_sr = ak.any((mT(leppair.lep2,met)>30) & (mT(ll_cand,met)>60),axis=-1)
+        req_sr = ak.any((mT(leppair.lep2,met)>30) & (mT(ll_cand,met)>60) & (abs(ll_cand.mass-91.18)>15) & (events.MET.sumEt>45),axis=-1) 
         
         selection.add('global_selection',ak.to_numpy(req_global))
         selection.add('SR',ak.to_numpy(req_sr))
@@ -315,13 +314,13 @@ class NanoProcessor(processor.ProcessorABC):
         
         for histname, h in output.items():
             for ch in lepflav:
-                cut = selection.all('jetsel','lepsel','global_selection','SR',ch)
+                cut = selection.all('jetsel','lepsel','global_selection','SR',ch, 'trigger_%s'%(ch))
                 lep1cut=leppair.lep1[cut]  
                 lep2cut=leppair.lep2[cut]
                 llcut = ll_cand[cut]
                 if 'jetcsv_' in histname:
                     fields = {l: normalize(sel_cjet_csv[histname.replace('jetcsv_','')],cut) for l in h.fields if l in dir(sel_cjet_csv)}
-                    h.fill(dataset=dataset, lepflav =ch,flav=normalize(sel_cjet_csv.hadronFlavour+1*((sel_cjet_csv.partonFlavour == 0 ) & (sel_cjet_csv.hadronFlavour==0)),cut), **fields)    
+                    h.fill(dataset=dataset, lepflav =ch,flav=normalize(sel_cjet_csv.hadronFlavour+1*((sel_cjet_csv.partonFlavour == 0 ) & (sel_cjet_csv.hadronFlavour==0)),cut), **fields )    
                 elif 'jetflav_' in histname:
                     fields = {l: normalize(sel_cjet_flav[histname.replace('jetflav_','')],cut) for l in h.fields if l in dir(sel_cjet_flav)}
                     h.fill(dataset=dataset, lepflav =ch,flav=normalize(sel_cjet_flav.hadronFlavour+1*((sel_cjet_flav.partonFlavour == 0 ) & (sel_cjet_flav.hadronFlavour==0)),cut), **fields)  
@@ -341,7 +340,8 @@ class NanoProcessor(processor.ProcessorABC):
                     fields = {l: normalize(events.MET[histname.replace('MET_','')],cut) for l in h.fields if l in dir(events.MET)}
                     h.fill(dataset=dataset, lepflav =ch, **fields)  
                 else :
-                    output['nj'].fill(dataset=dataset,lepflav=ch,nj=normalize(ak.num(sel_jet),cut))                                        
+                    output['nj'].fill(dataset=dataset,lepflav=ch,nj=normalize(ak.num(sel_jet),cut))                            
+                    # print(ak.type(ak.flatten(mT(lep1cut,met[cut]))),ak.type(weights.weight()[cut]))            
                     output['mT1'].fill(dataset=dataset,lepflav=ch,mt=flatten(mT(lep1cut,met[cut])))
                     output['mT2'].fill(dataset=dataset,lepflav=ch,mt=flatten(mT(lep2cut,met[cut])))
                     output['mTh'].fill(dataset=dataset,lepflav=ch,mt=flatten(mT(llcut,met[cut])))
