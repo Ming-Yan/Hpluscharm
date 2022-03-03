@@ -163,7 +163,7 @@ class NanoProcessor(processor.ProcessorABC):
         # req_lumi=np.ones(len(events), dtype='bool')
         # if(isRealData): req_lumi=lumiMasks['2017'](events.run, events.luminosityBlock)
         weights = Weights(len(events), storeIndividual=True)
-        if isRealData:weights.add('genweight',np.ones(events))
+        if isRealData:weights.add('genweight',np.ones(len(events)))
         else:
             weights.add('genweight',events.genWeight/abs(events.genWeight))
             # weights.add('puweight', compiled['2017_pileupweight'](events.Pileup.nPU))
