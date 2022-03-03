@@ -163,7 +163,7 @@ class NanoProcessor(processor.ProcessorABC):
         # req_lumi=np.ones(len(events), dtype='bool')
         # if(isRealData): req_lumi=lumiMasks['2017'](events.run, events.luminosityBlock)
         weights = Weights(len(events), storeIndividual=True)
-        if isRealData:weights.add('genweight',ak.broadcast_array(1.,events.run))
+        if isRealData:weights.add('genweight',np.ones(events))
         else:
             weights.add('genweight',events.genWeight/abs(events.genWeight))
             # weights.add('puweight', compiled['2017_pileupweight'](events.Pileup.nPU))
@@ -205,6 +205,7 @@ class NanoProcessor(processor.ProcessorABC):
         good_leptons = ak.with_name(
                 ak.concatenate([event_e, event_mu], axis=1),
                 "PtEtaPhiMCandidate", )
+        good_leptons = good_leptons[ak.argsort(good_leptons.pt, axis=1,ascending=False)]
         leppair = ak.combinations(
                 good_leptons,
                 n=2,
