@@ -154,6 +154,8 @@ class NanoProcessor(processor.ProcessorABC):
             weights.add('genweight',events.genWeight/abs(events.genWeight))
             # weights.add('puweight', compiled['2017_pileupweight'](events.Pileup.nPU))
         ##############
+        if(isRealData):output['cutflow'][dataset]['all']  += 1.
+        else:output['cutflow'][dataset]['all']  += ak.sum(events.genWeight/abs(events.genWeight))
         output['cutflow'][dataset]['all'] += len(events.Muon)
         trigger_ee = np.zeros(len(events), dtype='bool')
         trigger_mm = np.zeros(len(events), dtype='bool')

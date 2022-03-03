@@ -155,7 +155,7 @@ if __name__ == '__main__':
         from hplusc_HZZ2l2q_process import NanoProcessor
     elif args.workflow =="HZZ2l2nu":
         from hplusc_HZZ2l2nu_process import NanoProcessor
-    else :from hplusc_process import NanoProcessor
+    else : raise NotImplementedError
     processor_instance = NanoProcessor()
 
     if args.executor not in ['futures', 'iterative', 'dask/lpc', 'dask/casa']:

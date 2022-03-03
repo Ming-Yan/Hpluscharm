@@ -176,7 +176,7 @@ class NanoProcessor(processor.ProcessorABC):
         dataset = events.metadata['dataset']
         isRealData = not hasattr(events, "genWeight")
         selection = processor.PackedSelection()
-        if(isRealData):output['sumw'][dataset] += 1.
+        if isRealData :output['sumw'][dataset] += 1.
         else:output['sumw'][dataset] += ak.sum(events.genWeight/abs(events.genWeight))
         # req_lumi=np.ones(len(events), dtype='bool')
         # if(isRealData): req_lumi=lumiMasks['2017'](events.run, events.luminosityBlock)
@@ -186,7 +186,8 @@ class NanoProcessor(processor.ProcessorABC):
             weights.add('genweight',events.genWeight/abs(events.genWeight))
             # weights.add('puweight', compiled['2017_pileupweight'](events.Pileup.nPU))
         ##############
-        output['cutflow'][dataset]['all'] += ak.sum(events.genWeight/abs(events.genWeight))
+        if(isRealData):output['cutflow'][dataset]['all']  += 1.
+        else:output['cutflow'][dataset]['all']  += ak.sum(events.genWeight/abs(events.genWeight))
         trigger_ee = np.zeros(len(events), dtype='bool')
         trigger_mm = np.zeros(len(events), dtype='bool')
         trigger_em = np.zeros(len(events), dtype='bool')
