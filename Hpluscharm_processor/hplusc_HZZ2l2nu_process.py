@@ -213,12 +213,14 @@ class NanoProcessor(processor.ProcessorABC):
                 fields=["lep1", "lep2"],
             )
         ll_cand = ak.zip({
-                    "p4" : leppair.lep1+leppair.lep2,
+                    "lep1" : leppair.lep1,
+                    "lep2" : leppair.lep2,
                     "pt": (leppair.lep1+leppair.lep2).pt,
                     "eta": (leppair.lep1+leppair.lep2).eta,
                     "phi": (leppair.lep1+leppair.lep2).phi,
                     "mass": (leppair.lep1+leppair.lep2).mass,
                 },with_name="PtEtaPhiMLorentzVector",)
+        ll_cand = ll_cand[ak.argsort(abs(ll_cand.mass-91.18), axis=1)]
         met = ak.zip({
                     "pt":  events.MET.pt,
                     "phi": events.MET.phi,
@@ -286,9 +288,11 @@ class NanoProcessor(processor.ProcessorABC):
         for histname, h in output.items():
             for ch in lepflav:
                 cut = selection.all('jetsel','lepsel','global_selection','SR','req_llz',ch)
-                lep1cut=leppair.lep1[cut]  
-                lep2cut=leppair.lep2[cut]
                 llcut = ll_cand[cut]
+                llcut = llcut[:,0]
+                lep1cut=llcut.lep1
+                lep2cut=llcut.lep2
+                
                 if 'jetcsv_' in histname:
                     fields = {l: normalize(sel_cjet_csv[histname.replace('jetcsv_','')],cut) for l in h.fields if l in dir(sel_cjet_csv)}
                     h.fill(dataset=dataset, lepflav =ch,flav=normalize(sel_cjet_csv.hadronFlavour+1*((sel_cjet_csv.partonFlavour == 0 ) & (sel_cjet_csv.hadronFlavour==0)),cut), **fields)    
@@ -302,10 +306,10 @@ class NanoProcessor(processor.ProcessorABC):
                     fields = {l: normalize(sel_cjet_pt[histname.replace('jetpt_','')],cut) for l in h.fields if l in dir(sel_cjet_pt)}
                     h.fill(dataset=dataset, lepflav =ch,flav=normalize(sel_cjet_pt.hadronFlavour+1*((sel_cjet_pt.partonFlavour == 0 ) & (sel_cjet_pt.hadronFlavour==0)),cut), **fields)  
                 elif 'lep1_' in histname:
-                    fields = {l: ak.fill_none(ak.flatten(lep1cut[histname.replace('lep1_','')]),np.nan) for l in h.fields if l in dir(lep1cut)}
+                    fields = {l:ak.fill_none(flatten(lep1cut[histname.replace('lep1_','')]),np.nan)  for l in h.fields if l in dir(lep1cut)}
                     h.fill(dataset=dataset,lepflav=ch, **fields)
                 elif 'lep2_' in histname:
-                    fields = {l: ak.fill_none(ak.flatten(lep2cut[histname.replace('lep2_','')]),np.nan) for l in h.fields if l in dir(lep2cut)}
+                    fields = {l: ak.fill_none(flatten(lep2cut[histname.replace('lep2_','')]),np.nan) for l in h.fields if l in dir(lep2cut)}
                     h.fill(dataset=dataset,lepflav=ch, **fields)
                 elif 'MET_' in histname:
                     fields = {l: normalize(events.MET[histname.replace('MET_','')],cut) for l in h.fields if l in dir(events.MET)}

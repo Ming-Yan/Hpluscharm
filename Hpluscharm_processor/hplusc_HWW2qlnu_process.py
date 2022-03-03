@@ -214,6 +214,7 @@ class NanoProcessor(processor.ProcessorABC):
                     "phi": (pair_2j.jet1+pair_2j.jet2).phi,
                     "mass": (pair_2j.jet1+pair_2j.jet2).mass,
                 },with_name="PtEtaPhiMLorentzVector",)
+        jj_cand = jj_cand[ak.argsort(abs(jj_cand.mass-80.4), axis=1)]
         met = ak.zip({
                     "pt":  events.MET.pt,
                     "phi": events.MET.phi,
@@ -264,26 +265,27 @@ class NanoProcessor(processor.ProcessorABC):
         
         for histname, h in output.items():
             for ch in lepflav:
-                cut = selection.all('jetsel','lepsel','global_selection','wqq','mT_deltaphi',ch)
+                cut = selection.all('jetsel','lepsel','global_selection','wqq','mT_deltaphi',ch, 'trigger_%s'%(ch))
                 lepcut=good_leptons[cut]
                 jjcut = jj_cand[cut]
-                jet1cut=jj_cand.jet1[cut]
-                jet2cut=jj_cand.jet2[cut]
+                jjcut = jjcut[:,0]
+                jet1cut=jjcut.jet1
+                jet2cut=jjcut.jet2
 
                 if 'cjet_' in histname:
                     fields = {l: normalize(sel_cjet[histname.replace('cjet_','')],cut) for l in h.fields if l in dir(sel_cjet)}
-                    if isRealData:flavor= ak.broadcast_arrays(0.,normalize(sel_cjet['pt'],cut))
+                    if isRealData:flavor= ak.zeros_like(normalize(sel_cjet['pt'],cut))
                     else :flavor= normalize(sel_cjet.hadronFlavour+1*((sel_cjet.partonFlavour == 0 ) & (sel_cjet.hadronFlavour==0)),cut)
-                    print(ak.type(flavor))
+                    
                     h.fill(dataset=dataset, lepflav =ch,flav=flavor, **fields)    
                 elif 'jet1_' in histname:
                     fields = {l: flatten(jet1cut[histname.replace('jet1_','')]) for l in h.fields if l in dir(jet1cut)}
-                    if isRealData:flavor= ak.broadcast_arrays(0.,flatten(jet1cut['pt']) )
+                    if isRealData:flavor= ak.zeros_like(flatten(jet1cut['pt']) )
                     else :flavor= flatten((jet1cut.hadronFlavour+1*((jet1cut.partonFlavour == 0 ) & (jet1cut.hadronFlavour==0))))
                     h.fill(dataset=dataset, lepflav =ch,flav=flavor, **fields) 
                 elif 'jet2_' in histname:
                     fields = {l: flatten(jet2cut[histname.replace('jet2_','')]) for l in h.fields if l in dir(jet2cut)}
-                    if isRealData:flavor= ak.broadcast_arrays(0.,flatten(jet2cut['pt']) )
+                    if isRealData:flavor= ak.zeros_like(flatten(jet2cut['pt']) )
                     else :flavor= flatten((jet2cut.hadronFlavour+1*((jet2cut.partonFlavour == 0 ) & (jet2cut.hadronFlavour==0))))
                     h.fill(dataset=dataset, lepflav =ch,flav=flavor, **fields) 
                 elif 'jj_' in histname:

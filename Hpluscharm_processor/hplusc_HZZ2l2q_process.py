@@ -215,6 +215,9 @@ class NanoProcessor(processor.ProcessorABC):
                     "phi": (pair_2lep.lep1+pair_2lep.lep2).phi,
                     "mass": (pair_2lep.lep1+pair_2lep.lep2).mass,
                 },with_name="PtEtaPhiMLorentzVector",)
+        
+
+
         # good_jets = ak.with_name(event_jet,"PtEtaPhiMCandidate")
         pair_2j = ak.combinations(
                 rest_jet,
@@ -233,14 +236,18 @@ class NanoProcessor(processor.ProcessorABC):
                 },with_name="PtEtaPhiMLorentzVector",)
         
         higgs_cands, (ll_cands,jj_cands)= ll_cand.metric_table(jj_cand,axis=1,metric=lambda jj_cand, ll_cand: (jj_cand+ll_cand),return_combinations=True)
+        # print(ak.type(ll_cands.ll_cand))
+        # ll_cands = ll_cands[ak.argsort(abs(ll_cands.mass-91.18), axis=1)]
+        # jj_cands = jj_cands[ak.argsort(jj_cands.pt, axis=1,ascending=False)]
         higgs_cand = ak.zip(
             {
                 "pt": (ll_cands+jj_cands).pt,
                 "eta": (ll_cands+jj_cands).eta,
                 "phi": (ll_cands+jj_cands).phi,
-                "mass": (ll_cands+jj_cands.jet2).mass
+                "mass": (ll_cands+jj_cands).mass
             },with_name="PtEtaPhiMLorentzVector",
         )
+        higgs_cand = higgs_cand[ak.argsort(higgs_cand.pt, axis=1,ascending=False)]
         req_global = ak.any(ak.any((ll_cands.lep1.pt>25) & (ll_cands.lep1.charge+ll_cands.lep2.charge==0)  & (ll_cands.mass<120) & (ll_cands.mass>60),axis=-1),axis=-1) & ak.any(ak.any(make_p4(ll_cands.lep1).delta_r(jj_cands.jet1)>0.4,axis=-1),axis=-1) & ak.any(ak.any(make_p4(ll_cands.lep1).delta_r(jj_cands.jet2)>0.4,axis=-1),axis=-1)& ak.any(ak.any(make_p4(ll_cands.lep2).delta_r(jj_cands.jet1)>0.4,axis=-1),axis=-1)& ak.any(ak.any(make_p4(ll_cands.lep2).delta_r(jj_cands.jet2)>0.4,axis=-1),axis=-1) #& (make_p4(ll_cands.lep1).delta_r(make_p4(ll_cands.lep2))>0.02),axis=-1),axis=-1)
         req_zllmass =  ak.any(ak.any((abs(ll_cands.mass-91.)<15),axis=-1),axis=-1)
         req_zqqmass = ak.any(ak.any(jj_cands.mass<116,axis=-1),axis=-1)
@@ -280,27 +287,31 @@ class NanoProcessor(processor.ProcessorABC):
 
         for histname, h in output.items():
             for ch in lepflav:
-                cut = selection.all('jetsel','lepsel','global_selection','Z_selection','H_selection','cjetsel',ch)
-                lep1cut=ll_cands.lep1[cut]  
-                lep2cut=ll_cands.lep2[cut]
+                cut = selection.all('jetsel','lepsel','global_selection','Z_selection','H_selection','cjetsel',ch,'trigger_%s'%(ch))
+                
                 llcut = ll_cands[cut]
                 jjcut = jj_cands[cut]
-                jet1cut=jj_cands.jet1[cut]
-                jet2cut=jj_cands.jet2[cut]
-                hcut = higgs_cand[cut]  
+                llcut = llcut[:,0]
+                jjcut = jjcut[:,0]
+                lep1cut=llcut.lep1
+                lep2cut=llcut.lep2
+                jet1cut=jjcut.jet1
+                jet2cut=jjcut.jet2
+                hcut = higgs_cand[cut] 
+                hcut = hcut[:,0] 
                    
                 charmcut = sel_cjet[cut]
                 
                 if 'cjet_' in histname:
                     fields = {l: normalize(sel_cjet[histname.replace('cjet_','')],cut) for l in h.fields if l in dir(sel_cjet)}
-                    h.fill(dataset=dataset, lepflav =ch,flav=normalize(sel_cjet.hadronFlavour+1*((sel_cjet.partonFlavour == 0 ) & (sel_cjet.hadronFlavour==0)),cut), **fields)    
+                    h.fill(dataset=dataset, lepflav =ch,flav=normalize(sel_cjet.hadronFlavour+1*((sel_cjet.partonFlavour == 0 ) & (sel_cjet.hadronFlavour==0)),cut), **fields,weight=weights.weight()[cut])    
                 
                 elif 'jet1_' in histname:
                     fields = {l: flatten(jet1cut[histname.replace('jet1_','')]) for l in h.fields if l in dir(jet1cut)}
-                    h.fill(dataset=dataset, lepflav =ch,flav=flatten((jet1cut.hadronFlavour+1*((jet1cut.partonFlavour == 0 ) & (jet1cut.hadronFlavour==0)))), **fields) 
+                    h.fill(dataset=dataset, lepflav =ch,flav=flatten((jet1cut.hadronFlavour+1*((jet1cut.partonFlavour == 0 ) & (jet1cut.hadronFlavour==0)))), **fields,weight=weights.weight()[cut]) 
                 elif 'jet2_' in histname:
                     fields = {l: flatten(jet2cut[histname.replace('jet2_','')]) for l in h.fields if l in dir(jet2cut)}
-                    h.fill(dataset=dataset, lepflav =ch,flav=flatten((jet2cut.hadronFlavour+1*((jet2cut.partonFlavour == 0 ) & (jet2cut.hadronFlavour==0)))), **fields)    
+                    h.fill(dataset=dataset, lepflav =ch,flav=flatten((jet2cut.hadronFlavour+1*((jet2cut.partonFlavour == 0 ) & (jet2cut.hadronFlavour==0)))), **fields,weight=weights.weight()[cut])    
                 elif 'lep1_' in histname:
                     fields = {l: flatten(lep1cut[histname.replace('lep1_','')]) for l in h.fields if l in dir(lep1cut)}
                     h.fill(dataset=dataset,lepflav=ch, **fields)

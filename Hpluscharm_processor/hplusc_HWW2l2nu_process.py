@@ -227,6 +227,7 @@ class NanoProcessor(processor.ProcessorABC):
         good_leptons = ak.with_name(
                 ak.concatenate([ event_e, event_mu], axis=1),
                 "PtEtaPhiMCandidate", )
+        good_leptons = good_leptons[ak.argsort(good_leptons.pt, axis=1,ascending=False)]
         leppair = ak.combinations(
                 good_leptons,
                 n=2,
@@ -236,12 +237,14 @@ class NanoProcessor(processor.ProcessorABC):
             )
         # print(leppair.tolist())
         ll_cand = ak.zip({
-                    "p4" : leppair.lep1+leppair.lep2,
+                    "lep1" : leppair.lep1,
+                    "lep2" : leppair.lep2,
                     "pt": (leppair.lep1+leppair.lep2).pt,
                     "eta": (leppair.lep1+leppair.lep2).eta,
                     "phi": (leppair.lep1+leppair.lep2).phi,
                     "mass": (leppair.lep1+leppair.lep2).mass,
                 },with_name="PtEtaPhiMLorentzVector",)
+        ll_cand  = ll_cand[ak.argsort(ll_cand.pt, axis=1,ascending=False)]
         met = ak.zip({
                     "pt":  events.MET.pt,
                     "phi": events.MET.phi,
@@ -259,6 +262,7 @@ class NanoProcessor(processor.ProcessorABC):
         maskemu = req_sr&req_global & (ak.num(event_e)==1)& (ak.num(event_mu) ==1 )& (((event_mu[:,0].pt>25)&(event_mu[:,1].pt>13))|((event_e[:,0].pt>25)&(event_e[:,1].pt>10)))
         
         mask2lep = [ak.any(tup) for tup in zip(maskemu, mask2mu, mask2e)]
+        
         good_leptons = ak.mask(good_leptons,mask2lep)
        
         
@@ -315,9 +319,10 @@ class NanoProcessor(processor.ProcessorABC):
         for histname, h in output.items():
             for ch in lepflav:
                 cut = selection.all('jetsel','lepsel','global_selection','SR',ch, 'trigger_%s'%(ch))
-                lep1cut=leppair.lep1[cut]  
-                lep2cut=leppair.lep2[cut]
                 llcut = ll_cand[cut]
+                llcut = llcut[:,0]
+                lep1cut = llcut.lep1
+                lep2cut = llcut.lep2
                 if 'jetcsv_' in histname:
                     fields = {l: normalize(sel_cjet_csv[histname.replace('jetcsv_','')],cut) for l in h.fields if l in dir(sel_cjet_csv)}
                     h.fill(dataset=dataset, lepflav =ch,flav=normalize(sel_cjet_csv.hadronFlavour+1*((sel_cjet_csv.partonFlavour == 0 ) & (sel_cjet_csv.hadronFlavour==0)),cut), **fields )    
@@ -331,10 +336,10 @@ class NanoProcessor(processor.ProcessorABC):
                     fields = {l: normalize(sel_cjet_pt[histname.replace('jetpt_','')],cut) for l in h.fields if l in dir(sel_cjet_pt)}
                     h.fill(dataset=dataset, lepflav =ch,flav=normalize(sel_cjet_pt.hadronFlavour+1*((sel_cjet_pt.partonFlavour == 0 ) & (sel_cjet_pt.hadronFlavour==0)),cut), **fields)     
                 elif 'lep1_' in histname:
-                    fields = {l: ak.fill_none(ak.flatten(lep1cut[histname.replace('lep1_','')]),np.nan) for l in h.fields if l in dir(lep1cut)}
+                    fields = {l: ak.fill_none(flatten(lep1cut[histname.replace('lep1_','')]),np.nan) for l in h.fields if l in dir(lep1cut)}
                     h.fill(dataset=dataset,lepflav=ch, **fields)
                 elif 'lep2_' in histname:
-                    fields = {l: ak.fill_none(ak.flatten(lep2cut[histname.replace('lep2_','')]),np.nan) for l in h.fields if l in dir(lep2cut)}
+                    fields = {l: ak.fill_none(flatten(lep2cut[histname.replace('lep2_','')]),np.nan) for l in h.fields if l in dir(lep2cut)}
                     h.fill(dataset=dataset,lepflav=ch, **fields)
                 elif 'MET_' in histname:
                     fields = {l: normalize(events.MET[histname.replace('MET_','')],cut) for l in h.fields if l in dir(events.MET)}
