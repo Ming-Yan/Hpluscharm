@@ -314,7 +314,6 @@ class NanoProcessor(processor.ProcessorABC):
                     h.fill(dataset=dataset, lepflav =ch,flav=flavor, **fields,weight=weights.weight()[cut])  
                 elif 'lep1_' in histname:
                     fields = {l:ak.fill_none(flatten(lep1cut[histname.replace('lep1_','')]),np.nan)  for l in h.fields if l in dir(lep1cut)}
-                    
                     h.fill(dataset=dataset,lepflav=ch, **fields,weight=weights.weight()[cut])
                 elif 'lep2_' in histname:
                     fields = {l: ak.fill_none(flatten(lep2cut[histname.replace('lep2_','')]),np.nan) for l in h.fields if l in dir(lep2cut)}
