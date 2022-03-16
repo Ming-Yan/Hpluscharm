@@ -34,7 +34,6 @@ class NanoProcessor(processor.ProcessorABC):
     # Define histograms
     def __init__(self, year="2017"):    
         self._year=year
-       
         self._mu1hlt = {
             '2016': [
                 'IsoTkMu24'
@@ -211,7 +210,7 @@ class NanoProcessor(processor.ProcessorABC):
             if "DoubleElectron" in dataset:trigger_ele = trigger_ee
             elif "SingleElectron" in dataset:trigger_ele = ~trigger_ee & trigger_e
             elif "DoubleMuon" in dataset:trigger_mu = trigger_mm
-            elif "SingleMuon" in dataset:trigger_mu = ~trigger_mm & trigger_e
+            elif "SingleMuon" in dataset:trigger_mu = ~trigger_mm & trigger_m
 
         else : 
             trigger_mu = trigger_mm|trigger_m

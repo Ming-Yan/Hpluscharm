@@ -35,40 +35,57 @@ class NanoProcessor(processor.ProcessorABC):
     def __init__(self, year="2017"):    
         self._year=year
        
-        self._muhlt = {
+        self._mu1hlt = {
             '2016': [
-                'IsoMu2',
-                'IsoTkMu24',
+                'IsoTkMu24'
+            ],
+            '2017': [
+                'IsoMu27'
+            ],
+            '2018': [
+                'IsoMu24'
+            ],
+        }   
+        self._mu2hlt = {
+            '2016': [
                 'Mu17_TrkIsoVVL_Mu8_TrkIsoVVL',
                 'Mu17_TrkIsoVVL_TkMu8_TrkIsoVVL',
                 'Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ',#runH
                 'Mu17_TrkIsoVVL_TkMu8_TrkIsoVVL_DZ',#runH
             ],
             '2017': [
-                'IsoMu27',
+                
                 'Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_Mass3p8',
                 'Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_Mass8',
             ],
             '2018': [
-                'IsoMu24',
+                
                 'Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_Mass3p8',
             ],
         }   
-        self._ehlt = {
+        self._e1hlt = {
             '2016': [
                 'Ele27_WPTight_Gsf',
-                'Ele25_eta2p1_WPTight_Gsf',
-                'Ele23_Ele12_CaloIdL_TrackIdL_IsoVL_DZ',
+                'Ele25_eta2p1_WPTight_Gsf'
             ],
             '2017': [
                 'Ele35_WPTight_Gsf',
-                'Ele23_Ele12_CaloIdL_TrackIdL_IsoVL',
             ],
             '2018': [
                 'Ele32_WPTight_Gsf',
-                'Ele23_Ele12_CaloIdL_TrackIdL_IsoVL',
             ],
         }   
+        self._e2hlt = {
+            '2016': [
+                'Ele23_Ele12_CaloIdL_TrackIdL_IsoVL_DZ',
+            ],
+            '2017': [
+                'Ele23_Ele12_CaloIdL_TrackIdL_IsoVL',
+            ],
+            '2018': [
+                'Ele23_Ele12_CaloIdL_TrackIdL_IsoVL',
+            ],
+        }    
         self._emuhlt =  {
             '2016': [
                 'Mu8_TrkIsoVVL_Elle23_CaloIdL_TrackIdL_IsoVL',
@@ -137,7 +154,7 @@ class NanoProcessor(processor.ProcessorABC):
                 'dphi_ll':hist.Hist("Counts", dataset_axis, lepflav_axis, phi_axis),
 
             }
-        objects=['jetcsv','jetflav','jetpn','jetpt','lep1','lep2']
+        objects=['jetcsv','jetflav','jetpn','jetpt','lep1','lep2','ll']
         
         for i in objects:
             if  'jet' in i: 
@@ -191,17 +208,41 @@ class NanoProcessor(processor.ProcessorABC):
         trigger_ee = np.zeros(len(events), dtype='bool')
         trigger_mm = np.zeros(len(events), dtype='bool')
         trigger_em = np.zeros(len(events), dtype='bool')
-        for t in self._muhlt[self._year]:
+        trigger_e = np.zeros(len(events), dtype='bool')
+        trigger_m = np.zeros(len(events), dtype='bool')
+        trigger_ee = np.zeros(len(events), dtype='bool')
+        trigger_mm = np.zeros(len(events), dtype='bool')
+        trigger_ele = np.zeros(len(events), dtype='bool')
+        trigger_mu = np.zeros(len(events), dtype='bool')
+        
+        for t in self._mu1hlt[self._year]:
+            if t in events.HLT.fields:
+                trigger_m = trigger_m | events.HLT[t]
+        for t in self._mu2hlt[self._year]:
             if t in events.HLT.fields:
                 trigger_mm = trigger_mm | events.HLT[t]
-        for t in self._ehlt[self._year]:
+        for t in self._e1hlt[self._year]:
             if t in events.HLT.fields:
-                trigger_ee = trigger_ee | events.HLT[t]
+                trigger_e = trigger_e | events.HLT[t]       
+        for t in self._e2hlt[self._year]:
+            if t in events.HLT.fields:
+                trigger_ee = trigger_ee | events.HLT[t] 
         for t in self._emuhlt[self._year]:
             if t in events.HLT.fields:
-                trigger_em = trigger_em | events.HLT[t]
-        selection.add('trigger_ee', ak.to_numpy(trigger_ee))
-        selection.add('trigger_mumu', ak.to_numpy(trigger_mm))
+                trigger_em = trigger_em | events.HLT[t]       
+        
+        if isRealData:
+            if "MuEG" in dataset : trigger_em = trigger_em 
+            elif "DoubleElectron" in dataset:trigger_ele = trigger_ee & ~trigger_em
+            elif "SingleElectron" in dataset:trigger_ele =  trigger_e & ~trigger_ee & ~trigger_em
+            elif "DoubleMuon" in dataset:trigger_mu = trigger_mm
+            elif "SingleMuon" in dataset:trigger_mu = trigger_m & ~trigger_mm & ~trigger_em
+
+        else : 
+            trigger_mu = trigger_mm|trigger_m
+            trigger_ele = trigger_ee|trigger_e
+        selection.add('trigger_ee', ak.to_numpy(trigger_ele))
+        selection.add('trigger_mumu', ak.to_numpy(trigger_mu))
         selection.add('trigger_emu', ak.to_numpy(trigger_em))
         
         
@@ -351,7 +392,10 @@ class NanoProcessor(processor.ProcessorABC):
                     h.fill(dataset=dataset,lepflav=ch, **fields,weight=weights.weight()[cut])
                 elif 'MET_' in histname:
                     fields = {l: normalize(events.MET[histname.replace('MET_','')],cut) for l in h.fields if l in dir(events.MET)}
-                    h.fill(dataset=dataset, lepflav =ch, **fields,weight=weights.weight()[cut])  
+                    h.fill(dataset=dataset, lepflav =ch, **fields,weight=weights.weight()[cut]) 
+                elif 'll_' in histname:
+                    fields = {l: ak.fill_none(flatten(llcut[histname.replace('ll_','')]),np.nan) for l in h.fields if l in dir(llcut)}
+                    h.fill(dataset=dataset,lepflav=ch, **fields,weight=weights.weight()[cut]) 
                 else :
                     output['nj'].fill(dataset=dataset,lepflav=ch,nj=normalize(ak.num(sel_jet),cut),weight=weights.weight()[cut])                            
                     # print(ak.type(ak.flatten(mT(lep1cut,met[cut]))),ak.type(weights.weight()[cut]))            

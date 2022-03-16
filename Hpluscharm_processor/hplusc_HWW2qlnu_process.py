@@ -106,7 +106,8 @@ class NanoProcessor(processor.ProcessorABC):
                 'dphi_lep':hist.Hist("Counts", dataset_axis, lepflav_axis, phi_axis),
                 'dphi_ww':hist.Hist("Counts", dataset_axis, lepflav_axis, phi_axis),
             }
-        objects=['cjet','lep','jet1','jet2','jj']
+        objects=['cjet','lep','jet1','jet2','jj','lep',]
+        
         
         for i in objects:
             if  'jet' in i: 
@@ -130,6 +131,9 @@ class NanoProcessor(processor.ProcessorABC):
         self._accumulator = processor.dict_accumulator(
             {**_hist_event_dict,   
         'cutflow': processor.defaultdict_accumulator(
+                # we don't use a lambda function to avoid pickle issues
+                partial(processor.defaultdict_accumulator, int)),
+                'cuts': processor.defaultdict_accumulator(
                 # we don't use a lambda function to avoid pickle issues
                 partial(processor.defaultdict_accumulator, int))})
         self._accumulator['sumw'] = processor.defaultdict_accumulator(float)
@@ -155,8 +159,8 @@ class NanoProcessor(processor.ProcessorABC):
             # weights.add('puweight', compiled['2017_pileupweight'](events.Pileup.nPU))
         ##############
         if(isRealData):output['cutflow'][dataset]['all']  += 1.
-        else:output['cutflow'][dataset]['all']  += ak.sum(events.genWeight/abs(events.genWeight))
-        output['cutflow'][dataset]['all'] += len(events.Muon)
+        else:output['cutflow'][dataset]['all']  += ak.sum(abs(events.genWeight)/abs(events.genWeight))
+        # output['cutflow'][dataset]['all'] +=1.
         trigger_ee = np.zeros(len(events), dtype='bool')
         trigger_mm = np.zeros(len(events), dtype='bool')
         for t in self._muhlt[self._year]:
@@ -173,20 +177,25 @@ class NanoProcessor(processor.ProcessorABC):
         
         ## Muon cuts
         # muon twiki: https://twiki.cern.ch/twiki/bin/view/CMS/SWGuideMuonIdRun2
-        event_mu = events.Muon[ak.argsort(events.Muon.pt, axis=1,ascending=False)]
-        musel = ((event_mu.pt > 30) & (abs(event_mu.eta) < 2.4)&(event_mu.mvaId>=3) &(event_mu.pfRelIso03_all<0.35)&(abs(event_mu.dxy)<0.5)&(abs(event_mu.dz)<1))
+        event_mu = events.Muon
         
+        # reco_mu = gen_mu.nearest(event_mu)
+        #[ak.argsort(events.Muon.pfRelIso04_all, axis=1)]
+        musel = (event_mu.pt > 30) & (abs(event_mu.eta) < 2.4)&(event_mu.mvaId>=3) &(event_mu.pfRelIso04_all<0.35)&(abs(event_mu.dxy)<0.5)&(abs(event_mu.dz)<1)
         event_mu = event_mu[musel]
+
         event_mu= ak.pad_none(event_mu,1,axis=1)
+        
         nmu = ak.sum(musel,axis=1)
+        # print(dataset,ak.sum(nmu))
         # ## Electron cuts
         # # electron twiki: https://twiki.cern.ch/twiki/bin/viewauth/CMS/CutBasedElectronIdentificationRun2
         event_e = events.Electron[ak.argsort(events.Electron.pt, axis=1,ascending=False)]
-        elesel = ((event_e.pt > 30) & (abs(event_e.eta) < 2.5)&(event_e.mvaFall17V2Iso_WP90==1)& (abs(event_e.dxy)<0.5)&(abs(event_e.dz)<1))
+        elesel = ((event_e.pt > 30) & (abs(event_e.eta) < 2.5))&(event_e.mvaFall17V2Iso_WP90==1)& (abs(event_e.dxy)<0.5)&(abs(event_e.dz)<1)
         event_e = event_e[elesel]
         event_e = ak.pad_none(event_e,1,axis=1)
         nele = ak.sum(elesel,axis=1)
-        selection.add('lepsel',ak.to_numpy((nele+nmu>=1)))
+        selection.add('lepsel',ak.to_numpy(((nele+nmu)>=1)))
         
         event_jet = events.Jet[ak.argsort(events.Jet.btagDeepFlavCvL, axis=1,ascending=False)]
         jet_sel = (event_jet.pt > 20) & (abs(event_jet.eta) <= 2.4)&((event_jet.puId > 0)|(event_jet.pt>50)) &(event_jet.jetId>5) 
@@ -201,6 +210,7 @@ class NanoProcessor(processor.ProcessorABC):
                 ak.concatenate([event_e, event_mu], axis=1),
                 "PtEtaPhiMCandidate", )
         good_leptons = good_leptons[ak.argsort(good_leptons.pt, axis=1,ascending=False)]
+        sel=(events.GenPart.hasFlags(["fromHardProcess"])==True) & (events.GenPart.hasFlags(["isHardProcess"])==True)& (abs(events.GenPart.parent.pdgId)==24)
         good_leptons = good_leptons[:,0]
         pair_2j = ak.combinations(
                 rest_jet,
@@ -216,7 +226,9 @@ class NanoProcessor(processor.ProcessorABC):
                     "phi": (pair_2j.jet1+pair_2j.jet2).phi,
                     "mass": (pair_2j.jet1+pair_2j.jet2).mass,
                 },with_name="PtEtaPhiMLorentzVector",)
+        # jj_cand = 
         jj_cand = jj_cand[ak.argsort(abs(jj_cand.mass-80.4), axis=1)]
+        # print(jj_cand.mass)
         met = ak.zip({
                     "pt":  events.MET.pt,
                     "phi": events.MET.phi,
@@ -225,19 +237,22 @@ class NanoProcessor(processor.ProcessorABC):
                     "energy":events.MET.sumEt,
                 },with_name="PtEtaPhiMLorentzVector",)
         
-        req_global = (good_leptons.pt>30)& (events.MET.pt>30) & ak.any((make_p4(jj_cand.jet1).delta_r(good_leptons)>0.4),axis=-1)& ak.any((make_p4(jj_cand.jet2).delta_r(good_leptons)>0.4),axis=-1)
-        req_wqqmass = ak.any(jj_cand.mass<116,axis=-1)
+        req_global =  (events.MET.pt>20) 
+        req_dr = ak.any((make_p4(jj_cand.jet1).delta_r(good_leptons)>0.4),axis=-1)& ak.any((make_p4(jj_cand.jet2).delta_r(good_leptons)>0.4),axis=-1)
+        req_wqqmass = ak.any((jj_cand.mass<116)&(jj_cand.mass>46),axis=-1)
        
         
-        req_sr = mT(make_p4(good_leptons),met)>60 & ak.any(met.delta_phi(jj_cand)<np.pi/2.,axis=-1) 
-        
+        req_mT = mT(make_p4(good_leptons),met)>60 
+        req_dphi =  ak.any(met.delta_phi(jj_cand)<np.pi/2.,axis=-1) 
+        req_sr =  req_mT & req_dphi
         selection.add('global_selection',ak.to_numpy(req_global))
+        selection.add('dr',ak.to_numpy(req_dr))
         selection.add('wqq',ak.to_numpy(req_wqqmass))
         selection.add('mT_deltaphi',ak.to_numpy(req_sr))
         
 
-        mask2e =  req_sr&req_global & (ak.num(event_e)==1)& (event_e[:,0].pt>30) 
-        mask2mu =  req_sr&req_global & (ak.num(event_mu)==1)& (event_mu[:,0].pt>30)
+        mask2e =  req_sr&req_global & (ak.num(event_e)==1)& (event_e[:,0].pt>30) & req_wqqmass
+        mask2mu =  req_sr&req_global & (ak.num(event_mu)==1)& (event_mu[:,0].pt>30)& req_wqqmass
         mask2lep = [ak.any(tup) for tup in zip(mask2mu, mask2e)]
         good_leptons = ak.mask(good_leptons,mask2lep)
         
@@ -246,7 +261,8 @@ class NanoProcessor(processor.ProcessorABC):
         selection.add('ee',ak.to_numpy(nele==1))
         selection.add('mumu',ak.to_numpy(nmu==1))
         
-               
+        nlep = 1
+        if "2l2nu" in dataset : nlep=2       
         # ###########
         seljet = sel_cjet.delta_r(good_leptons)>0.4
 
@@ -254,19 +270,39 @@ class NanoProcessor(processor.ProcessorABC):
         # sel_cjet = ak.mask(cjet,seljet)
         # sel_cjet
         # selection.add('cjetsel',ak.to_numpy(seljet))
+        # output['cutflow'][dataset]['e candidates'] += ak.sum((nele>=1))
+        # output['cutflow'][dataset]['mu candidates'] += ak.sum((nmu>=1))
+        # output['cutflow'][dataset]['match e selection'] += ak.sum(ak.count(matche.pt,axis=-1)==nlep)
+        # output['cutflow'][dataset]['match  mu selection'] += ak.sum(ak.count(matchmu.pt,axis=-1)==nlep)
+        output['cutflow'][dataset]['njet candidates']+= ak.sum((njet>=3))
+        output['cutflow'][dataset]['wqq mass'] += ak.sum((njet>=3)&req_wqqmass)
+
+        output['cutflow'][dataset]['lep candidates'] += ak.sum((njet>=3)&req_wqqmass&(nmu+nele>=1))
+        output['cutflow'][dataset]['MET'] += ak.sum((njet>=3)&req_wqqmass&(nmu+nele>=1)&req_global)
+        output['cutflow'][dataset]['mT'] += ak.sum((njet>=3)&req_wqqmass&(nmu+nele>=1)&req_global&req_mT)
+        output['cutflow'][dataset]['dr'] += ak.sum((njet>=3)&req_wqqmass&(nmu+nele>=1)&req_global&req_mT&req_dr)        
+        output['cutflow'][dataset]['dphi'] += ak.sum((njet>=3)&req_wqqmass&(nmu+nele>=1)&req_global&req_mT&req_dr&req_dphi)  
+        output['cutflow'][dataset]['c jets'] +=ak.sum((njet>=3)&req_wqqmass&(nmu+nele>=1)&req_global&req_mT&req_dr&seljet)
+        # output['cutflow'][dataset]['jet eff'] +=ak.sum(req_wqqmass&req_sr&req_global&(nmu+nele>=1)&(njet>=3)&seljet&req_dr&(nmu+nele>=1)&(njet>=3))
+        output['cutflow'][dataset]['electron eff'] +=ak.sum(req_wqqmass&req_sr&req_global&(nele==1)&seljet&req_dr&(nele==1)&(njet>=3))
+        output['cutflow'][dataset]['muon eff'] +=ak.sum(req_wqqmass&req_sr&req_global&(nmu==1)&seljet&req_dr&(nmu==1)&(njet>=3))
         
-        output['cutflow'][dataset]['global selection'] += ak.sum(req_global)
-        output['cutflow'][dataset]['mjj mass'] += ak.sum(req_wqqmass&req_global)  
-        output['cutflow'][dataset]['dphi mT'] += ak.sum(req_wqqmass&req_sr&req_global)  
-        output['cutflow'][dataset]['tag one jets'] +=ak.sum(req_wqqmass&req_sr&req_global&seljet)
-        output['cutflow'][dataset]['jet eff'] +=ak.sum(req_wqqmass&req_sr&req_global&(nmu+nele>=1)&(njet>=3)&seljet)
-        output['cutflow'][dataset]['electron eff'] +=ak.sum(req_wqqmass&req_sr&req_global&(nele==1)&seljet)
-        output['cutflow'][dataset]['muon eff'] +=ak.sum(req_wqqmass&req_sr&req_global&(nmu==1)&seljet)
+        output['cuts'][dataset]['lep candidates'] += ak.sum(nmu+nele>=1)
+        output['cuts'][dataset]['jet candidates'] += ak.sum((njet>=3))
+        output['cuts'][dataset]['MET'] += ak.sum(req_global)
+        output['cuts'][dataset]['dr'] += ak.sum(req_dr)
+        output['cuts'][dataset]['wqq mass'] += ak.sum(req_wqqmass)  
+        output['cuts'][dataset]['mt'] += ak.sum(req_mT)  
+        output['cuts'][dataset]['dphi'] += ak.sum(req_dphi)  
+        output['cuts'][dataset]['tag one jets'] +=ak.sum(seljet)
+        # output['cuts'][dataset]['electron eff'] +=ak.sum(req_wqqmass&req_sr&req_global&(nele==1)&seljet&req_dr&(nmu+nele>=1)&(njet>=3))
+        # output['cuts'][dataset]['muon eff'] +=ak.sum(req_wqqmass&req_sr&req_global&(nmu==1)&seljet&req_dr&(nmu+nele>=1)&(njet>=3))
 
         lepflav = ['ee','mumu']
         
         for histname, h in output.items():
             for ch in lepflav:
+                # cut = selection.all('lepsel')
                 cut = selection.all('jetsel','lepsel','global_selection','wqq','mT_deltaphi',ch, 'trigger_%s'%(ch))
                 lepcut=good_leptons[cut]
                 jjcut = jj_cand[cut]

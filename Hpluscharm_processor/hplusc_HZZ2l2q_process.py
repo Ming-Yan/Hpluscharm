@@ -35,37 +35,54 @@ class NanoProcessor(processor.ProcessorABC):
     def __init__(self, year="2017"):    
         self._year=year
        
-        self._muhlt = {
+        self._mu1hlt = {
             '2016': [
-                'IsoMu2',
-                'IsoTkMu24',
+                'IsoTkMu24'
+            ],
+            '2017': [
+                'IsoMu27'
+            ],
+            '2018': [
+                'IsoMu24'
+            ],
+        }   
+        self._mu2hlt = {
+            '2016': [
                 'Mu17_TrkIsoVVL_Mu8_TrkIsoVVL',
                 'Mu17_TrkIsoVVL_TkMu8_TrkIsoVVL',
                 'Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ',#runH
                 'Mu17_TrkIsoVVL_TkMu8_TrkIsoVVL_DZ',#runH
             ],
             '2017': [
-                'IsoMu27',
+                
                 'Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_Mass3p8',
                 'Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_Mass8',
             ],
             '2018': [
-                'IsoMu24',
+                
                 'Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_Mass3p8',
             ],
         }   
-        self._ehlt = {
+        self._e1hlt = {
             '2016': [
                 'Ele27_WPTight_Gsf',
-                'Ele25_eta2p1_WPTight_Gsf',
-                'Ele23_Ele12_CaloIdL_TrackIdL_IsoVL_DZ',
+                'Ele25_eta2p1_WPTight_Gsf'
             ],
             '2017': [
                 'Ele35_WPTight_Gsf',
-                'Ele23_Ele12_CaloIdL_TrackIdL_IsoVL',
             ],
             '2018': [
                 'Ele32_WPTight_Gsf',
+            ],
+        }   
+        self._e2hlt = {
+            '2016': [
+                'Ele23_Ele12_CaloIdL_TrackIdL_IsoVL_DZ',
+            ],
+            '2017': [
+                'Ele23_Ele12_CaloIdL_TrackIdL_IsoVL',
+            ],
+            '2018': [
                 'Ele23_Ele12_CaloIdL_TrackIdL_IsoVL',
             ],
         }   
@@ -154,16 +171,37 @@ class NanoProcessor(processor.ProcessorABC):
         ##############
         if(isRealData):output['cutflow'][dataset]['all']  += 1.
         else:output['cutflow'][dataset]['all']  += ak.sum(events.genWeight/abs(events.genWeight))
+        trigger_e = np.zeros(len(events), dtype='bool')
+        trigger_m = np.zeros(len(events), dtype='bool')
         trigger_ee = np.zeros(len(events), dtype='bool')
         trigger_mm = np.zeros(len(events), dtype='bool')
-        for t in self._muhlt[self._year]:
+        trigger_ele = np.zeros(len(events), dtype='bool')
+        trigger_mu = np.zeros(len(events), dtype='bool')
+        
+        for t in self._mu1hlt[self._year]:
+            if t in events.HLT.fields:
+                trigger_m = trigger_m | events.HLT[t]
+        for t in self._mu2hlt[self._year]:
             if t in events.HLT.fields:
                 trigger_mm = trigger_mm | events.HLT[t]
-        for t in self._ehlt[self._year]:
+        for t in self._e1hlt[self._year]:
+            if t in events.HLT.fields:
+                trigger_e = trigger_e | events.HLT[t]       
+        for t in self._e2hlt[self._year]:
             if t in events.HLT.fields:
                 trigger_ee = trigger_ee | events.HLT[t]       
-        selection.add('trigger_ee', ak.to_numpy(trigger_ee))
-        selection.add('trigger_mumu', ak.to_numpy(trigger_mm))
+        
+        if isRealData:
+            if "DoubleElectron" in dataset:trigger_ele = trigger_ee
+            elif "SingleElectron" in dataset:trigger_ele = ~trigger_ee & trigger_e
+            elif "DoubleMuon" in dataset:trigger_mu = trigger_mm
+            elif "SingleMuon" in dataset:trigger_mu = ~trigger_mm & trigger_e
+
+        else : 
+            trigger_mu = trigger_mm|trigger_m
+            trigger_ele = trigger_ee|trigger_e
+        selection.add('trigger_ee', ak.to_numpy(trigger_ele))
+        selection.add('trigger_mumu', ak.to_numpy(trigger_mu))
             
 
         
@@ -250,9 +288,9 @@ class NanoProcessor(processor.ProcessorABC):
                 "mass": higgs_cands.mass
             },with_name="PtEtaPhiMLorentzVector",
         )
-        # higgs_cand = ak.pad_none(higgs_cand,1,axis=0)
-        
-        higgs_cand = higgs_cand[ak.argsort(higgs_cand.pt, axis=-1,ascending=False)]
+        higgs_cand = ak.pad_none(higgs_cand,1,axis=0)
+        #print(higgs_cand)
+        #higgs_cand = higgs_cand[ak.argsort(higgs_cand.pt, axis=-1,ascending=False)]
         req_global = ak.any(ak.any((ll_cands.lep1.pt>25) & (ll_cands.lep1.charge+ll_cands.lep2.charge==0)  & (ll_cands.mass<120) & (ll_cands.mass>60),axis=-1),axis=-1) & ak.any(ak.any(make_p4(ll_cands.lep1).delta_r(jj_cands.jet1)>0.4,axis=-1),axis=-1) & ak.any(ak.any(make_p4(ll_cands.lep1).delta_r(jj_cands.jet2)>0.4,axis=-1),axis=-1)& ak.any(ak.any(make_p4(ll_cands.lep2).delta_r(jj_cands.jet1)>0.4,axis=-1),axis=-1)& ak.any(ak.any(make_p4(ll_cands.lep2).delta_r(jj_cands.jet2)>0.4,axis=-1),axis=-1) #& (make_p4(ll_cands.lep1).delta_r(make_p4(ll_cands.lep2))>0.02),axis=-1),axis=-1)
         req_zllmass =  ak.any(ak.any((abs(ll_cands.mass-91.)<15),axis=-1),axis=-1)
         req_zqqmass = ak.any(ak.any(jj_cands.mass<116,axis=-1),axis=-1)
