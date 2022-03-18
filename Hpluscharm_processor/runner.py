@@ -33,7 +33,12 @@ def check_port(port):
     sock.close()
     return available
 
-
+def retry_handler(exception, task_record):
+    from parsl.executors.high_throughput.interchange import ManagerLost
+    if isinstance(exception, ManagerLost):
+            return 0.1
+    else:
+        return 1
 def get_main_parser():
     parser = argparse.ArgumentParser(description='Run analysis on baconbits files using processor coffea files')
     # Inputs
@@ -81,6 +86,7 @@ def get_main_parser():
     parser.add_argument('--limit', type=int, default=None, metavar='N', help='Limit to the first N files of each dataset in sample JSON')
     parser.add_argument('--chunk', type=int, default=50000000, metavar='N', help='Number of events per process chunk')
     parser.add_argument('--max', type=int, default=None, metavar='N', help='Max number of chunks to run in total')
+    parser.add_argument('--memory', type=str, default='4GB', help='Required memory')
     return parser
 
 
@@ -248,6 +254,7 @@ if __name__ == '__main__':
 
                         provider=CondorProvider(
                          nodes_per_block=1,
+                            mem_per_slot = 4,                            
                             init_blocks=args.workers,
                             max_blocks=(args.workers)+2,
                             worker_init="\n".join(env_extra + condor_extra),
@@ -255,7 +262,8 @@ if __name__ == '__main__':
                         ),
                     )
                 ],
-                retries=5
+                retries=20,
+                retry_handler=retry_handler
             )
             print("parsl/condor")
         else:
@@ -279,12 +287,11 @@ if __name__ == '__main__':
                                     )
 
 
-                save(output, f"temp/{key}_{event}_%s.coffea" %(args.workflow))
+                save(output, f"temp/{key}_%s.coffea" %(args.workflow))
                 pprint.pprint(metrics)
 
                 print("X-size", len(pickle.dumps(output))/(1024*1024))
         else:
-            print("parsl normal")
             output = processor.run_uproot_job(sample_dict,
                                           treename='Events',
                                           processor_instance=processor_instance,
