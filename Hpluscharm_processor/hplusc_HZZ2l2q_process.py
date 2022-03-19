@@ -255,7 +255,7 @@ class NanoProcessor(processor.ProcessorABC):
                     "mass": (pair_2lep.lep1+pair_2lep.lep2).mass,
                 },with_name="PtEtaPhiMLorentzVector",)
         
-        ll_cand = ll_cand[ak.argsort(abs(ll_cand.mass-91.18), axis=1)]
+        if(ak.count(ll_cand.mass)>0):ll_cand = ll_cand[ak.argsort(abs(ll_cand.mass-91.18), axis=1)]
 
         # good_jets = ak.with_name(event_jet,"PtEtaPhiMCandidate")
         pair_2j = ak.combinations(

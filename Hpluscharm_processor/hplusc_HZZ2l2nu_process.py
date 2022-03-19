@@ -242,7 +242,8 @@ class NanoProcessor(processor.ProcessorABC):
         good_leptons = ak.with_name(
                 ak.concatenate([event_e, event_mu], axis=1),
                 "PtEtaPhiMCandidate", )
-        good_leptons = good_leptons[ak.argsort(good_leptons.pt, axis=1,ascending=False)]
+        
+        if(ak.count(good_leptons.pt)>0):good_leptons = good_leptons[ak.argsort(good_leptons.pt, axis=1,ascending=False)]
         leppair = ak.combinations(
                 good_leptons,
                 n=2,
@@ -257,8 +258,11 @@ class NanoProcessor(processor.ProcessorABC):
                     "eta": (leppair.lep1+leppair.lep2).eta,
                     "phi": (leppair.lep1+leppair.lep2).phi,
                     "mass": (leppair.lep1+leppair.lep2).mass,
-                },with_name="PtEtaPhiMLorentzVector",)
-        ll_cand = ll_cand[ak.argsort(abs(ll_cand.mass-91.18), axis=1)]
+                },with_name="PtEtaPhiMLorentzVector")
+        # print(ak.argsort(abs(ll_cand.mass-91.18), axis=1))
+        ll_cand = ak.pad_none(ll_cand,1,axis=1)
+        if(ak.count(ll_cand.mass)>0):ll_cand = ll_cand[ak.argsort(abs(ll_cand.mass-91.18), axis=-1)]
+        
         met = ak.zip({
                     "pt":  events.MET.pt,
                     "phi": events.MET.phi,

@@ -15,10 +15,11 @@ from helpers.cTagSFReader import *
 from coffea.jetmet_tools import JECStack, CorrectedJetsFactory
 from coffea.lookup_tools import extractor
 
-lumiMasks = {
-    '2016': LumiMask('data/lumiMasks/Cert_271036-284044_13TeV_23Sep2016ReReco_Collisions16_JSON.txt'),
-    '2017': LumiMask('data/lumiMasks/Cert_294927-306462_13TeV_EOY2017ReReco_Collisions17_JSON_v1.txt'),
-    '2018': LumiMask('data/lumiMasks/Cert_314472-325175_13TeV_17SeptEarlyReReco2018ABC_PromptEraD_Collisions18_JSON.txt'),
+lumiMasks = 
+{
+    '2016': LumiMask('data/Lumimask/Cert_271036-284044_13TeV_Legacy2016_Collisions16_JSON.txt'),
+    '2017': LumiMask('data/Lumimask/Cert_294927-306462_13TeV_UL2017_Collisions17_GoldenJSON.txt'),
+    '2018': LumiMask('data/Lumimask/Cert_271036-284044_13TeV_Legacy2016_Collisions16_JSON.txt')
 }
 ##JEC 
 # with gzip.open("data/compiled_jec.pkl.gzt") as fin:
@@ -79,7 +80,7 @@ ext.add_weight_sets(["mu_Iso NUM_TightRelIso_DEN_TightIDandIPCut_pt_abseta data/
 ext.finalize()
 evaluator = ext.make_evaluator()
 
-def eleSFs(ele):
+def eleSFs(ele,year):
     ele_eta = ak.fill_none(ele.eta,0.)
     ele_pt = ak.fill_none(ele.pt,0.)
     print(ak.type(ele_eta))
@@ -87,7 +88,7 @@ def eleSFs(ele):
     weight =  evaluator["ele_ID"](ele_eta,ele_pt)*evaluator["ele_Rereco"](ele_eta,ele_pt)  
     return weight
 
-def muSFs(mu):
+def muSFs(mu,year):
     
     # weight 
     mu_eta=ak.fill_none(mu.eta,0.)
@@ -95,3 +96,158 @@ def muSFs(mu):
     weight = evaluator["mu_ID"](mu_eta,mu_pt)*evaluator["mu_ID_low"](mu_eta,mu_pt)*evaluator["mu_Iso"](mu_eta,mu_pt)
 
     return weight
+def rochester():
+
+    rochester_data = lookup_tools.txt_converters.convert_rochester_file(
+
+        "tests/samples/RoccoR2018.txt.gz", loaduncs=True
+
+    )
+
+    rochester = lookup_tools.rochester_lookup.rochester_lookup(rochester_data)
+
+
+
+    # to test 1-to-1 agreement with official Rochester requires loading C++ files
+
+    # instead, preload the correct scales in the sample directory
+
+    # the script tests/samples/rochester/build_rochester.py produces these
+
+    official_data_k = np.load("tests/samples/nano_dimuon_rochester.npy")
+
+    official_data_err = np.load("tests/samples/nano_dimuon_rochester_err.npy")
+
+    official_mc_k = np.load("tests/samples/nano_dy_rochester.npy")
+
+    official_mc_err = np.load("tests/samples/nano_dy_rochester_err.npy")
+
+    mc_rand = np.load("tests/samples/nano_dy_rochester_rand.npy")
+
+
+
+    # test against nanoaod
+
+    events = NanoEventsFactory.from_root(
+
+        os.path.abspath("tests/samples/nano_dimuon.root")
+
+    ).events()
+
+
+
+    data_k = rochester.kScaleDT(
+
+        events.Muon.charge, events.Muon.pt, events.Muon.eta, events.Muon.phi
+
+    )
+
+    data_k = np.array(ak.flatten(data_k))
+
+    assert all(np.isclose(data_k, official_data_k))
+
+    data_err = rochester.kScaleDTerror(
+
+        events.Muon.charge, events.Muon.pt, events.Muon.eta, events.Muon.phi
+
+    )
+
+    data_err = np.array(ak.flatten(data_err), dtype=float)
+
+    assert all(np.isclose(data_err, official_data_err, atol=1e-8))
+
+
+
+    # test against mc
+
+    events = NanoEventsFactory.from_root(
+
+        os.path.abspath("tests/samples/nano_dy.root")
+
+    ).events()
+
+
+
+    hasgen = ~np.isnan(ak.fill_none(events.Muon.matched_gen.pt, np.nan))
+
+    mc_rand = ak.unflatten(mc_rand, ak.num(hasgen))
+
+    mc_kspread = rochester.kSpreadMC(
+
+        events.Muon.charge[hasgen],
+
+        events.Muon.pt[hasgen],
+
+        events.Muon.eta[hasgen],
+
+        events.Muon.phi[hasgen],
+
+        events.Muon.matched_gen.pt[hasgen],
+
+    )
+
+    mc_ksmear = rochester.kSmearMC(
+
+        events.Muon.charge[~hasgen],
+
+        events.Muon.pt[~hasgen],
+
+        events.Muon.eta[~hasgen],
+
+        events.Muon.phi[~hasgen],
+
+        events.Muon.nTrackerLayers[~hasgen],
+
+        mc_rand[~hasgen],
+
+    )
+
+    mc_k = np.array(ak.flatten(ak.ones_like(events.Muon.pt)))
+
+    hasgen_flat = np.array(ak.flatten(hasgen))
+
+    mc_k[hasgen_flat] = np.array(ak.flatten(mc_kspread))
+
+    mc_k[~hasgen_flat] = np.array(ak.flatten(mc_ksmear))
+
+    assert all(np.isclose(mc_k, official_mc_k))
+
+
+
+    mc_errspread = rochester.kSpreadMCerror(
+
+        events.Muon.charge[hasgen],
+
+        events.Muon.pt[hasgen],
+
+        events.Muon.eta[hasgen],
+
+        events.Muon.phi[hasgen],
+
+        events.Muon.matched_gen.pt[hasgen],
+
+    )
+
+    mc_errsmear = rochester.kSmearMCerror(
+
+        events.Muon.charge[~hasgen],
+
+        events.Muon.pt[~hasgen],
+
+        events.Muon.eta[~hasgen],
+
+        events.Muon.phi[~hasgen],
+
+        events.Muon.nTrackerLayers[~hasgen],
+
+        mc_rand[~hasgen],
+
+    )
+
+    mc_err = np.array(ak.flatten(ak.ones_like(events.Muon.pt)))
+
+    mc_err[hasgen_flat] = np.array(ak.flatten(mc_errspread))
+
+    mc_err[~hasgen_flat] = np.array(ak.flatten(mc_errsmear))
+
+    assert all(np.isclose(mc_err, official_mc_err, atol=1e-8))

@@ -14,7 +14,7 @@
     },
     {
         "id": "5b44a986f368576cbd3d4ba7",
-        "process_name": "GluGluHToZZTo2L2Q_M125_13TeV_powheg2_JHUGenV7011_pythia8",
+        "process_name": "GluGluHToZZTo2L2Q_M125_TuneCP5_13TeV_powheg2_JHUGenV7011_pythia8",
         "status": "new",
         "cross_section": "28.87",
         "total_uncertainty": "0.02027",
@@ -25,7 +25,7 @@
         "energy": "13"
     },{
         "id": "5f695539f368571e6ae3bb0a",
-        "process_name": "GluGluHToWWToLNuQQ_M125_NNPDF31_TuneCP5_PSweights_13TeV_powheg_JHUGen710_pythia8",
+        "process_name": "GluGluHToWWToLNuQQ_M125_TuneCP5_PSweight_13TeV-powheg2-jhugen727-pythia8",
         "cross_section": "28.87",
         "total_uncertainty": "0.02027",
         "accuracy": "NLO",
@@ -213,7 +213,7 @@
 {
         "id": "5be159a8f368572e353ddaad",
         "process_name": "DYJetsToLL_M-50_TuneCP5_13TeV-madgraphMLM-pythia8",
-        "cross_section": "6077.22",
+        "cross_section": "6037",
         "total_uncertainty": "2%",
         "other_uncertainty": "",
         "DAS": "/DYJetsToLL_M-50_TuneCP5_13TeV-madgraphMLM-pythia8/RunIIFall17MiniAODv2-PU2017RECOSIMstep_12Apr2018_94X_mc2017_realistic_v14-v1/MINIAODSIM",

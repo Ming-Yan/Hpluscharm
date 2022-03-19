@@ -21,3 +21,8 @@ def scale_xs(hist,lumi,events,unscale=False,xsfile="metadata/xsection.json"):
         #print(scales[key],key)
     hist.scale(scales, axis="dataset")
     return hist
+def collate(accumulator, mergemap):
+    out = {}
+    for group, names in mergemap.items():
+        out[group] = processor.accumulate([v for k, v in accumulator.items() if k in names])
+    return out

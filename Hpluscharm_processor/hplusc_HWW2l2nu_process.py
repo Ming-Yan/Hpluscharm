@@ -287,7 +287,7 @@ class NanoProcessor(processor.ProcessorABC):
                     "mass": (leppair.lep1+leppair.lep2).mass,
                 },with_name="PtEtaPhiMLorentzVector",)
         ll_cand = ak.pad_none(ll_cand,1,axis=1)
-        ll_cand  = ll_cand[ak.argsort(ll_cand.pt, axis=1,ascending=False)]
+        if(ak.count(ll_cand.pt)>0):ll_cand  = ll_cand[ak.argsort(ll_cand.pt, axis=1,ascending=False)]
         met = ak.zip({
                     "pt":  events.MET.pt,
                     "phi": events.MET.phi,
