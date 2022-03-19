@@ -11,10 +11,10 @@ import coffea
 from coffea import hist, processor
 from coffea.nanoevents.methods import vector
 import awkward as ak
-# from utils.correction import *
+from utils.correction import *
 from coffea.analysis_tools import Weights
 from functools import partial
-import numba
+# import numba
 from helpers.util import reduce_and, reduce_or, nano_mask_or, get_ht, normalize, make_p4
 
 def mT(obj1,obj2):
@@ -104,7 +104,6 @@ class NanoProcessor(processor.ProcessorABC):
                 'Mu23_TrkIsoVVL_Ele12_CaloIdL_TrackIdL_IsoVL_DZ',  
             ],
         }   
-        print(self._muhlt)
         # print(self._muhlt[self._year])
         # Define axes
         # Should read axes from NanoAOD config
@@ -195,10 +194,11 @@ class NanoProcessor(processor.ProcessorABC):
         selection = processor.PackedSelection()
         if isRealData :output['sumw'][dataset] += 1.
         else:output['sumw'][dataset] += ak.sum(events.genWeight/abs(events.genWeight))
-        # req_lumi=np.ones(len(events), dtype='bool')
-        # if(isRealData): req_lumi=lumiMasks['2017'](events.run, events.luminosityBlock)
+        req_lumi=np.ones(len(events), dtype='bool')
+        if(isRealData): req_lumi=lumiMasks['2017'](events.run, events.luminosityBlock)
         weights = Weights(len(events), storeIndividual=True)
-        if isRealData:weights.add('genweight',np.ones(len(events)))
+        if isRealData:
+            weights.add('genweight',np.ones(len(events)))
         else:
             weights.add('genweight',events.genWeight/abs(events.genWeight))
             # weights.add('puweight', compiled['2017_pileupweight'](events.Pileup.nPU))
@@ -294,7 +294,7 @@ class NanoProcessor(processor.ProcessorABC):
                     "energy":events.MET.sumEt,
                 },with_name="PtEtaPhiMLorentzVector",)
         
-        req_global = ak.any((leppair.lep1.pt>25) & (ll_cand.mass>12) & (ll_cand.pt>30) & (leppair.lep1.charge+leppair.lep2.charge==0) & (events.MET.pt>20) & (make_p4(leppair.lep1).delta_r(make_p4(leppair.lep2))>0.02),axis=-1)
+        req_global = ak.any((leppair.lep1.pt>25) & (ll_cand.mass>12) & (ll_cand.pt>30) & (leppair.lep1.charge+leppair.lep2.charge==0) & (events.MET.pt>20) & (make_p4(leppair.lep1).delta_r(make_p4(leppair.lep2))>0.02)& (events.Flag.ecalBadCalibFilter==True)&(req_lumi),axis=-1) 
 
         req_sr = ak.any((mT(leppair.lep2,met)>30) & (mT(ll_cand,met)>60) & (abs(ll_cand.mass-91.18)>15) & (events.MET.sumEt>45),axis=-1) 
         
@@ -315,7 +315,12 @@ class NanoProcessor(processor.ProcessorABC):
         selection.add('mumu',ak.to_numpy(nmu==2))
         selection.add('emu',ak.to_numpy((nele==1)&(nmu==1)))
         
-               
+        # if not isRealData:
+        #     # lepsf = muSFs(sposmu)*muSFs(snegmu)
+        #     if 
+        #     weights.add('lep1sf',np.where(event_level,muSFs(ak.firsts(events.Muon[(events.Muon.pt>12)&(abs(events.Muon.eta) < 2.4)& (events.Muon.tightId > .5)&(events.Muon.pfRelIso04_all<=0.15)&(events.Muon.charge<0)])),1.))
+        #     weights.add('lep2sf',np.where(event_level,muSFs(ak.firsts(events.Muon[(events.Muon.pt>12)&(abs(events.Muon.eta) < 2.4)& (events.Muon.tightId > .5)&(events.Muon.pfRelIso04_all<=0.15)&(events.Muon.charge>0)])),1.))
+            # weights.add('lep2sf',muSFs(sposmu))       
         # ###########
         seljet = (events.Jet.pt > 20) & (abs(events.Jet.eta) <= 2.4)&((events.Jet.puId > 0)|(events.Jet.pt>50)) &(events.Jet.jetId>5)&ak.all(events.Jet.metric_table(leppair.lep1)>0.4,axis=2)&ak.all(events.Jet.metric_table(leppair.lep2)>0.4,axis=2)
         selection.add('jetsel',ak.to_numpy(ak.sum(seljet,axis=1)>0))
