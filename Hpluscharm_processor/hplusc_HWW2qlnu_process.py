@@ -58,13 +58,88 @@ class NanoProcessor(processor.ProcessorABC):
                 'Ele32_WPTight_Gsf',
             ],
         }   
-        
-        # print(self._muhlt[self._year])
+        self._met_filters = {
+            '2016': {
+                'data': [
+                    'goodVertices',
+                    'globalSuperTightHalo2016Filter',
+                    'HBHENoiseFilter',
+                    'HBHENoiseIsoFilter',
+                    'EcalDeadCellTriggerPrimitiveFilter',
+                    'BadPFMuonFilter',
+                    'BadPFMuonDzFilter',
+                    'eeBadScFilter',
+                ],
+                'mc': [
+                    'goodVertices',
+                    'globalSuperTightHalo2016Filter',
+                    'HBHENoiseFilter',
+                    'HBHENoiseIsoFilter',
+                    'EcalDeadCellTriggerPrimitiveFilter',
+                    'BadPFMuonFilter',
+                    'BadPFMuonDzFilter',
+                    'eeBadScFilter',
+                ],
+            },
+            '2017': {
+                'data': [
+                    'goodVertices',
+                    'globalSuperTightHalo2016Filter',
+                    'HBHENoiseFilter',
+                    'HBHENoiseIsoFilter',
+                    'EcalDeadCellTriggerPrimitiveFilter',
+                    'BadPFMuonFilter',
+                    'BadPFMuonDzFilter',
+                    'hfNoisyHitsFilter',
+                    'eeBadScFilter',
+                    'ecalBadCalibFilter',
+                ],
+                'mc': [
+                    'goodVertices',
+                    'globalSuperTightHalo2016Filter',
+                    'HBHENoiseFilter',
+                    'HBHENoiseIsoFilter',
+                    'EcalDeadCellTriggerPrimitiveFilter',
+                    'BadPFMuonFilter',
+                    'BadPFMuonDzFilter',
+                    'hfNoisyHitsFilter',
+                    'eeBadScFilter',
+                    'ecalBadCalibFilter',
+                ],
+            },
+            '2018': {
+                'data': [
+                    'goodVertices',
+                    'globalSuperTightHalo2016Filter',
+                    'HBHENoiseFilter',
+                    'HBHENoiseIsoFilter',
+                    'EcalDeadCellTriggerPrimitiveFilter',
+                    'BadPFMuonFilter',
+                    'BadPFMuonDzFilter',
+                    'hfNoisyHitsFilter',
+                    'eeBadScFilter',
+                    'ecalBadCalibFilter',
+                ],
+                'mc': [
+                    'goodVertices',
+                    'globalSuperTightHalo2016Filter',
+                    'HBHENoiseFilter',
+                    'HBHENoiseIsoFilter',
+                    'EcalDeadCellTriggerPrimitiveFilter',
+                    'BadPFMuonFilter',
+                    'BadPFMuonDzFilter',
+                    'hfNoisyHitsFilter',
+                    'eeBadScFilter',
+                    'ecalBadCalibFilter',
+                ],
+            },
+        }
         # Define axes
         # Should read axes from NanoAOD config
         dataset_axis = hist.Cat("dataset", "Primary dataset")
         flav_axis = hist.Bin("flav", r"Genflavour",[0,1,4,5,6])
         lepflav_axis = hist.Cat("lepflav",['ee','mumu'])
+        region_axis = hist.Cat("region",['SR','WW_CR','V+jets'])
         # Events
         njet_axis  = hist.Bin("nj",  r"N jets",      [0,1,2,3,4,5,6,7,8,9,10])
         nbjet_axis = hist.Bin("nbj", r"N b-jets",    [0,1,2,3,4,5,6,7,8,9,10])            
@@ -89,43 +164,43 @@ class NanoProcessor(processor.ProcessorABC):
         for d in disc_list:
             btag_axes.append(hist.Bin(d, d , 50, 0, 1))  
         _hist_event_dict = {
-                'nj'  : hist.Hist("Counts", dataset_axis,  lepflav_axis, njet_axis),
-                'nbj' : hist.Hist("Counts", dataset_axis, lepflav_axis, nbjet_axis),
-                'ncj' : hist.Hist("Counts", dataset_axis, lepflav_axis, ncjet_axis),
-                'hj_dr'  : hist.Hist("Counts", dataset_axis, lepflav_axis, dr_axis),
-                'MET_sumEt' : hist.Hist("Counts", dataset_axis, lepflav_axis, sumEt_axis),
-                'MET_significance' : hist.Hist("Counts", dataset_axis, lepflav_axis, signi_axis),
-                'MET_covXX' : hist.Hist("Counts", dataset_axis, lepflav_axis, covXX_axis),
-                'MET_covXY' : hist.Hist("Counts", dataset_axis, lepflav_axis, covXY_axis),
-                'MET_covYY' : hist.Hist("Counts", dataset_axis, lepflav_axis, covYY_axis),
-                'MET_phi' : hist.Hist("Counts", dataset_axis, lepflav_axis, phi_axis),
-                'MET_pt' : hist.Hist("Counts", dataset_axis, lepflav_axis, pt_axis),
-                'mT' : hist.Hist("Counts", dataset_axis, lepflav_axis, mt_axis),
-                'mTh' : hist.Hist("Counts", dataset_axis, lepflav_axis, mt_axis),
-                'mjjl' : hist.Hist("Counts", dataset_axis, lepflav_axis, mt_axis),
-                'dphi_lep':hist.Hist("Counts", dataset_axis, lepflav_axis, phi_axis),
-                'dphi_ww':hist.Hist("Counts", dataset_axis, lepflav_axis, phi_axis),
+                'nj'  : hist.Hist("Counts", dataset_axis,  lepflav_axis,region_axis, njet_axis),
+                'nbj' : hist.Hist("Counts", dataset_axis, lepflav_axis,region_axis, nbjet_axis),
+                'ncj' : hist.Hist("Counts", dataset_axis, lepflav_axis,region_axis, ncjet_axis),
+                'hj_dr'  : hist.Hist("Counts", dataset_axis, lepflav_axis,region_axis, dr_axis),
+                'MET_sumEt' : hist.Hist("Counts", dataset_axis, lepflav_axis,region_axis, sumEt_axis),
+                'MET_significance' : hist.Hist("Counts", dataset_axis, lepflav_axis,region_axis, signi_axis),
+                'MET_covXX' : hist.Hist("Counts", dataset_axis, lepflav_axis,region_axis, covXX_axis),
+                'MET_covXY' : hist.Hist("Counts", dataset_axis, lepflav_axis,region_axis, covXY_axis),
+                'MET_covYY' : hist.Hist("Counts", dataset_axis, lepflav_axis,region_axis, covYY_axis),
+                'MET_phi' : hist.Hist("Counts", dataset_axis, lepflav_axis,region_axis, phi_axis),
+                'MET_pt' : hist.Hist("Counts", dataset_axis, lepflav_axis,region_axis, pt_axis),
+                'mT' : hist.Hist("Counts", dataset_axis, lepflav_axis,region_axis, mt_axis),
+                'mTh' : hist.Hist("Counts", dataset_axis, lepflav_axis,region_axis, mt_axis),
+                'mjjl' : hist.Hist("Counts", dataset_axis, lepflav_axis,region_axis, mt_axis),
+                'dphi_lep':hist.Hist("Counts", dataset_axis, lepflav_axis,region_axis, phi_axis),
+                'dphi_ww':hist.Hist("Counts", dataset_axis, lepflav_axis,region_axis, phi_axis),
             }
         objects=['cjet','lep','jet1','jet2','jj','lep',]
         
         
         for i in objects:
             if  'jet' in i: 
-                _hist_event_dict["%s_pt" %(i)]=hist.Hist("Counts", dataset_axis, lepflav_axis, flav_axis, pt_axis)
-                _hist_event_dict["%s_eta" %(i)]=hist.Hist("Counts", dataset_axis, lepflav_axis,flav_axis, eta_axis)
-                _hist_event_dict["%s_phi" %(i)]=hist.Hist("Counts", dataset_axis, lepflav_axis,flav_axis, phi_axis)
-                _hist_event_dict["%s_mass" %(i)]=hist.Hist("Counts", dataset_axis, lepflav_axis,flav_axis, mass_axis)
+                _hist_event_dict["%s_pt" %(i)]=hist.Hist("Counts", dataset_axis, lepflav_axis,region_axis, flav_axis, pt_axis)
+                _hist_event_dict["%s_eta" %(i)]=hist.Hist("Counts", dataset_axis, lepflav_axis,region_axis,flav_axis, eta_axis)
+                _hist_event_dict["%s_phi" %(i)]=hist.Hist("Counts", dataset_axis, lepflav_axis,region_axis,flav_axis, phi_axis)
+                _hist_event_dict["%s_mass" %(i)]=hist.Hist("Counts", dataset_axis, lepflav_axis,region_axis,flav_axis, mass_axis)
             else:
                 _hist_event_dict["%s_pt" %(i)]=hist.Hist("Counts", dataset_axis, lepflav_axis ,pt_axis)
-                _hist_event_dict["%s_eta" %(i)]=hist.Hist("Counts", dataset_axis,lepflav_axis, eta_axis)
-                _hist_event_dict["%s_phi" %(i)]=hist.Hist("Counts", dataset_axis,  lepflav_axis, phi_axis)
-                _hist_event_dict["%s_mass" %(i)]=hist.Hist("Counts", dataset_axis, lepflav_axis, mass_axis)
+                _hist_event_dict["%s_eta" %(i)]=hist.Hist("Counts", dataset_axis,lepflav_axis,region_axis, eta_axis)
+                _hist_event_dict["%s_phi" %(i)]=hist.Hist("Counts", dataset_axis,  lepflav_axis,region_axis, phi_axis)
+                _hist_event_dict["%s_mass" %(i)]=hist.Hist("Counts", dataset_axis, lepflav_axis,region_axis, mass_axis)
             
         
         for disc, axis in zip(disc_list,btag_axes):
-            _hist_event_dict["cjet_%s" %(disc)] = hist.Hist("Counts", dataset_axis,lepflav_axis,flav_axis, axis)
-            _hist_event_dict["jet1_%s" %(disc)] = hist.Hist("Counts", dataset_axis,lepflav_axis,flav_axis, axis)
-            _hist_event_dict["jet2_%s" %(disc)] = hist.Hist("Counts", dataset_axis,lepflav_axis,flav_axis, axis)
+            _hist_event_dict["cjet_%s" %(disc)] = hist.Hist("Counts", dataset_axis,lepflav_axis,region_axis,flav_axis, axis)
+            _hist_event_dict["jet1_%s" %(disc)] = hist.Hist("Counts", dataset_axis,lepflav_axis,region_axis,flav_axis, axis)
+            _hist_event_dict["jet2_%s" %(disc)] = hist.Hist("Counts", dataset_axis,lepflav_axis,region_axis,flav_axis, axis)
         self.event_hists = list(_hist_event_dict.keys())
     
         self._accumulator = processor.dict_accumulator(
@@ -150,8 +225,11 @@ class NanoProcessor(processor.ProcessorABC):
         selection = processor.PackedSelection()
         if(isRealData):output['sumw'][dataset] += 1.
         else:output['sumw'][dataset] += ak.sum(events.genWeight/abs(events.genWeight))
-        # req_lumi=np.ones(len(events), dtype='bool')
-        # if(isRealData): req_lumi=lumiMasks['2017'](events.run, events.luminosityBlock)
+        req_lumi=np.ones(len(events), dtype='bool')
+        if(isRealData): req_lumi=lumiMasks[self._year](events.run, events.luminosityBlock)
+        selection.add('lumi',ak.to_numpy(req_lumi))
+        del req_lumi
+        
         weights = Weights(len(events), storeIndividual=True)
         if isRealData:weights.add('genweight',np.ones(len(events)))
         else:
@@ -172,7 +250,12 @@ class NanoProcessor(processor.ProcessorABC):
         
         selection.add('trigger_ee', ak.to_numpy(trigger_ee))
         selection.add('trigger_mumu', ak.to_numpy(trigger_mm))
-        
+        del trigger_ee, trigger_mm
+        metfilter = np.ones(len(events), dtype='bool')
+        for flag in self._met_filters[self._year]['data' if isRealData else 'mc']:
+            metfilter &= np.array(events.Flag[flag])
+        selection.add('metfilter', metfilter)
+        del metfilter
 
         
         ## Muon cuts
@@ -210,7 +293,6 @@ class NanoProcessor(processor.ProcessorABC):
                 ak.concatenate([event_e, event_mu], axis=1),
                 "PtEtaPhiMCandidate", )
         good_leptons = good_leptons[ak.argsort(good_leptons.pt, axis=1,ascending=False)]
-        sel=(events.GenPart.hasFlags(["fromHardProcess"])==True) & (events.GenPart.hasFlags(["isHardProcess"])==True)& (abs(events.GenPart.parent.pdgId)==24)
         good_leptons = good_leptons[:,0]
         pair_2j = ak.combinations(
                 rest_jet,
@@ -303,7 +385,7 @@ class NanoProcessor(processor.ProcessorABC):
         for histname, h in output.items():
             for ch in lepflav:
                 # cut = selection.all('lepsel')
-                cut = selection.all('jetsel','lepsel','global_selection','wqq','mT_deltaphi',ch, 'trigger_%s'%(ch))
+                cut = selection.all('jetsel','lepsel','global_selection','wqq','mT_deltaphi','lumi','metfilter',ch, 'trigger_%s'%(ch))
                 lepcut=good_leptons[cut]
                 jjcut = jj_cand[cut]
                 jjcut = jjcut[:,0]
