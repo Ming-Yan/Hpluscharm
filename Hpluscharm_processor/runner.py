@@ -263,7 +263,7 @@ if __name__ == '__main__':
                     )
                 ],
                 retries=20,
-                #retry_handler=retry_handler
+                retry_handler=retry_handler,
             )
             print("parsl/condor")
         else:
@@ -292,25 +292,14 @@ if __name__ == '__main__':
 
                 print("X-size", len(pickle.dumps(output))/(1024*1024))
         else:
-            # output = processor.run_uproot_job(sample_dict,
-            #                               treename='Events',
-            #                               processor_instance=processor_instance,
-            #                               executor=processor.parsl_executor,
-            #                               executor_args={
-            #                                   'skipbadfiles': True,
-            #                                   'schema': processor.NanoAODSchema,
-            #                                   'config': None,
-            #                               },
-            #                               chunksize=args.chunk,
-            #                       maxchunks=args.max)
             output = processor.run_uproot_job(sample_dict,
                                           treename='Events',
                                           processor_instance=processor_instance,
                                           executor=processor.parsl_executor,
                                           executor_args={
-                                              'skipbadfiles': args.skipbadfiles,
+                                              'skipbadfiles': True,
                                               'schema': processor.NanoAODSchema,
-                                              'workers': args.workers
+                                              'config': None,
                                           },
                                           chunksize=args.chunk,
                                           maxchunks=args.max)

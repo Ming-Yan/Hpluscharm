@@ -11,10 +11,11 @@ import coffea
 from coffea import hist, processor
 from coffea.nanoevents.methods import vector
 import awkward as ak
-# from utils.correction import *
+from utils.correction import jec,muSFs,eleSFs,init_corr
 from coffea.analysis_tools import Weights
+from coffea.lumi_tools import LumiMask
 from functools import partial
-import numba
+
 from helpers.util import reduce_and, reduce_or, nano_mask_or, get_ht, normalize, make_p4
 
 def mT(obj1,obj2):
@@ -134,12 +135,19 @@ class NanoProcessor(processor.ProcessorABC):
                 ],
             },
         }
+        self._lumiMasks = {
+            '2016': LumiMask('data/Lumimask/Cert_271036-284044_13TeV_Legacy2016_Collisions16_JSON.txt'),
+            '2017': LumiMask('data/Lumimask/Cert_294927-306462_13TeV_UL2017_Collisions17_GoldenJSON.txt'),
+            '2018': LumiMask('data/Lumimask/Cert_271036-284044_13TeV_Legacy2016_Collisions16_JSON.txt')
+        }
+        self._corr = init_corr(self._year)
+        
         # Define axes
         # Should read axes from NanoAOD config
         dataset_axis = hist.Cat("dataset", "Primary dataset")
         flav_axis = hist.Bin("flav", r"Genflavour",[0,1,4,5,6])
         lepflav_axis = hist.Cat("lepflav",['ee','mumu'])
-        region_axis = hist.Cat("region",['SR','WW_CR','V+jets'])
+        region_axis = hist.Cat("region",['SR','WW_CR','Vjets_CR'])
         # Events
         njet_axis  = hist.Bin("nj",  r"N jets",      [0,1,2,3,4,5,6,7,8,9,10])
         nbjet_axis = hist.Bin("nbj", r"N b-jets",    [0,1,2,3,4,5,6,7,8,9,10])            
@@ -191,7 +199,7 @@ class NanoProcessor(processor.ProcessorABC):
                 _hist_event_dict["%s_phi" %(i)]=hist.Hist("Counts", dataset_axis, lepflav_axis,region_axis,flav_axis, phi_axis)
                 _hist_event_dict["%s_mass" %(i)]=hist.Hist("Counts", dataset_axis, lepflav_axis,region_axis,flav_axis, mass_axis)
             else:
-                _hist_event_dict["%s_pt" %(i)]=hist.Hist("Counts", dataset_axis, lepflav_axis ,pt_axis)
+                _hist_event_dict["%s_pt" %(i)]=hist.Hist("Counts", dataset_axis, lepflav_axis,region_axis ,pt_axis)
                 _hist_event_dict["%s_eta" %(i)]=hist.Hist("Counts", dataset_axis,lepflav_axis,region_axis, eta_axis)
                 _hist_event_dict["%s_phi" %(i)]=hist.Hist("Counts", dataset_axis,  lepflav_axis,region_axis, phi_axis)
                 _hist_event_dict["%s_mass" %(i)]=hist.Hist("Counts", dataset_axis, lepflav_axis,region_axis, mass_axis)
@@ -226,7 +234,7 @@ class NanoProcessor(processor.ProcessorABC):
         if(isRealData):output['sumw'][dataset] += 1.
         else:output['sumw'][dataset] += ak.sum(events.genWeight/abs(events.genWeight))
         req_lumi=np.ones(len(events), dtype='bool')
-        if(isRealData): req_lumi=lumiMasks[self._year](events.run, events.luminosityBlock)
+        if(isRealData): req_lumi=self._lumiMasks[self._year](events.run, events.luminosityBlock)
         selection.add('lumi',ak.to_numpy(req_lumi))
         del req_lumi
         
@@ -279,8 +287,9 @@ class NanoProcessor(processor.ProcessorABC):
         event_e = ak.pad_none(event_e,1,axis=1)
         nele = ak.sum(elesel,axis=1)
         selection.add('lepsel',ak.to_numpy(((nele+nmu)>=1)))
+        corr_jet =  jec(events,events.Jet,dataset,self._year,self._corr)
+        event_jet = corr_jet[ak.argsort(corr_jet.btagDeepFlavCvL, axis=1,ascending=False)]
         
-        event_jet = events.Jet[ak.argsort(events.Jet.btagDeepFlavCvL, axis=1,ascending=False)]
         jet_sel = (event_jet.pt > 20) & (abs(event_jet.eta) <= 2.4)&((event_jet.puId > 0)|(event_jet.pt>50)) &(event_jet.jetId>5) 
         event_jet =event_jet[jet_sel]
         njet = ak.sum(jet_sel,axis=1)
@@ -327,12 +336,14 @@ class NanoProcessor(processor.ProcessorABC):
         req_mT = mT(make_p4(good_leptons),met)>60 
         req_dphi =  ak.any(met.delta_phi(jj_cand)<np.pi/2.,axis=-1) 
         req_sr =  req_mT & req_dphi
-        selection.add('global_selection',ak.to_numpy(req_global))
-        selection.add('dr',ak.to_numpy(req_dr))
-        selection.add('wqq',ak.to_numpy(req_wqqmass))
-        selection.add('mT_deltaphi',ak.to_numpy(req_sr))
-        
-
+        selection.add('global_selection',ak.to_numpy(req_global&req_dr))
+        # selection.add('dr',ak.to_numpy(req_dr))
+        # selection.add('wqq',ak.to_numpy())
+        selection.add('SR',ak.to_numpy(req_sr&req_wqqmass))
+        req_cr_WW = req_dr & req_mT &  (ak.any((jj_cand.mass>=116),axis=-1))
+        req_cr_Vjets = req_dr &(mT(make_p4(good_leptons),met)<=60) & req_wqqmass
+        selection.add('WW_CR',ak.to_numpy(req_cr_WW))
+        selection.add('Vjets_CR',ak.to_numpy(req_cr_Vjets))
         mask2e =  req_sr&req_global & (ak.num(event_e)==1)& (event_e[:,0].pt>30) & req_wqqmass
         mask2mu =  req_sr&req_global & (ak.num(event_mu)==1)& (event_mu[:,0].pt>30)& req_wqqmass
         mask2lep = [ak.any(tup) for tup in zip(mask2mu, mask2e)]
@@ -381,49 +392,56 @@ class NanoProcessor(processor.ProcessorABC):
         # output['cuts'][dataset]['muon eff'] +=ak.sum(req_wqqmass&req_sr&req_global&(nmu==1)&seljet&req_dr&(nmu+nele>=1)&(njet>=3))
 
         lepflav = ['ee','mumu']
-        
+        region = ['SR','Vjets_CR','WW_CR']
         for histname, h in output.items():
             for ch in lepflav:
-                # cut = selection.all('lepsel')
-                cut = selection.all('jetsel','lepsel','global_selection','wqq','mT_deltaphi','lumi','metfilter',ch, 'trigger_%s'%(ch))
-                lepcut=good_leptons[cut]
-                jjcut = jj_cand[cut]
-                jjcut = jjcut[:,0]
-                jet1cut=jjcut.jet1
-                jet2cut=jjcut.jet2
-
-                if 'cjet_' in histname:
-                    fields = {l: normalize(sel_cjet[histname.replace('cjet_','')],cut) for l in h.fields if l in dir(sel_cjet)}
-                    if isRealData:flavor= ak.zeros_like(normalize(sel_cjet['pt'],cut))
-                    else :flavor= normalize(sel_cjet.hadronFlavour+1*((sel_cjet.partonFlavour == 0 ) & (sel_cjet.hadronFlavour==0)),cut)
-                    
-                    h.fill(dataset=dataset, lepflav =ch,flav=flavor, **fields,weight=weights.weight()[cut])    
-                elif 'jet1_' in histname:
-                    fields = {l: flatten(jet1cut[histname.replace('jet1_','')]) for l in h.fields if l in dir(jet1cut)}
-                    if isRealData:flavor= ak.zeros_like(flatten(jet1cut['pt']) )
-                    else :flavor= flatten((jet1cut.hadronFlavour+1*((jet1cut.partonFlavour == 0 ) & (jet1cut.hadronFlavour==0))))
-                    h.fill(dataset=dataset, lepflav =ch,flav=flavor, **fields,weight=weights.weight()[cut]) 
-                elif 'jet2_' in histname:
-                    fields = {l: flatten(jet2cut[histname.replace('jet2_','')]) for l in h.fields if l in dir(jet2cut)}
-                    if isRealData:flavor= ak.zeros_like(flatten(jet2cut['pt']) )
-                    else :flavor= flatten((jet2cut.hadronFlavour+1*((jet2cut.partonFlavour == 0 ) & (jet2cut.hadronFlavour==0))))
-                    h.fill(dataset=dataset, lepflav =ch,flav=flavor, **fields,weight=weights.weight()[cut]) 
-                elif 'jj_' in histname:
-                    fields = {l:  flatten(jjcut[histname.replace('jj_','')]) for l in h.fields if l in dir(jjcut)}
-                    h.fill(dataset=dataset, lepflav =ch, **fields,weight=weights.weight()[cut])
-                elif 'lep_' in histname:
-                    fields = {l: ak.fill_none(lepcut[histname.replace('lep_','')],np.nan) for l in h.fields if l in dir(lepcut)}
-                    h.fill(dataset=dataset,lepflav=ch, **fields,weight=weights.weight()[cut])
-                elif 'MET_' in histname:
-                    fields = {l: normalize(events.MET[histname.replace('MET_','')],cut) for l in h.fields if l in dir(events.MET)}
-                    h.fill(dataset=dataset, lepflav =ch, **fields,weight=weights.weight()[cut])  
-                else :
-                    # output['nj'].fill(dataset=dataset,lepflav=ch,nj=normalize(ak.num(sel_jet),cut))                                        
-                    output['mT'].fill(dataset=dataset,lepflav=ch,mt=flatten(mT(lepcut,met[cut])),weight=weights.weight()[cut])
-                    output['mTh'].fill(dataset=dataset,lepflav=ch,mt=flatten((met[cut]+lepcut+jjcut).mass),weight=weights.weight()[cut])
-                    output['mjjl'].fill(dataset=dataset,lepflav=ch,mt=flatten((lepcut+jjcut).mass),weight=weights.weight()[cut])
-                    output['dphi_ww'].fill(dataset=dataset,lepflav=ch,phi=flatten(met[cut].delta_phi(jjcut)),weight=weights.weight()[cut])
-                    output['dphi_lep'].fill(dataset=dataset,lepflav=ch,phi=flatten(met[cut].delta_phi(lepcut)),weight=weights.weight()[cut])
+                for r in region : 
+                
+                    cut = selection.all('jetsel','lepsel','global_selection',r,'lumi','metfilter',ch, 'trigger_%s'%(ch))
+                    lepcut=good_leptons[cut]
+                    jjcut = jj_cand[cut]
+                    jjcut = jjcut[:,0]
+                    jet1cut=jjcut.jet1
+                    jet2cut=jjcut.jet2
+                    if not isRealData:
+                        if ch=='ee':lepsf=eleSFs(lepcut,self._year,self._corr)
+                        elif ch=='mumu':lepsf=muSFs(lepcut,self._year,self._corr)
+                    else : lepsf =np.ones(weights.weight()[cut])
+                    if 'cjet_' in histname:
+                        fields = {l: normalize(sel_cjet[histname.replace('cjet_','')],cut) for l in h.fields if l in dir(sel_cjet)}
+                        if isRealData:flavor= ak.zeros_like(normalize(sel_cjet['pt'],cut))
+                        else :flavor= normalize(sel_cjet.hadronFlavour+1*((sel_cjet.partonFlavour == 0 ) & (sel_cjet.hadronFlavour==0)),cut)
+                        
+                        h.fill(dataset=dataset, lepflav =ch,flav=flavor,region=r, **fields,weight=weights.weight()[cut]*lepsf)    
+                    elif 'jet1_' in histname:
+                        fields = {l: flatten(jet1cut[histname.replace('jet1_','')]) for l in h.fields if l in dir(jet1cut)}
+                        if isRealData:flavor= ak.zeros_like(flatten(jet1cut['pt']) )
+                        else :flavor= flatten((jet1cut.hadronFlavour+1*((jet1cut.partonFlavour == 0 ) & (jet1cut.hadronFlavour==0))))
+                        h.fill(dataset=dataset, lepflav =ch,flav=flavor,region=r, **fields,weight=weights.weight()[cut]*lepsf) 
+                    elif 'jet2_' in histname:
+                        fields = {l: flatten(jet2cut[histname.replace('jet2_','')]) for l in h.fields if l in dir(jet2cut)}
+                        if isRealData:flavor= ak.zeros_like(flatten(jet2cut['pt']) )
+                        else :flavor= flatten((jet2cut.hadronFlavour+1*((jet2cut.partonFlavour == 0 ) & (jet2cut.hadronFlavour==0))))
+                        h.fill(dataset=dataset, lepflav =ch,flav=flavor,region=r, **fields,weight=weights.weight()[cut]*lepsf) 
+                    elif 'jj_' in histname:
+                        fields = {l:  flatten(jjcut[histname.replace('jj_','')]) for l in h.fields if l in dir(jjcut)}
+                        h.fill(dataset=dataset, lepflav =ch,region=r, **fields,weight=weights.weight()[cut]*lepsf)
+                    elif 'lep_' in histname:
+                        fields = {l: ak.fill_none(lepcut[histname.replace('lep_','')],np.nan) for l in h.fields if l in dir(lepcut)}
+                        h.fill(dataset=dataset,lepflav=ch,region=r, **fields,weight=weights.weight()[cut]*lepsf)
+                    elif 'MET_' in histname:
+                        fields = {l: normalize(events.MET[histname.replace('MET_','')],cut) for l in h.fields if l in dir(events.MET)}
+                        h.fill(dataset=dataset, lepflav =ch,region=r, **fields,weight=weights.weight()[cut]*lepsf)  
+                    else :
+                        # output['nj'].fill(dataset=dataset,lepflav=ch,nj=normalize(ak.num(sel_jet),cut))               
+                        # jjcut = ak.mask(jjcut,lepcut.pt>0)
+                        # metcut =met[cut]
+                        # print(mT(lepcut,met[cut]),lepcut.pt,met[cut].pt)
+                        output['mT'].fill(dataset=dataset,lepflav=ch,region=r,mt=ak.fill_none(mT(lepcut,met[cut]),np.nan),weight=weights.weight()[cut]*lepsf)
+                        output['mTh'].fill(dataset=dataset,lepflav=ch,region=r,mt=ak.fill_none((met[cut]+lepcut+jjcut).mass,np.nan),weight=weights.weight()[cut]*lepsf)
+                        output['mjjl'].fill(dataset=dataset,lepflav=ch,region=r,mt=ak.fill_none((lepcut+jjcut).mass,np.nan),weight=weights.weight()[cut]*lepsf)
+                        output['dphi_ww'].fill(dataset=dataset,lepflav=ch,region=r,phi=ak.fill_none(met[cut].delta_phi(jjcut),np.nan),weight=weights.weight()[cut]*lepsf)
+                        output['dphi_lep'].fill(dataset=dataset,lepflav=ch,region=r,phi=ak.fill_none(met[cut].delta_phi(lepcut),np.nan),weight=weights.weight()[cut]*lepsf)
                     
         return output
 

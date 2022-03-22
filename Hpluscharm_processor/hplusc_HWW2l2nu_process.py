@@ -11,7 +11,8 @@ import coffea
 from coffea import hist, processor
 from coffea.nanoevents.methods import vector
 import awkward as ak
-from utils.correction import *
+from utils.correction import jec,muSFs,eleSFs,init_corr
+from coffea.lumi_tools import LumiMask
 from coffea.analysis_tools import Weights
 from functools import partial
 # import numba
@@ -180,7 +181,13 @@ class NanoProcessor(processor.ProcessorABC):
                 ],
             },
         }
-
+        self._lumiMasks = {
+    '2016': LumiMask('data/Lumimask/Cert_271036-284044_13TeV_Legacy2016_Collisions16_JSON.txt'),
+    '2017': LumiMask('data/Lumimask/Cert_294927-306462_13TeV_UL2017_Collisions17_GoldenJSON.txt'),
+    '2018': LumiMask('data/Lumimask/Cert_271036-284044_13TeV_Legacy2016_Collisions16_JSON.txt')
+}
+        
+        self._corr = init_corr(year)
         # Define axes
         # Should read axes from NanoAOD config
         dataset_axis = hist.Cat("dataset", "Primary dataset")
@@ -270,7 +277,7 @@ class NanoProcessor(processor.ProcessorABC):
         if isRealData :output['sumw'][dataset] += 1.
         else:output['sumw'][dataset] += ak.sum(events.genWeight/abs(events.genWeight))
         req_lumi=np.ones(len(events), dtype='bool')
-        if(isRealData): req_lumi=lumiMasks[self._year](events.run, events.luminosityBlock)
+        if(isRealData): req_lumi=self._lumiMasks[self._year](events.run, events.luminosityBlock)
         selection.add('lumi',ak.to_numpy(req_lumi))
         del req_lumi
         weights = Weights(len(events), storeIndividual=True)
@@ -398,7 +405,7 @@ class NanoProcessor(processor.ProcessorABC):
         selection.add('emu',ak.to_numpy((nele==1)&(nmu==1)))
              
         # ###########
-        corr_jet = jec(events,events.Jet,isRealData)
+        corr_jet =  jec(events,events.Jet,dataset,self._year,self._corr)
         seljet = (corr_jet.pt > 20) & (abs(corr_jet.eta) <= 2.4)&((corr_jet.puId > 0)|(corr_jet.pt>50)) &(corr_jet.jetId>5)&ak.all(corr_jet.metric_table(leppair.lep1)>0.4,axis=2)&ak.all(corr_jet.metric_table(leppair.lep2)>0.4,axis=2) & (corr_jet.btagDeepFlavCvB>0.4) & (corr_jet.btagDeepFlavCvL>0.225)
         selection.add('jetsel',ak.to_numpy(ak.sum(seljet,axis=1)>0))
         eventflav_jet = corr_jet[ak.argsort(corr_jet.btagDeepFlavCvL,axis=1,ascending=False)]
@@ -441,15 +448,17 @@ class NanoProcessor(processor.ProcessorABC):
             for ch in lepflav:
                 for r in reg:
                     cut = selection.all('jetsel','lepsel','global_selection','metfilter','lumi',r,ch, 'trigger_%s'%(ch))
+                    
                     llcut = ll_cand[cut]
                     llcut = llcut[:,0]
                     lep1cut = llcut.lep1
                     lep2cut = llcut.lep2
                     if not isRealData:
-                        if ch=='ee':lepsf=eleSFs(lep1cut,self._year)*eleSFs(lep2cut,self._year)
-                        elif ch=='mumu':lepsf=muSFs(lep1cut,self._year)*muSFs(lep2cut,self._year)
+                        if ch=='ee':lepsf=eleSFs(lep1cut,self._year,self._corr)*eleSFs(lep2cut,self._year,self._corr)
+                        elif ch=='mumu':lepsf=muSFs(lep1cut,self._year,self._corr)*muSFs(lep2cut,self._year,self._corr)
                         else:
-                            lepsf=np.where(lep1cut.lep_flav==11,eleSFs(lep1cut,self._year)*muSFs(lep2cut,self._year),1.)*np.where(lep1cut.lep_flav==13,eleSFs(lep2cut,self._year)*muSFs(lep1cut,self._year),1.)
+                            lepsf=np.where(lep1cut.lep_flav==11,eleSFs(lep1cut,self._year,self._corr)*muSFs(lep2cut,self._year,self._corr),1.)*np.where(lep1cut.lep_flav==13,eleSFs(lep2cut,self._year,self._corr)*muSFs(lep1cut,self._year,self._corr),1.)
+                    else : lepsf =weights.weight()[cut]
                     if 'jetflav_' in histname:
                         fields = {l: normalize(sel_cjet_flav[histname.replace('jetflav_','')],cut) for l in h.fields if l in dir(sel_cjet_flav)}
                         if isRealData:flavor= ak.zeros_like(normalize(sel_cjet_flav['pt'],cut))
@@ -483,4 +492,5 @@ class NanoProcessor(processor.ProcessorABC):
         return output
 
     def postprocess(self, accumulator):
+        print(accumulator)
         return accumulator
