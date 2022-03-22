@@ -377,12 +377,13 @@ class NanoProcessor(processor.ProcessorABC):
         selection.add('ee',ak.to_numpy(nele==2))
         selection.add('mumu',ak.to_numpy(nmu==2))
         # ###########
-        seljet = (events.Jet.pt > 20) & (abs(events.Jet.eta) <= 2.4)&((events.Jet.puId > 0)|(events.Jet.pt>50)) &(events.Jet.jetId>5)&ak.all(events.Jet.metric_table(leppair.lep1)>0.4,axis=2)&ak.all(events.Jet.metric_table(leppair.lep2)>0.4,axis=2)
+        corr_jet =  jec(events,events.Jet,dataset,self._year,self._corr)
+        seljet = (corr_jet.pt > 20) & (abs(corr_jet.eta) <= 2.4)&((corr_jet.puId > 0)|(corr_jet.pt>50)) &(corr_jet.jetId>5)&ak.all(corr_jet.metric_table(leppair.lep1)>0.4,axis=2)&ak.all(corr_jet.metric_table(leppair.lep2)>0.4,axis=2)
         selection.add('jetsel',ak.to_numpy((ak.sum(seljet,axis=1)>0)&(ak.sum(seljet,axis=1)<=2)))
-        eventcsv_jet = events.Jet[ak.argsort(events.Jet.btagDeepCvL,axis=1,ascending=False)]
-        eventflav_jet = events.Jet[ak.argsort(events.Jet.btagDeepFlavCvL,axis=1,ascending=False)]
-        # eventpn_jet = events.Jet[ak.argsort(events.Jet.particleNetAK4_CvL,axis=1,ascending=False)]
-        eventpt_jet = events.Jet[ak.argsort(events.Jet.pt,axis=1,ascending=False)]
+        eventcsv_jet = corr_jet[ak.argsort(corr_jet.btagDeepCvL,axis=1,ascending=False)]
+        eventflav_jet = corr_jet[ak.argsort(corr_jet.btagDeepFlavCvL,axis=1,ascending=False)]
+        # eventpn_jet = corr_jet[ak.argsort(corr_jet.particleNetAK4_CvL,axis=1,ascending=False)]
+        eventpt_jet = corr_jet[ak.argsort(corr_jet.pt,axis=1,ascending=False)]
 
         sel_jet = eventcsv_jet[(eventcsv_jet.pt > 20) & (abs(eventcsv_jet.eta) <= 2.4)&((eventcsv_jet.puId > 0)|(eventcsv_jet.pt>50)) &(eventcsv_jet.jetId>5)&ak.all(eventcsv_jet.metric_table(leppair.lep1)>0.4,axis=2)&ak.all(eventcsv_jet.metric_table(leppair.lep2)>0.4,axis=2)]
         # sel_jet = eventcsv_jet[ak.all(eventcsv_jet.metric_table(leppair.lep2)>0.4,axis=2)&ak.all(eventcsv_jet.metric_table(pair_4lep.lep3)>0.4,axis=2)&ak.all(eventcsv_jet.metric_table(pair_4lep.lep4)>0.4,axis=2)]

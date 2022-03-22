@@ -315,7 +315,8 @@ class NanoProcessor(processor.ProcessorABC):
         event_e = ak.pad_none(event_e,2,axis=1)
         
         selection.add('lepsel',ak.to_numpy((nele==2)|(nmu==2)))
-        event_jet = events.Jet[ak.argsort(events.Jet.btagDeepFlavCvL, axis=1,ascending=False)]
+        corr_jet =  jec(events,events.Jet,dataset,self._year,self._corr)
+        event_jet = corr_jet[ak.argsort(corr_jet.btagDeepFlavCvL, axis=1,ascending=False)]
         jet_sel = (event_jet.pt > 20) & (abs(event_jet.eta) <= 2.4)&((event_jet.puId > 0)|(event_jet.pt>50)) &(event_jet.jetId>5)
         event_jet =event_jet[jet_sel]
         njet = ak.sum(jet_sel,axis=1)
