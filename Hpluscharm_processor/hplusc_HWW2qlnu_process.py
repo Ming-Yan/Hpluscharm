@@ -406,7 +406,7 @@ class NanoProcessor(processor.ProcessorABC):
                     if not isRealData:
                         if ch=='ee':lepsf=eleSFs(lepcut,self._year,self._corr)
                         elif ch=='mumu':lepsf=muSFs(lepcut,self._year,self._corr)
-                    else : lepsf =np.ones(weights.weight()[cut])
+                    else : lepsf =weights.weight()[cut]
                     if 'cjet_' in histname:
                         fields = {l: normalize(sel_cjet[histname.replace('cjet_','')],cut) for l in h.fields if l in dir(sel_cjet)}
                         if isRealData:flavor= ak.zeros_like(normalize(sel_cjet['pt'],cut))

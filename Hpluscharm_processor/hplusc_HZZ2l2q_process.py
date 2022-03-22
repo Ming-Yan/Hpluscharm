@@ -11,10 +11,11 @@ import coffea
 from coffea import hist, processor
 from coffea.nanoevents.methods import vector
 import awkward as ak
-# from utils.correction import *
+from utils.correction import jec,muSFs,eleSFs,init_corr
+from coffea.lumi_tools import LumiMask
+
 from coffea.analysis_tools import Weights
 from functools import partial
-import numba
 from helpers.util import reduce_and, reduce_or, nano_mask_or, get_ht, normalize, make_p4
 
 def mT(obj1,obj2):
@@ -86,7 +87,88 @@ class NanoProcessor(processor.ProcessorABC):
                 'Ele23_Ele12_CaloIdL_TrackIdL_IsoVL',
             ],
         }   
-        
+        self._met_filters = {
+            '2016': {
+                'data': [
+                    'goodVertices',
+                    'globalSuperTightHalo2016Filter',
+                    'HBHENoiseFilter',
+                    'HBHENoiseIsoFilter',
+                    'EcalDeadCellTriggerPrimitiveFilter',
+                    'BadPFMuonFilter',
+                    'BadPFMuonDzFilter',
+                    'eeBadScFilter',
+                ],
+                'mc': [
+                    'goodVertices',
+                    'globalSuperTightHalo2016Filter',
+                    'HBHENoiseFilter',
+                    'HBHENoiseIsoFilter',
+                    'EcalDeadCellTriggerPrimitiveFilter',
+                    'BadPFMuonFilter',
+                    'BadPFMuonDzFilter',
+                    'eeBadScFilter',
+                ],
+            },
+            '2017': {
+                'data': [
+                    'goodVertices',
+                    'globalSuperTightHalo2016Filter',
+                    'HBHENoiseFilter',
+                    'HBHENoiseIsoFilter',
+                    'EcalDeadCellTriggerPrimitiveFilter',
+                    'BadPFMuonFilter',
+                    'BadPFMuonDzFilter',
+                    'hfNoisyHitsFilter',
+                    'eeBadScFilter',
+                    'ecalBadCalibFilter',
+                ],
+                'mc': [
+                    'goodVertices',
+                    'globalSuperTightHalo2016Filter',
+                    'HBHENoiseFilter',
+                    'HBHENoiseIsoFilter',
+                    'EcalDeadCellTriggerPrimitiveFilter',
+                    'BadPFMuonFilter',
+                    'BadPFMuonDzFilter',
+                    'hfNoisyHitsFilter',
+                    'eeBadScFilter',
+                    'ecalBadCalibFilter',
+                ],
+            },
+            '2018': {
+                'data': [
+                    'goodVertices',
+                    'globalSuperTightHalo2016Filter',
+                    'HBHENoiseFilter',
+                    'HBHENoiseIsoFilter',
+                    'EcalDeadCellTriggerPrimitiveFilter',
+                    'BadPFMuonFilter',
+                    'BadPFMuonDzFilter',
+                    'hfNoisyHitsFilter',
+                    'eeBadScFilter',
+                    'ecalBadCalibFilter',
+                ],
+                'mc': [
+                    'goodVertices',
+                    'globalSuperTightHalo2016Filter',
+                    'HBHENoiseFilter',
+                    'HBHENoiseIsoFilter',
+                    'EcalDeadCellTriggerPrimitiveFilter',
+                    'BadPFMuonFilter',
+                    'BadPFMuonDzFilter',
+                    'hfNoisyHitsFilter',
+                    'eeBadScFilter',
+                    'ecalBadCalibFilter',
+                ],
+            },
+        }
+        self._lumiMasks = {
+            '2016': LumiMask('data/Lumimask/Cert_271036-284044_13TeV_Legacy2016_Collisions16_JSON.txt'),
+            '2017': LumiMask('data/Lumimask/Cert_294927-306462_13TeV_UL2017_Collisions17_GoldenJSON.txt'),
+            '2018': LumiMask('data/Lumimask/Cert_271036-284044_13TeV_Legacy2016_Collisions16_JSON.txt')
+        }
+        self._corr = init_corr(self._year)
         # Define axes
         # Should read axes from NanoAOD config
         dataset_axis = hist.Cat("dataset", "Primary dataset")
@@ -161,8 +243,10 @@ class NanoProcessor(processor.ProcessorABC):
         selection = processor.PackedSelection()
         if(isRealData):output['sumw'][dataset] += 1.
         else:output['sumw'][dataset] += ak.sum(events.genWeight)
-        # req_lumi=np.ones(len(events), dtype='bool')
-        # if(isRealData): req_lumi=lumiMasks['2017'](events.run, events.luminosityBlock)
+        req_lumi=np.ones(len(events), dtype='bool')
+        if(isRealData): req_lumi=self._lumiMasks[self._year](events.run, events.luminosityBlock)
+        selection.add('lumi',ak.to_numpy(req_lumi))
+        del req_lumi
         weights = Weights(len(events), storeIndividual=True)
         if isRealData:weights.add('genweight',np.ones(len(events)))
         else:
@@ -202,7 +286,13 @@ class NanoProcessor(processor.ProcessorABC):
             trigger_ele = trigger_ee|trigger_e
         selection.add('trigger_ee', ak.to_numpy(trigger_ele))
         selection.add('trigger_mumu', ak.to_numpy(trigger_mu))
-            
+        del trigger_ee,trigger_e,trigger_ele,trigger_m,trigger_mm,trigger_mu
+        metfilter = np.ones(len(events), dtype='bool')
+        for flag in self._met_filters[self._year]['data' if isRealData else 'mc']:
+            metfilter &= np.array(events.Flag[flag])
+        selection.add('metfilter', metfilter)
+        del metfilter    
+
 
         
         ## Muon cuts
@@ -331,7 +421,7 @@ class NanoProcessor(processor.ProcessorABC):
 
         for histname, h in output.items():
             for ch in lepflav:
-                cut = selection.all('jetsel','lepsel','global_selection','Z_selection','H_selection','cjetsel',ch,'trigger_%s'%(ch))
+                cut = selection.all('jetsel','lepsel','global_selection','Z_selection','H_selection','lumi','metfilter','cjetsel',ch,'trigger_%s'%(ch))
                 
                 
                 hcut = higgs_cand[cut]
@@ -343,43 +433,47 @@ class NanoProcessor(processor.ProcessorABC):
                 jet1cut=jjcut.jet1
                 jet2cut=jjcut.jet2   
                 charmcut = sel_cjet[cut]
+                if not isRealData:
+                        if ch=='ee':lepsf=eleSFs(lep1cut,self._year,self._corr)*eleSFs(lep2cut,self._year,self._corr)
+                        elif ch=='mumu':lepsf=muSFs(lep1cut,self._year,self._corr)*muSFs(lep2cut,self._year,self._corr)
+                else : lepsf =weights.weight()[cut]
                 if 'cjet_' in histname:
                     fields = {l: normalize(sel_cjet[histname.replace('cjet_','')],cut) for l in h.fields if l in dir(sel_cjet)}
                     if isRealData:flavor= ak.zeros_like(normalize(sel_cjet['pt'],cut))
                     else :flavor= normalize(sel_cjet.hadronFlavour+1*((sel_cjet.partonFlavour == 0 ) & (sel_cjet.hadronFlavour==0)),cut)
-                    h.fill(dataset=dataset, lepflav =ch,flav=flavor, **fields,weight=weights.weight()[cut])    
+                    h.fill(dataset=dataset, lepflav =ch,flav=flavor, **fields,weight=weights.weight()[cut]*lepsf)    
                 
                 elif 'jet1_' in histname:
                     fields = {l: flatten(jet1cut[histname.replace('jet1_','')]) for l in h.fields if l in dir(jet1cut)}
                     if isRealData:flavor= ak.zeros_like(normalize(jet1cut['pt'],cut))
                     else :flavor= flatten(jet1cut.hadronFlavour+1*((jet1cut.partonFlavour == 0 ) & (jet1cut.hadronFlavour==0)))
-                    h.fill(dataset=dataset, lepflav =ch,flav=flavor, **fields,weight=weights.weight()[cut]) 
+                    h.fill(dataset=dataset, lepflav =ch,flav=flavor, **fields,weight=weights.weight()[cut]*lepsf) 
                 elif 'jet2_' in histname:
                     fields = {l: flatten(jet2cut[histname.replace('jet2_','')]) for l in h.fields if l in dir(jet2cut)}
                     if isRealData:flavor= ak.zeros_like(normalize(jet2cut['pt'],cut))
                     else :flavor= flatten(jet2cut.hadronFlavour+1*((jet2cut.partonFlavour == 0 ) & (jet2cut.hadronFlavour==0)))
-                    h.fill(dataset=dataset, lepflav =ch,flav=flavor, **fields,weight=weights.weight()[cut])    
+                    h.fill(dataset=dataset, lepflav =ch,flav=flavor, **fields,weight=weights.weight()[cut]*lepsf)    
                 elif 'lep1_' in histname:
                     fields = {l: flatten(lep1cut[histname.replace('lep1_','')]) for l in h.fields if l in dir(lep1cut)}
-                    h.fill(dataset=dataset,lepflav=ch, **fields,weight=weights.weight()[cut])
+                    h.fill(dataset=dataset,lepflav=ch, **fields,weight=weights.weight()[cut]*lepsf)
                 elif 'lep2_' in histname:
                     fields = {l: flatten(lep2cut[histname.replace('lep2_','')]) for l in h.fields if l in dir(lep2cut)}
-                    h.fill(dataset=dataset,lepflav=ch, **fields,weight=weights.weight()[cut])
+                    h.fill(dataset=dataset,lepflav=ch, **fields,weight=weights.weight()[cut]*lepsf)
                 elif 'll_' in histname:
                     fields = {l: flatten(llcut[histname.replace('ll_','')]) for l in h.fields if l in dir(llcut)}
-                    h.fill(dataset=dataset, lepflav =ch, **fields,weight=weights.weight()[cut])  
+                    h.fill(dataset=dataset, lepflav =ch, **fields,weight=weights.weight()[cut]*lepsf)  
                 elif 'jj_' in histname:
                     fields = {l:  flatten(jjcut[histname.replace('jj_','')]) for l in h.fields if l in dir(jjcut)}
-                    h.fill(dataset=dataset, lepflav =ch, **fields,weight=weights.weight()[cut])
+                    h.fill(dataset=dataset, lepflav =ch, **fields,weight=weights.weight()[cut]*lepsf)
                 elif 'higgs_' in histname:
                     fields = {l:  flatten(hcut[histname.replace('higgs_','')]) for l in h.fields if l in dir(hcut)}
-                    h.fill(dataset=dataset, lepflav =ch, **fields,weight=weights.weight()[cut])  
+                    h.fill(dataset=dataset, lepflav =ch, **fields,weight=weights.weight()[cut]*lepsf)  
                 else :
                     # print("h",hcut.pt.tolist())
                     # print("c",charmcut.pt.tolist())
-                    output['hc_dr'].fill(dataset=dataset,lepflav=ch,dr=hcut.delta_r(charmcut),weight=weights.weight()[cut])                    
-                    output['zs_dr'].fill(dataset=dataset,lepflav=ch,dr=flatten(llcut.delta_r(jjcut)),weight=weights.weight()[cut]) 
-                    output['cj_dr'].fill(dataset=dataset,lepflav=ch,dr=flatten(jjcut.delta_r(charmcut)),weight=weights.weight()[cut])
+                    output['hc_dr'].fill(dataset=dataset,lepflav=ch,dr=hcut.delta_r(charmcut),weight=weights.weight()[cut]*lepsf)                    
+                    output['zs_dr'].fill(dataset=dataset,lepflav=ch,dr=flatten(llcut.delta_r(jjcut)),weight=weights.weight()[cut]*lepsf) 
+                    output['cj_dr'].fill(dataset=dataset,lepflav=ch,dr=flatten(jjcut.delta_r(charmcut)),weight=weights.weight()[cut]*lepsf)
                     
                     ll_hCM = llcut.boost(-1*hcut.boostvec)#boost to higgs frame
                     poslep = make_p4(ak.where(lep1cut.charge>0,lep1cut,lep2cut))
@@ -388,11 +482,11 @@ class NanoProcessor(processor.ProcessorABC):
                     jet_hCM =jet1cut.boost(-1*hcut.boostvec)
                     jet_ZCM = jet_hCM.boost(-1*jjcut.boostvec)
                     
-                    output['costheta_pz'].fill(dataset=dataset,lepflav=ch,costheta=flatten(np.cos(ll_hCM.theta)),weight=weights.weight()[cut]) 
-                    output['costheta_ll'].fill(dataset=dataset,lepflav=ch,costheta=flatten(np.cos(poslep_ZCM.theta)),weight=weights.weight()[cut]) 
-                    output['costheta_pz'].fill(dataset=dataset,lepflav=ch,costheta=flatten(np.cos(jet_ZCM.theta)),weight=weights.weight()[cut]) 
-                    output['phi_zz'].fill(dataset=dataset,lepflav=ch,phi=flatten(ll_hCM.phi),weight=weights.weight()[cut]) 
-                    output['phi_lq'].fill(dataset=dataset,lepflav=ch,phi=flatten(jet_ZCM.delta_phi(poslep_ZCM)),weight=weights.weight()[cut])
+                    output['costheta_pz'].fill(dataset=dataset,lepflav=ch,costheta=flatten(np.cos(ll_hCM.theta)),weight=weights.weight()[cut]*lepsf) 
+                    output['costheta_ll'].fill(dataset=dataset,lepflav=ch,costheta=flatten(np.cos(poslep_ZCM.theta)),weight=weights.weight()[cut]*lepsf) 
+                    output['costheta_pz'].fill(dataset=dataset,lepflav=ch,costheta=flatten(np.cos(jet_ZCM.theta)),weight=weights.weight()[cut]*lepsf) 
+                    output['phi_zz'].fill(dataset=dataset,lepflav=ch,phi=flatten(ll_hCM.phi),weight=weights.weight()[cut]*lepsf) 
+                    output['phi_lq'].fill(dataset=dataset,lepflav=ch,phi=flatten(jet_ZCM.delta_phi(poslep_ZCM)),weight=weights.weight()[cut]*lepsf)
                     
         return output
 
