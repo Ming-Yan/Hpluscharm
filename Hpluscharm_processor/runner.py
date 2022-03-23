@@ -3,7 +3,8 @@ import sys
 import json
 import argparse
 import time
-
+import pprint
+import pickle
 import numpy as np
 
 import uproot
@@ -32,21 +33,27 @@ def check_port(port):
     sock.close()
     return available
 
-
+def retry_handler(exception, task_record):
+    from parsl.executors.high_throughput.interchange import ManagerLost
+    if isinstance(exception, ManagerLost):
+            return 0.1
+    else:
+        return 1
 def get_main_parser():
     parser = argparse.ArgumentParser(description='Run analysis on baconbits files using processor coffea files')
     # Inputs
     parser.add_argument('--wf',
                         '--workflow',
                         dest='workflow',
-                        help='Which processor to run')
-
+                        help='Which processor to run',
+                        required=True)
     parser.add_argument('-o', '--output', default=r'hists.coffea', help='Output histogram filename (default: %(default)s)')
-    parser.add_argument('--samples', '--json', dest='samplejson', default='metadata/sample.json',
+    parser.add_argument('--samples', '--json', dest='samplejson', default='dummy_samples.json',
                         help='JSON file containing dataset and file locations (default: %(default)s)'
                         )
 
     # Scale out
+    parser.add_argument('--split', action='store_true', help='chunk-chunk')
     parser.add_argument('--executor', 
                         choices=[
                             'iterative', 'futures', 'parsl/slurm', 'parsl/condor', 
@@ -77,8 +84,9 @@ def get_main_parser():
     parser.add_argument('--skipbadfiles', action='store_true', help='Skip bad files.')
     parser.add_argument('--only', type=str, default=None, help='Only process specific dataset or file')
     parser.add_argument('--limit', type=int, default=None, metavar='N', help='Limit to the first N files of each dataset in sample JSON')
-    parser.add_argument('--chunk', type=int, default=50000, metavar='N', help='Number of events per process chunk')
+    parser.add_argument('--chunk', type=int, default=50000000, metavar='N', help='Number of events per process chunk')
     parser.add_argument('--max', type=int, default=None, metavar='N', help='Max number of chunks to run in total')
+    parser.add_argument('--memory', type=str, default='4GB', help='Required memory')
     return parser
 
 
@@ -143,9 +151,22 @@ if __name__ == '__main__':
         sys.exit(0)
 
     # load workflow
-   
-    from hplusc_process import NanoProcessor
-    processor_instance = NanoProcessor()
+    if args.workflow =="test":
+        from ctag_DY_valid_sf import NanoProcessor
+        processor_instance = NanoProcessor()
+    elif args.workflow =="HWW2l2nu":
+        from hplusc_HWW2l2nu_process import NanoProcessor
+        processor_instance = NanoProcessor()
+    elif args.workflow =="HWW2qlnu":
+        from hplusc_HWW2qlnu_process import NanoProcessor
+        processor_instance = NanoProcessor()
+    elif args.workflow =="HZZ2l2q":
+        from hplusc_HZZ2l2q_process import NanoProcessor
+        processor_instance = NanoProcessor()
+    elif args.workflow =="HZZ2l2nu":
+        from hplusc_HZZ2l2nu_process import NanoProcessor
+        processor_instance = NanoProcessor()
+    else : raise NotImplementedError
 
     if args.executor not in ['futures', 'iterative', 'dask/lpc', 'dask/casa']:
         """
@@ -162,16 +183,18 @@ if __name__ == '__main__':
             _x509_path = os.environ['HOME'] + f'/.{_x509_localpath.split("/")[-1]}'
             os.system(f'cp {_x509_localpath} {_x509_path}')
 
-        env_extra = [
+            env_extra = [
             'export XRD_RUNFORKHANDLER=1',
-            f'export X509_USER_PROXY={_x509_path}',
-            f'export X509_CERT_DIR=/cvmfs/grid.cern.ch/etc/grid-security/certificates'
-            #'{os.environ["X509_CERT_DIR"]}',
-            f"export PYTHONPATH=$PYTHONPATH:{os.getcwd()}",
+         f'export X509_USER_PROXY={_x509_path}',
+            f'export X509_CERT_DIR={os.environ["X509_CERT_DIR"]} ',
+            f'export PYTHONPATH=$PYTHONPATH:{os.getcwd()}',
         ]
-        condor_extra = [
+
+            condor_extra = [
             f'source {os.environ["HOME"]}/.bashrc',
-        ]
+            'source activate coffea'
+            ]
+
 
     #########
     # Execute
@@ -199,7 +222,7 @@ if __name__ == '__main__':
         from parsl.executors import HighThroughputExecutor
         from parsl.launchers import SrunLauncher
         from parsl.addresses import address_by_hostname, address_by_query
-
+        print("parsl")
         if 'slurm' in args.executor:
             htex_config = Config(
                 executors=[
@@ -227,22 +250,49 @@ if __name__ == '__main__':
                         label='coffea_parsl_condor',
                         address=address_by_query(),
                         max_workers=1,
+                        worker_debug=True,
+
                         provider=CondorProvider(
-                            nodes_per_block=1,
-                            init_blocks=1,
-                            max_blocks=1,
+                         nodes_per_block=1,
+                            mem_per_slot = 4,                            
+                            init_blocks=args.workers,
+                            max_blocks=(args.workers)+2,
                             worker_init="\n".join(env_extra + condor_extra),
                             walltime="00:20:00",
                         ),
                     )
-                ]
+                ],
+                retries=20,
+                retry_handler=retry_handler,
             )
+            print("parsl/condor")
         else:
             raise NotImplementedError
 
         dfk = parsl.load(htex_config)
+        print("parsl load")
+        if args.split:
+            for key, fnames in sample_dict.items():
+                output, metrics = processor.run_uproot_job({key: fnames},
+                                    treename='Events',
+                                    processor_instance=processor_instance,
+                                    executor=processor.parsl_executor,
+                                    executor_args={
+                                        'skipbadfiles':True,
+                                        'savemetrics':True,
+                                        'schema': processor.NanoAODSchema,
+                                        'config': None},
+                                        chunksize=args.chunk,
+                                        maxchunks=args.max  
+                                    )
 
-        output = processor.run_uproot_job(sample_dict,
+
+                save(output, f"temp/{key}_%s.coffea" %(args.workflow))
+                pprint.pprint(metrics)
+
+                print("X-size", len(pickle.dumps(output))/(1024*1024))
+        else:
+            output = processor.run_uproot_job(sample_dict,
                                           treename='Events',
                                           processor_instance=processor_instance,
                                           executor=processor.parsl_executor,
@@ -253,6 +303,7 @@ if __name__ == '__main__':
                                           },
                                           chunksize=args.chunk,
                                           maxchunks=args.max)
+
 
     elif 'dask' in args.executor:
         from dask_jobqueue import SLURMCluster, HTCondorCluster
