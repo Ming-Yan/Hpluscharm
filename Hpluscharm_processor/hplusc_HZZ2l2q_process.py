@@ -440,18 +440,17 @@ class NanoProcessor(processor.ProcessorABC):
                 else : lepsf =weights.weight()[cut]
                 if 'cjet_' in histname:
                     fields = {l: normalize(sel_cjet[histname.replace('cjet_','')],cut) for l in h.fields if l in dir(sel_cjet)}
-                    if isRealData:flavor= ak.zeros_like(normalize(sel_cjet['pt'],cut))
+                    if isRealData:flavor= ak.zeros_like((weights.weight()[cut]))
                     else :flavor= normalize(sel_cjet.hadronFlavour+1*((sel_cjet.partonFlavour == 0 ) & (sel_cjet.hadronFlavour==0)),cut)
-                    h.fill(dataset=dataset, lepflav =ch,flav=flavor, **fields,weight=weights.weight()[cut]*lepsf)    
-                
+                    h.fill(dataset=dataset, lepflav =ch,flav=flavor, **fields,weight=weights.weight()[cut]*lepsf)                  
                 elif 'jet1_' in histname:
                     fields = {l: flatten(jet1cut[histname.replace('jet1_','')]) for l in h.fields if l in dir(jet1cut)}
-                    if isRealData:flavor= ak.zeros_like(normalize(jet1cut['pt'],cut))
+                    if isRealData:flavor= ak.zeros_like(lepsf)
                     else :flavor= flatten(jet1cut.hadronFlavour+1*((jet1cut.partonFlavour == 0 ) & (jet1cut.hadronFlavour==0)))
                     h.fill(dataset=dataset, lepflav =ch,flav=flavor, **fields,weight=weights.weight()[cut]*lepsf) 
                 elif 'jet2_' in histname:
                     fields = {l: flatten(jet2cut[histname.replace('jet2_','')]) for l in h.fields if l in dir(jet2cut)}
-                    if isRealData:flavor= ak.zeros_like(normalize(jet2cut['pt'],cut))
+                    if isRealData:flavor= ak.zeros_like((weights.weight()[cut]))
                     else :flavor= flatten(jet2cut.hadronFlavour+1*((jet2cut.partonFlavour == 0 ) & (jet2cut.hadronFlavour==0)))
                     h.fill(dataset=dataset, lepflav =ch,flav=flavor, **fields,weight=weights.weight()[cut]*lepsf)    
                 elif 'lep1_' in histname:

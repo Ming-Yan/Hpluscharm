@@ -316,10 +316,11 @@ class NanoProcessor(processor.ProcessorABC):
                 trigger_em = trigger_em | events.HLT[t]       
         
         if isRealData:
-            if "MuEG" in dataset : trigger_em = trigger_em 
+            if "MuonEG" in dataset : 
+                trigger_em = trigger_em 
             elif "DoubleElectron" in dataset:trigger_ele = trigger_ee & ~trigger_em
-            elif "SingleElectron" in dataset:trigger_ele =  trigger_e & ~trigger_ee & ~trigger_em
-            elif "DoubleMuon" in dataset:trigger_mu = trigger_mm
+            elif "SingleElectron" in dataset:trigger_ele =  trigger_e & ~trigger_ee & ~trigger_em 
+            elif "DoubleMuon" in dataset:trigger_mu = trigger_mm 
             elif "SingleMuon" in dataset:trigger_mu = trigger_m & ~trigger_mm & ~trigger_em
 
         else : 
@@ -328,7 +329,7 @@ class NanoProcessor(processor.ProcessorABC):
         selection.add('trigger_ee', ak.to_numpy(trigger_ele))
         selection.add('trigger_mumu', ak.to_numpy(trigger_mu))
         selection.add('trigger_emu', ak.to_numpy(trigger_em))
-        del trigger_ele,trigger_e,trigger_ee,trigger_em,trigger_m,trigger_mm,trigger_mu
+        # del trigger_ele,trigger_e,trigger_ee,trigger_em,trigger_m,trigger_mm,trigger_mu
         metfilter = np.ones(len(events), dtype='bool')
         for flag in self._met_filters[self._year]['data' if isRealData else 'mc']:
             metfilter &= np.array(events.Flag[flag])
@@ -448,7 +449,9 @@ class NanoProcessor(processor.ProcessorABC):
             for ch in lepflav:
                 for r in reg:
                     cut = selection.all('jetsel','lepsel','global_selection','metfilter','lumi',r,ch, 'trigger_%s'%(ch))
-                    
+                    print(dataset,ch,'ele',ak.num(trigger_ele==True),trigger_ele[:,:20])
+                    print(dataset,ch,'mu',ak.num(trigger_mu==True),trigger_mu[:,20])
+                    print(dataset,ch,'EMu',ak.num(trigger_em==True),trigger_em[:,20])
                     llcut = ll_cand[cut]
                     llcut = llcut[:,0]
                     lep1cut = llcut.lep1
