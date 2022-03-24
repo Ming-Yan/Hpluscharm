@@ -87,6 +87,7 @@ def get_main_parser():
     parser.add_argument('--chunk', type=int, default=50000000, metavar='N', help='Number of events per process chunk')
     parser.add_argument('--max', type=int, default=None, metavar='N', help='Max number of chunks to run in total')
     parser.add_argument('--memory', type=str, default='4GB', help='Required memory')
+    parser.add_argument('-v','--version',type=str,default='',help='additional info')
     return parser
 
 
@@ -96,7 +97,7 @@ if __name__ == '__main__':
     if args.output == parser.get_default('output'):
         index = args.samplejson.rfind('/')+1
         sample_json = args.samplejson[index:]
-        args.output = f'hists_{args.workflow}_{(sample_json).rstrip(".json")}.coffea'
+        args.output = f'hists_{args.workflow}_{(sample_json).rstrip(".json")}{args.version}.coffea'
 
 
         # load dataset

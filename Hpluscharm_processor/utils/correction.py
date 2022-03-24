@@ -308,3 +308,9 @@ def muSFs(mu,year,evaluator):
 
     return weight
 
+def ZpT_corr(zpt,year):
+    if year =='2016' : weight =1.04713*(-0.055394*np.erf((zpt- 11.21831)/3.87755) + 0.00049300*
+zpt+ 0.94418)
+    elif year =='2017' : weight = 1.15072*(0.090490*np.erf((zpt-5.50288)/2.28427) + 0.0093880*zpt-3.13579*10^-5*zpt**2+0.74284)
+    elif year =='2018' : weight =1.12666*(0.09487*erf((pT,Z-5.47228)/2.21332) + 0.0095931 *zpt -1.67661 *10^-6*zpt**2+ 0.75185)
+    return weight

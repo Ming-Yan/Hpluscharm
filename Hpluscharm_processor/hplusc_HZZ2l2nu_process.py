@@ -11,7 +11,7 @@ import coffea
 from coffea import hist, processor
 from coffea.nanoevents.methods import vector
 import awkward as ak
-from utils.correction import jec,muSFs,eleSFs,init_corr
+from utils.correction import jec,muSFs,eleSFs,init_corr,ZpT_corr
 from coffea.lumi_tools import LumiMask
 
 from coffea.analysis_tools import Weights
@@ -268,6 +268,9 @@ class NanoProcessor(processor.ProcessorABC):
         if isRealData:weights.add('genweight',np.ones(len(events)))
         else:
             weights.add('genweight',events.genWeight/abs(events.genWeight))
+            if 'DY' in dataset :
+                genZ = events.GenPart[(events.GenPart.hasFlags(["fromHardProcess"])==True) & (events.GenPart.hasFlags(["isHardProcess"])==True)& (events.GenPart.pdgId==23)]                
+                weights.add('zptwei',ZpT_corr(genZ.pt,self._year))
             # weights.add('puweight', compiled['2017_pileupweight'](events.Pileup.nPU))
         ##############
         if(isRealData):output['cutflow'][dataset]['all']  += 1.
@@ -293,14 +296,22 @@ class NanoProcessor(processor.ProcessorABC):
                 trigger_ee = trigger_ee | events.HLT[t]       
         
         if isRealData:
-            if "DoubleElectron" in dataset:trigger_ele = trigger_ee
-            elif "SingleElectron" in dataset:trigger_ele = ~trigger_ee & trigger_e
-            elif "DoubleMuon" in dataset:trigger_mu = trigger_mm
-            elif "SingleMuon" in dataset:trigger_mu = ~trigger_mm & trigger_m
+            if "DoubleEG" in dataset:
+                trigger_ele = trigger_ee
+                trigger_mu = np.zeros(len(events), dtype='bool')
+            elif "SingleElectron" in dataset:
+                trigger_ele = ~trigger_ee & trigger_e
+                trigger_mu = np.zeros(len(events), dtype='bool')
+            elif "DoubleMuon" in dataset:
+                trigger_mu = trigger_mm
+                trigger_ele = np.zeros(len(events), dtype='bool')
+            elif "SingleMuon" in dataset:
+                trigger_mu = ~trigger_mm & trigger_m
+                trigger_ele = np.zeros(len(events), dtype='bool')
 
         else : 
-            trigger_mu = trigger_mm|trigger_m
-            trigger_ele = trigger_ee|trigger_e
+            trigger_mu = trigger_mm#|trigger_m
+            trigger_ele = trigger_ee#|trigger_e
         selection.add('trigger_ee', ak.to_numpy(trigger_ele))
         selection.add('trigger_mumu', ak.to_numpy(trigger_mu))
         del trigger_ele, trigger_mu, trigger_m,trigger_mm,trigger_e,trigger_ee

@@ -318,10 +318,25 @@ class NanoProcessor(processor.ProcessorABC):
         if isRealData:
             if "MuonEG" in dataset : 
                 trigger_em = trigger_em 
-            elif "DoubleElectron" in dataset:trigger_ele = trigger_ee & ~trigger_em
-            elif "SingleElectron" in dataset:trigger_ele =  trigger_e & ~trigger_ee & ~trigger_em 
-            elif "DoubleMuon" in dataset:trigger_mu = trigger_mm 
-            elif "SingleMuon" in dataset:trigger_mu = trigger_m & ~trigger_mm & ~trigger_em
+                trigger_ele = np.zeros(len(events), dtype='bool')
+                trigger_mu = np.zeros(len(events), dtype='bool')
+            elif "DoubleEG" in dataset:
+                
+                trigger_ele = trigger_ee #& ~trigger_em
+                trigger_mu = np.zeros(len(events), dtype='bool')
+                trigger_em = np.zeros(len(events), dtype='bool')
+            elif "SingleElectron" in dataset:
+                trigger_ele =  trigger_e & ~trigger_ee & ~trigger_em 
+                trigger_mu = np.zeros(len(events), dtype='bool')
+                trigger_em= np.zeros(len(events), dtype='bool')
+            elif "DoubleMuon" in dataset:
+                trigger_mu = trigger_mm 
+                trigger_ele= np.zeros(len(events), dtype='bool')
+                trigger_em= np.zeros(len(events), dtype='bool')
+            elif "SingleMuon" in dataset:
+                trigger_mu = trigger_m & ~trigger_mm & ~trigger_em
+                trigger_ele = np.zeros(len(events), dtype='bool')
+                trigger_em = np.zeros(len(events), dtype='bool')
 
         else : 
             trigger_mu = trigger_mm|trigger_m
@@ -449,9 +464,13 @@ class NanoProcessor(processor.ProcessorABC):
             for ch in lepflav:
                 for r in reg:
                     cut = selection.all('jetsel','lepsel','global_selection','metfilter','lumi',r,ch, 'trigger_%s'%(ch))
-                    print(dataset,ch,'ele',ak.num(trigger_ele==True),trigger_ele[:,:20])
-                    print(dataset,ch,'mu',ak.num(trigger_mu==True),trigger_mu[:,20])
-                    print(dataset,ch,'EMu',ak.num(trigger_em==True),trigger_em[:,20])
+                    
+                    print(dataset,ch,'ele',ak.sum(trigger_ele))
+                    print(dataset,ch,'ele',trigger_ele[:10],trigger_e[:10],trigger_ee[:10])
+                    print(dataset,ch,'mu',ak.sum(trigger_mu))
+                    print(dataset,ch,'mu',trigger_mu[:10],trigger_m[:10],trigger_mm[:10])
+                    print(dataset,ch,'EMu',ak.sum(trigger_em))
+                    # print(dataset,ch,'EMu',trigger_em[:10])
                     llcut = ll_cand[cut]
                     llcut = llcut[:,0]
                     lep1cut = llcut.lep1
