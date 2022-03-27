@@ -192,7 +192,7 @@ class NanoProcessor(processor.ProcessorABC):
         covXX_axis = hist.Bin("covXX",r"MET covXX",20,0,10)
         covXY_axis = hist.Bin("covXY",r"MET covXY",20,0,10)
         covYY_axis = hist.Bin("covYY",r"MET covYY",20,0,10)
-        sumEt_axis = hist.Bin("sumEt", r" MET sumEt", 50, 0, 300)
+        sumEt_axis = hist.Bin("sumEt", r" MET sumEt", 40, 0, 120)
         
         # axis.StrCategory([], name='region', growth=True),
         disc_list = [ 'btagDeepCvL', 'btagDeepCvB','btagDeepFlavCvB','btagDeepFlavCvL']#,'particleNetAK4_CvL','particleNetAK4_CvB']
