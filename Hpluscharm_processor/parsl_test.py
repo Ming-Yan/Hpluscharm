@@ -47,7 +47,7 @@ s = sort(File(os.path.abspath("unsorted.txt")),
 output_file = s.outputs[0].result()
 
 print("Contents of the unsorted.txt file:")
-with open('input/unsorted.txt', 'r') as f:
+with open('unsorted.txt', 'r') as f:
     print(f.read().replace("\n",","))
     
 print("\nContents of the sorted output file:")
