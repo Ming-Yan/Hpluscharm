@@ -153,7 +153,7 @@ if __name__ == '__main__':
 
     # load workflow
     if args.workflow =="test":
-        from ctag_DY_valid_sf import NanoProcessor
+        from hplusc_test_process import NanoProcessor
         processor_instance = NanoProcessor()
     elif args.workflow =="HWW2l2nu":
         from hplusc_HWW2l2nu_process import NanoProcessor
@@ -245,26 +245,41 @@ if __name__ == '__main__':
                 retries=20,
             )
         elif 'condor' in args.executor:
+            # htex_config = Config(
+            #     executors=[
+            #         HighThroughputExecutor(
+            #             label='coffea_parsl_condor',
+            #             address=address_by_query(),
+            #             max_workers=1,
+            #             worker_debug=True,
+            #             provider=CondorProvider(
+            #              nodes_per_block=1,
+            #                 mem_per_slot = 4,                            
+            #                 init_blocks=args.workers,
+            #                 max_blocks=(args.workers)+2,
+            #                 worker_init="\n".join(env_extra + condor_extra),
+            #                 walltime="00:20:00",
+            #             ),
+            #         )
+            #     ],
+            #     retries=0,
+            #     #retry_handler=retry_handler,
+            # )
             htex_config = Config(
                 executors=[
                     HighThroughputExecutor(
                         label='coffea_parsl_condor',
                         address=address_by_query(),
                         max_workers=1,
-                        worker_debug=True,
-
                         provider=CondorProvider(
-                         nodes_per_block=1,
-                            mem_per_slot = 4,                            
-                            init_blocks=args.workers,
-                            max_blocks=(args.workers)+2,
+                            nodes_per_block=1,
+                            init_blocks=1,
+                            max_blocks=1,
                             worker_init="\n".join(env_extra + condor_extra),
                             walltime="00:20:00",
                         ),
                     )
-                ],
-                retries=20,
-                retry_handler=retry_handler,
+                ]
             )
             print("parsl/condor")
         else:
@@ -272,28 +287,39 @@ if __name__ == '__main__':
 
         dfk = parsl.load(htex_config)
         print("parsl load")
-        if args.split:
-            for key, fnames in sample_dict.items():
-                output, metrics = processor.run_uproot_job({key: fnames},
-                                    treename='Events',
-                                    processor_instance=processor_instance,
-                                    executor=processor.parsl_executor,
-                                    executor_args={
-                                        'skipbadfiles':True,
-                                        'savemetrics':True,
-                                        'schema': processor.NanoAODSchema,
-                                        'config': None},
-                                        chunksize=args.chunk,
-                                        maxchunks=args.max  
-                                    )
+        # if args.split:
+        #     for key, fnames in sample_dict.items():
+        #         output, metrics = processor.run_uproot_job({key: fnames},
+        #                             treename='Events',
+        #                             processor_instance=processor_instance,
+        #                             executor=processor.parsl_executor,
+        #                             executor_args={
+        #                                 'skipbadfiles':True,
+        #                                 'savemetrics':True,
+        #                                 'schema': processor.NanoAODSchema,
+        #                                 'config': None},
+        #                                 chunksize=args.chunk,
+        #                                 maxchunks=args.max  
+        #                             )
 
 
-                save(output, f"temp/{key}_%s.coffea" %(args.workflow))
-                pprint.pprint(metrics)
+        #         save(output, f"temp/{key}_%s.coffea" %(args.workflow))
+        #         pprint.pprint(metrics)
 
-                print("X-size", len(pickle.dumps(output))/(1024*1024))
-        else:
-            output = processor.run_uproot_job(sample_dict,
+        #         print("X-size", len(pickle.dumps(output))/(1024*1024))
+        # else:
+            # output = processor.run_uproot_job(sample_dict,
+            #                               treename='Events',
+            #                               processor_instance=processor_instance,
+            #                               executor=processor.parsl_executor,
+            #                               executor_args={
+            #                                   'skipbadfiles': True,
+            #                                   'schema': processor.NanoAODSchema,
+            #                                   'config': None,
+            #                               },
+            #                               chunksize=args.chunk,
+            #                               maxchunks=args.max)
+        output = processor.run_uproot_job(sample_dict,
                                           treename='Events',
                                           processor_instance=processor_instance,
                                           executor=processor.parsl_executor,
@@ -303,7 +329,7 @@ if __name__ == '__main__':
                                               'config': None,
                                           },
                                           chunksize=args.chunk,
-                                          maxchunks=args.max)
+                                          maxchunks=args.max)    
 
 
     elif 'dask' in args.executor:
