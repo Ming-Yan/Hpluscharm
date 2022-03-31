@@ -11,7 +11,7 @@ import coffea
 from coffea import hist, processor
 from coffea.nanoevents.methods import vector
 import awkward as ak
-from utils.correction import jec,muSFs,eleSFs,init_corr
+from utils.correction import jec,muSFs,eleSFs,init_corr,ZpT_corr
 from coffea.lumi_tools import LumiMask
 
 from coffea.analysis_tools import Weights
@@ -182,7 +182,9 @@ class NanoProcessor(processor.ProcessorABC):
         pt_axis   = hist.Bin("pt",   r" $p_{T}$ [GeV]", 50, 0, 300)
         eta_axis  = hist.Bin("eta",  r" $\eta$", 25, -2.5, 2.5)
         phi_axis  = hist.Bin("phi",  r" $\phi$", 30, -3, 3)
-        mass_axis = hist.Bin("mass", r" $m$ [GeV]", 40, 0, 120)
+
+        mass_axis = hist.Bin("mass", r" $m$ [GeV]", 40, 0, 400)
+        llmass_axis = hist.Bin("mass", r" $m$ [GeV]", 40, 60, 120)
         dr_axis = hist.Bin("dr","$\Delta$R",20,0,5)
         costheta_axis = hist.Bin("costheta", "cos$\theta$",20,-1,1)
         # MET vars
@@ -215,7 +217,8 @@ class NanoProcessor(processor.ProcessorABC):
                 _hist_event_dict["%s_pt" %(i)]=hist.Hist("Counts", dataset_axis, lepflav_axis ,pt_axis)
                 _hist_event_dict["%s_eta" %(i)]=hist.Hist("Counts", dataset_axis,lepflav_axis, eta_axis)
                 _hist_event_dict["%s_phi" %(i)]=hist.Hist("Counts", dataset_axis,  lepflav_axis, phi_axis)
-                _hist_event_dict["%s_mass" %(i)]=hist.Hist("Counts", dataset_axis, lepflav_axis, mass_axis)
+                if i =='ll' : _hist_event_dict["%s_mass" %(i)]=hist.Hist("Counts", dataset_axis, lepflav_axis, llmass_axis)
+                else:_hist_event_dict["%s_mass" %(i)]=hist.Hist("Counts", dataset_axis, lepflav_axis, mass_axis)
             
         
         for disc, axis in zip(disc_list,btag_axes):
@@ -251,6 +254,9 @@ class NanoProcessor(processor.ProcessorABC):
         if isRealData:weights.add('genweight',np.ones(len(events)))
         else:
             weights.add('genweight',events.genWeight)
+            if 'DY' in dataset :
+                genZ = events.GenPart[(events.GenPart.hasFlags(["fromHardProcess"])==True) & (events.GenPart.hasFlags(["isHardProcess"])==True)& (events.GenPart.pdgId==23)]                
+                weights.add('zptwei',ZpT_corr(genZ.pt,self._year))
             # weights.add('puweight', compiled['2017_pileupweight'](events.Pileup.nPU))
         ##############
         if(isRealData):output['cutflow'][dataset]['all']  += 1.
@@ -276,10 +282,18 @@ class NanoProcessor(processor.ProcessorABC):
                 trigger_ee = trigger_ee | events.HLT[t]       
         
         if isRealData:
-            if "DoubleElectron" in dataset:trigger_ele = trigger_ee
-            elif "SingleElectron" in dataset:trigger_ele = ~trigger_ee & trigger_e
-            elif "DoubleMuon" in dataset:trigger_mu = trigger_mm
-            elif "SingleMuon" in dataset:trigger_mu = ~trigger_mm & trigger_e
+            if "DoubleEG" in dataset:
+                trigger_ele = trigger_ee
+                trigger_mu = np.zeros(len(events), dtype='bool')
+            elif "SingleElectron" in dataset:
+                trigger_ele = ~trigger_ee & trigger_e
+                trigger_mu = np.zeros(len(events), dtype='bool')
+            elif "DoubleMuon" in dataset:
+                trigger_mu = trigger_mm
+                trigger_ele = np.zeros(len(events), dtype='bool')
+            elif "SingleMuon" in dataset:
+                trigger_mu = ~trigger_mm & trigger_m
+                trigger_ele = np.zeros(len(events), dtype='bool')
 
         else : 
             trigger_mu = trigger_mm|trigger_m

@@ -193,11 +193,11 @@ class NanoProcessor(processor.ProcessorABC):
         dataset_axis = hist.Cat("dataset", "Primary dataset")
         flav_axis = hist.Bin("flav", r"Genflavour",[0,1,4,5,6])
         lepflav_axis = hist.Cat("lepflav",['ee','mumu','emu'])
-        region_axis = hist.Cat("region",['SR','top_CR','DY_CR'])
+        region_axis = hist.Cat("region",['SR','SR1','SR2','top_CR1','top_CR2','DY_CR1','DY_CR2'])
         # Events
-        njet_axis  = hist.Bin("nj",  r"N jets",      [0,1,2,3,4,5,6,7,8,9,10])
-        nbjet_axis = hist.Bin("nbj", r"N b-jets",    [0,1,2,3,4,5,6,7,8,9,10])            
-        ncjet_axis = hist.Bin("nbj", r"N b-jets",    [0,1,2,3,4,5,6,7,8,9,10])  
+        njet_axis  = hist.Bin("nj",  r"N jets",      [0,1,2,3,4,5])
+        nbjet_axis = hist.Bin("nbj", r"N b-jets",    [0,1,2,3,4,5])            
+        ncjet_axis = hist.Bin("nbj", r"N b-jets",    [0,1,2,3,4,5])  
         # kinematic variables       
         pt_axis   = hist.Bin("pt",   r" $p_{T}$ [GeV]", 50, 0, 300)
         eta_axis  = hist.Bin("eta",  r" $\eta$", 25, -2.5, 2.5)
@@ -316,35 +316,33 @@ class NanoProcessor(processor.ProcessorABC):
                 trigger_em = trigger_em | events.HLT[t]       
         
         if isRealData:
-            if "MuonEG" in dataset : 
-                trigger_em = trigger_em 
+            if "MuonEG" in dataset :
+                trigger_em = trigger_em
                 trigger_ele = np.zeros(len(events), dtype='bool')
                 trigger_mu = np.zeros(len(events), dtype='bool')
             elif "DoubleEG" in dataset:
-                
-                trigger_ele = trigger_ee #& ~trigger_em
+                trigger_ele = trigger_ee #& ~trigger_em                                                            
                 trigger_mu = np.zeros(len(events), dtype='bool')
                 trigger_em = np.zeros(len(events), dtype='bool')
             elif "SingleElectron" in dataset:
-                trigger_ele =  trigger_e & ~trigger_ee & ~trigger_em 
+                trigger_ele =  trigger_e & ~trigger_ee & ~trigger_em
                 trigger_mu = np.zeros(len(events), dtype='bool')
                 trigger_em= np.zeros(len(events), dtype='bool')
             elif "DoubleMuon" in dataset:
-                trigger_mu = trigger_mm 
+                trigger_mu = trigger_mm
                 trigger_ele= np.zeros(len(events), dtype='bool')
                 trigger_em= np.zeros(len(events), dtype='bool')
             elif "SingleMuon" in dataset:
                 trigger_mu = trigger_m & ~trigger_mm & ~trigger_em
                 trigger_ele = np.zeros(len(events), dtype='bool')
                 trigger_em = np.zeros(len(events), dtype='bool')
-
         else : 
             trigger_mu = trigger_mm|trigger_m
             trigger_ele = trigger_ee|trigger_e
         selection.add('trigger_ee', ak.to_numpy(trigger_ele))
         selection.add('trigger_mumu', ak.to_numpy(trigger_mu))
         selection.add('trigger_emu', ak.to_numpy(trigger_em))
-        # del trigger_ele,trigger_e,trigger_ee,trigger_em,trigger_m,trigger_mm,trigger_mu
+        del trigger_ele,trigger_e,trigger_ee,trigger_em,trigger_m,trigger_mm,trigger_mu
         metfilter = np.ones(len(events), dtype='bool')
         for flag in self._met_filters[self._year]['data' if isRealData else 'mc']:
             metfilter &= np.array(events.Flag[flag])
@@ -400,14 +398,16 @@ class NanoProcessor(processor.ProcessorABC):
                 },with_name="PtEtaPhiMLorentzVector",)
         
         req_global = ak.any((leppair.lep1.pt>25) & (ll_cand.mass>12) & (ll_cand.pt>30) & (leppair.lep1.charge+leppair.lep2.charge==0) & (events.MET.pt>20) & (make_p4(leppair.lep1).delta_r(make_p4(leppair.lep2))>0.02),axis=-1)
-        req_sr = ak.any((mT(leppair.lep2,met)>30) & (mT(ll_cand,met)>60) & (abs(ll_cand.mass-91.18)>15) & (events.MET.sumEt>45),axis=-1) 
+        req_sr = ak.any((mT(leppair.lep2,met)>30) & (mT(ll_cand,met)>60)  & (events.MET.sumEt>45),axis=-1) 
+        req_llmass = ak.any((abs(ll_cand.mass-91.18)> 15),axis=-1)
+        # print(dataset,abs(ll_cand.mass-91.18).tolist())  
         
         selection.add('global_selection',ak.to_numpy(req_global))
-        selection.add('SR',ak.to_numpy(req_sr))
         
-        mask2e =  req_sr&req_global & (ak.num(event_e)==2)& (event_e[:,0].pt>25) & (event_e[:,1].pt>13)
-        mask2mu =  req_sr&req_global & (ak.num(event_mu)==2)& (event_mu[:,0].pt>25) &(event_mu[:,1].pt>13)
-        maskemu = req_sr&req_global & (ak.num(event_e)==1)& (ak.num(event_mu) ==1 )& (((event_mu[:,0].pt>25)&(event_mu[:,1].pt>13))|((event_e[:,0].pt>25)&(event_e[:,1].pt>10)))
+        
+        mask2e =  req_sr&req_global & (nele==1)& (event_e[:,0].pt>25) & (event_e[:,1].pt>13)&req_llmass
+        mask2mu =  req_sr&req_global & (nmu==2)& (event_mu[:,0].pt>25) &(event_mu[:,1].pt>13)&req_llmass
+        maskemu = req_sr&req_global & (nele==1)&(nmu==1)& (((event_mu[:,0].pt>25)&(event_mu[:,1].pt>13))|((event_e[:,0].pt>25)&(event_e[:,1].pt>13)))
         
         mask2lep = [ak.any(tup) for tup in zip(maskemu, mask2mu, mask2e)]
         
@@ -422,55 +422,63 @@ class NanoProcessor(processor.ProcessorABC):
              
         # ###########
         corr_jet =  jec(events,events.Jet,dataset,self._year,self._corr)
-        seljet = (corr_jet.pt > 20) & (abs(corr_jet.eta) <= 2.4)&((corr_jet.puId > 0)|(corr_jet.pt>50)) &(corr_jet.jetId>5)&ak.all(corr_jet.metric_table(leppair.lep1)>0.4,axis=2)&ak.all(corr_jet.metric_table(leppair.lep2)>0.4,axis=2) & (corr_jet.btagDeepFlavCvB>0.4) & (corr_jet.btagDeepFlavCvL>0.225)
-        selection.add('jetsel',ak.to_numpy(ak.sum(seljet,axis=1)>0))
+        seljet = (corr_jet.pt > 20) & (abs(corr_jet.eta) <= 2.4)&((corr_jet.puId > 0)|(corr_jet.pt>50)) &(corr_jet.jetId>5)&ak.all(corr_jet.metric_table(leppair.lep1)>0.4,axis=2)&ak.all(corr_jet.metric_table(leppair.lep2)>0.4,axis=2) 
+        
+        # selection.add('jetsel',ak.to_numpy(ak.sum(seljet,axis=-1)==1))
         eventflav_jet = corr_jet[ak.argsort(corr_jet.btagDeepFlavCvL,axis=1,ascending=False)]
-        # eventpn_jet = corr_jet[ak.argsort(corr_jet.particleNetAK4_CvL,axis=1,ascending=False)]
-        req_dy_cr =ak.any((mT(leppair.lep2,met)>30)& (abs(ll_cand.mass-91.18)<15) & (events.MET.sumEt>45)& (mT(ll_cand,met)<60) ,axis=-1) 
-        req_top_cr =ak.any((mT(leppair.lep2,met)>30)& (ll_cand.mass>50) & (events.MET.sumEt>45)& (abs(ll_cand.mass-91.18)>15) & (ll_cand.mass>50),axis=-1) 
+        eventcsv_jet = corr_jet[ak.argsort(corr_jet.btagDeepCvL,axis=1,ascending=False)]
+        req_sr = ak.any((mT(leppair.lep2,met)>30) & (mT(ll_cand,met)>60)  & (events.MET.sumEt>45)&(ak.sum(seljet,axis=-1)>=1),axis=-1) 
+        req_sr1 = ak.any((mT(leppair.lep2,met)>30) & (mT(ll_cand,met)>60) & (abs(ll_cand.mass-91.18)>15) & (events.MET.sumEt>45)&(ll_cand.mass<120),axis=-1) ## due to ttcr1
+        req_sr2 = ak.any((mT(leppair.lep2,met)>30) & (mT(ll_cand,met)>60) & (abs(ll_cand.mass-91.18)>15) & (events.MET.sumEt>45)&(ak.sum(seljet,axis=-1)==1),axis=-1) ##due to ttcr2& dy2
+        
+        req_dy_cr1 =ak.any((mT(leppair.lep2,met)>30)& (abs(ll_cand.mass-91.18)<15) & (events.MET.sumEt>45)& (mT(ll_cand,met)<60) ,axis=-1) 
+        req_dy_cr2 =ak.any((mT(leppair.lep2,met)>30)& (events.MET.sumEt>45)& (mT(ll_cand,met)<60)&(ak.sum(seljet,axis=-1)==0) ,axis=-1) 
+        req_top_cr1 =ak.any((mT(leppair.lep2,met)>30)& (ll_cand.mass>50) & (events.MET.sumEt>45)& (abs(ll_cand.mass-91.18)>15) & (ll_cand.mass>120),axis=-1) 
+        req_top_cr2 =ak.any((mT(leppair.lep2,met)>30)& (ll_cand.mass>50) & (events.MET.sumEt>45)& (abs(ll_cand.mass-91.18)>15) & (ak.count(seljet,axis=1)>=2),axis=-1) 
         # req_WW_cr = ak.any((mT(leppair.lep2,met)>30)& (ll_cand.mass>50) & (events.MET.sumEt>45)& (abs(ll_cand.mass-91.18)>15) & (ll_cand.mass),axis=-1) 
-        selection.add('top_CR',ak.to_numpy(req_top_cr))
-        selection.add('DY_CR',ak.to_numpy(req_dy_cr))
+        selection.add('llmass',ak.to_numpy(req_llmass))
+        selection.add('SR',ak.to_numpy(req_sr))
+        selection.add('SR1',ak.to_numpy(req_sr1))
+        selection.add('SR2',ak.to_numpy(req_sr1))
+        selection.add('top_CR1',ak.to_numpy(req_top_cr1))
+        selection.add('top_CR2',ak.to_numpy(req_top_cr2))
+        selection.add('DY_CR1',ak.to_numpy(req_dy_cr1))
+        selection.add('DY_CR2',ak.to_numpy(req_dy_cr2))
         # selection.add('WW_CR',ak.to_numpy(req_WW_cr))
-        sel_jet =  eventflav_jet[(eventflav_jet.pt > 20) & (abs(eventflav_jet.eta) <= 2.4)&((eventflav_jet.puId > 0)|(eventflav_jet.pt>50)) &(eventflav_jet.jetId>5)&ak.all(eventflav_jet.metric_table(leppair.lep1)>0.4,axis=2)&ak.all(eventflav_jet.metric_table(leppair.lep2)>0.4,axis=2)& (eventflav_jet.btagDeepFlavCvB>0.4) & (eventflav_jet.btagDeepFlavCvL>0.225)]
+        sel_jet =  eventflav_jet[(eventflav_jet.pt > 20) & (abs(eventflav_jet.eta) <= 2.4)&((eventflav_jet.puId > 0)|(eventflav_jet.pt>50)) &(eventflav_jet.jetId>5)&ak.all(eventflav_jet.metric_table(leppair.lep1)>0.4,axis=2)&ak.all(eventflav_jet.metric_table(leppair.lep2)>0.4,axis=2)]
 
-        sel_jet = ak.mask(sel_jet,ak.num(good_leptons)>0)
-        good_leptons = ak.mask(good_leptons,ak.num(sel_jet)>0)
 
-        sel_jetflav =  eventflav_jet[(eventflav_jet.pt > 20) & (abs(eventflav_jet.eta) <= 2.4)&((eventflav_jet.puId > 0)|(eventflav_jet.pt>50)) &(eventflav_jet.jetId>5)&ak.all(eventflav_jet.metric_table(leppair.lep1)>0.4,axis=2)&ak.all(eventflav_jet.metric_table(leppair.lep2)>0.4,axis=2)& (eventflav_jet.btagDeepFlavCvB>0.4) & (eventflav_jet.btagDeepFlavCvL>0.225)]
-        sel_jetflav = ak.mask(sel_jetflav,ak.num(good_leptons)>0)
+        sel_jetflav =  eventflav_jet[(eventflav_jet.pt > 20) & (abs(eventflav_jet.eta) <= 2.4)&((eventflav_jet.puId > 0)|(eventflav_jet.pt>50)) &(eventflav_jet.jetId>5)&ak.all(eventflav_jet.metric_table(leppair.lep1)>0.4,axis=2)&ak.all(eventflav_jet.metric_table(leppair.lep2)>0.4,axis=2)]
+        # sel_jetflav = ak.mask(sel_jetflav,ak.num(good_leptons)>0)
         sel_cjet_flav = ak.pad_none(sel_jetflav,1,axis=1)
         sel_cjet_flav = sel_cjet_flav[:,0]
-
+        sel_jetcsv = eventcsv_jet[(eventcsv_jet.pt > 20) & (abs(eventcsv_jet.eta) <= 2.4)&((eventcsv_jet.puId > 0)|(eventcsv_jet.pt>50)) &(eventcsv_jet.jetId>5)&ak.all(eventcsv_jet.metric_table(leppair.lep1)>0.4,axis=2)&ak.all(eventcsv_jet.metric_table(leppair.lep2)>0.4,axis=2)]
+        sel_cjet_csv = ak.pad_none(sel_jetcsv,1,axis=1)
+        sel_cjet_csv = sel_cjet_csv[:,0]
         # sel_jetpn =  eventpn_jet[(eventpn_jet.pt > 20) & (abs(eventpn_jet.eta) <= 2.4)&((eventpn_jet.puId > 0)|(eventpn_jet.pt>50)) &(eventpn_jet.jetId>5)&ak.all(eventpn_jet.metric_table(leppair.lep1)>0.4,axis=2)&ak.all(eventpn_jet.metric_table(leppair.lep2)>0.4,axis=2)&ak.all(eventpn_jet.metric_table(pair_4lep.lep3)>0.4,axis=2)&ak.all(eventpn_jet.metric_table(pair_4lep.lep4)>0.4,axis=2)]
         # sel_jetpn = ak.mask(sel_jetpn,ak.num(pair_4lep)>0)
         # sel_cjet_pn = ak.pad_none(sel_jetpn,1,axis=1)
         # sel_cjet_pn = sel_cjet_pn[:,0]
 
-        
+        if 'DoubleEG' in dataset :output['cutflow'][dataset]['trigger'] += ak.sum(trigger_ele)
+        elif 'DoubleMuon' in dataset :output['cutflow'][dataset]['trigger'] += ak.sum(trigger_mu)
         output['cutflow'][dataset]['global selection'] += ak.sum(req_global)
         output['cutflow'][dataset]['signal region'] += ak.sum(req_sr&req_global)  
         output['cutflow'][dataset]['selected jets'] +=ak.sum(req_sr&req_global&(ak.sum(seljet,axis=1)>0))
-        output['cutflow'][dataset]['all ee'] +=ak.sum(req_sr&req_global&(ak.sum(seljet,axis=1)>0)
+        output['cutflow'][dataset]['all ee'] +=ak.sum(req_sr&req_global&(ak.sum(seljet,axis=1)>0&req_llmass)
         &(nele==2))
-        output['cutflow'][dataset]['all mumu'] +=ak.sum(req_sr&req_global&(ak.sum(seljet,axis=1)>0)&(nmu==2))
+        output['cutflow'][dataset]['all mumu'] +=ak.sum(req_sr&req_global&(ak.sum(seljet,axis=1)>0)&(nmu==2)&req_llmass)
         output['cutflow'][dataset]['all emu'] +=ak.sum(req_sr&req_global&(ak.sum(seljet,axis=1)>0)&(nele==1)&(nmu==1))
         # output['cutflow'][dataset]['selected jets'] +=ak.sum(ak.num(sel_jet) > 0)
 
         lepflav = ['ee','mumu','emu']
-        reg = ['SR','top_CR','DY_CR']
+        reg = ['SR','SR1','SR2','DY_CR1','DY_CR2','top_CR1','top_CR2']
             
         for histname, h in output.items():
             for ch in lepflav:
                 for r in reg:
-                    cut = selection.all('jetsel','lepsel','global_selection','metfilter','lumi',r,ch, 'trigger_%s'%(ch))
-                    
-                    print(dataset,ch,'ele',ak.sum(trigger_ele))
-                    print(dataset,ch,'ele',trigger_ele[:10],trigger_e[:10],trigger_ee[:10])
-                    print(dataset,ch,'mu',ak.sum(trigger_mu))
-                    print(dataset,ch,'mu',trigger_mu[:10],trigger_m[:10],trigger_mm[:10])
-                    print(dataset,ch,'EMu',ak.sum(trigger_em))
-                    # print(dataset,ch,'EMu',trigger_em[:10])
+                    if ch=='emu':cut = selection.all('lepsel','global_selection','metfilter','lumi',r,ch, 'trigger_%s'%(ch))
+                    else :cut = selection.all('lepsel','global_selection','metfilter','lumi',r,ch, 'trigger_%s'%(ch),'llmass')
                     llcut = ll_cand[cut]
                     llcut = llcut[:,0]
                     lep1cut = llcut.lep1
@@ -486,9 +494,9 @@ class NanoProcessor(processor.ProcessorABC):
                         if isRealData:flavor= ak.zeros_like(normalize(sel_cjet_flav['pt'],cut))
                         else :flavor= normalize(sel_cjet_flav.hadronFlavour+1*((sel_cjet_flav.partonFlavour == 0 ) & (sel_cjet_flav.hadronFlavour==0)),cut)
                         h.fill(dataset=dataset, lepflav =ch, region = r, flav=flavor, **fields,weight=weights.weight()[cut]*lepsf)  
-                    # elif 'jetpn_' in histname:
-                    #     fields = {l: normalize(sel_cjet_pn[histname.replace('jetpn_','')],cut) for l in h.fields if l in dir(sel_cjet_pn)}
-                    #     h.fill(dataset=dataset,lepflav =ch, flav=normalize(sel_cjet_pn.hadronFlavour+1*((sel_cjet_pn.partonFlavour == 0 ) & (sel_cjet_pn.hadronFlavour==0)),cut), **fields,weight=weights.weight()[cut]*lepsf)    
+                    elif 'jetcsv_' in histname:
+                        fields = {l: normalize(sel_cjet_csv[histname.replace('jetcsv_','')],cut) for l in h.fields if l in dir(sel_cjet_csv)}
+                        h.fill(dataset=dataset,lepflav =ch, flav=normalize(sel_cjet_csv.hadronFlavour+1*((sel_cjet_csv.partonFlavour == 0 ) & (sel_cjet_csv.hadronFlavour==0)),cut), **fields,weight=weights.weight()[cut]*lepsf)    
                     elif 'lep1_' in histname:
                         fields = {l: ak.fill_none(flatten(lep1cut[histname.replace('lep1_','')]),np.nan) for l in h.fields if l in dir(lep1cut)}
                         h.fill(dataset=dataset,lepflav=ch,region = r, **fields,weight=weights.weight()[cut]*lepsf)
