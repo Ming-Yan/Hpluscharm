@@ -202,7 +202,7 @@ class NanoProcessor(processor.ProcessorABC):
         pt_axis   = hist.Bin("pt",   r" $p_{T}$ [GeV]", 50, 0, 300)
         eta_axis  = hist.Bin("eta",  r" $\eta$", 25, -2.5, 2.5)
         phi_axis  = hist.Bin("phi",  r" $\phi$", 30, -3, 3)
-        mass_axis = hist.Bin("mass", r" $m$ [GeV]", 50, 0, 300)
+        mass_axis = hist.Bin("mass", r" $m$ [GeV]", 40, 0, 120)
         mt_axis =  hist.Bin("mt", r" $m_{T}$ [GeV]", 30, 0, 300)
         dr_axis = hist.Bin("dr","$\Delta$R",20,0,5)
         # MET vars
