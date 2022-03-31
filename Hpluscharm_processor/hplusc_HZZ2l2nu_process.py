@@ -185,6 +185,7 @@ class NanoProcessor(processor.ProcessorABC):
         eta_axis  = hist.Bin("eta",  r" $\eta$", 25, -2.5, 2.5)
         phi_axis  = hist.Bin("phi",  r" $\phi$", 30, -3, 3)
         mass_axis = hist.Bin("mass", r" $m$ [GeV]", 50, 0, 300)
+        llmass_axis = hist.Bin("mass", r" $m$ [GeV]", 40, 60, 120)
         mt_axis =  hist.Bin("mt", r" $m_{T}$ [GeV]", 30, 0, 300)
         dr_axis = hist.Bin("dr","$\Delta$R",20,0,5)
         # MET vars
@@ -192,7 +193,7 @@ class NanoProcessor(processor.ProcessorABC):
         covXX_axis = hist.Bin("covXX",r"MET covXX",20,0,10)
         covXY_axis = hist.Bin("covXY",r"MET covXY",20,0,10)
         covYY_axis = hist.Bin("covYY",r"MET covYY",20,0,10)
-        sumEt_axis = hist.Bin("sumEt", r" MET sumEt", 50, 0, 300)
+        sumEt_axis = hist.Bin("sumEt", r" MET sumEt", 40, 0, 120)
         
         # axis.StrCategory([], name='region', growth=True),
         disc_list = [ 'btagDeepCvL', 'btagDeepCvB','btagDeepFlavCvB','btagDeepFlavCvL']#,'particleNetAK4_CvL','particleNetAK4_CvB']
@@ -231,7 +232,8 @@ class NanoProcessor(processor.ProcessorABC):
                 _hist_event_dict["%s_pt" %(i)]=hist.Hist("Counts", dataset_axis, lepflav_axis ,pt_axis)
                 _hist_event_dict["%s_eta" %(i)]=hist.Hist("Counts", dataset_axis,lepflav_axis, eta_axis)
                 _hist_event_dict["%s_phi" %(i)]=hist.Hist("Counts", dataset_axis,  lepflav_axis, phi_axis)
-                _hist_event_dict["%s_mass" %(i)]=hist.Hist("Counts", dataset_axis, lepflav_axis, mass_axis)
+                if i =='ll' : _hist_event_dict["%s_mass" %(i)]=hist.Hist("Counts", dataset_axis, lepflav_axis, llmass_axis)
+                else:_hist_event_dict["%s_mass" %(i)]=hist.Hist("Counts", dataset_axis, lepflav_axis, mass_axis)
             
         
         for disc, axis in zip(disc_list,btag_axes):

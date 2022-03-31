@@ -238,11 +238,11 @@ if __name__ == '__main__':
                             init_blocks=args.scaleout,
                             partition='all',
                             worker_init="\n".join(env_extra),
-                            walltime='00:120:00'
+                            walltime='00:40:00'
                         ),
                     )
                 ],
-                retries=20,
+                retries=25,
             )
         elif 'condor' in args.executor:
             htex_config = Config(
