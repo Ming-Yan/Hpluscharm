@@ -261,7 +261,7 @@ class NanoProcessor(processor.ProcessorABC):
         isRealData = not hasattr(events, "genWeight")
         selection = processor.PackedSelection()
         if(isRealData):output['sumw'][dataset] += 1.
-        else:output['sumw'][dataset] += ak.sum(events.genWeight)
+        else:output['sumw'][dataset] += ak.sum(events.genWeight/abs(events.genWeight))
         req_lumi=np.ones(len(events), dtype='bool')
         if(isRealData): req_lumi=self._lumiMasks[self._year](events.run, events.luminosityBlock)
         selection.add('lumi',ak.to_numpy(req_lumi))
@@ -272,7 +272,7 @@ class NanoProcessor(processor.ProcessorABC):
             weights.add('genweight',events.genWeight/abs(events.genWeight))
             if 'DY' in dataset :
                 genZ = events.GenPart[(events.GenPart.hasFlags(["fromHardProcess"])==True) & (events.GenPart.hasFlags(["isHardProcess"])==True)& (events.GenPart.pdgId==23)]                
-                weights.add('zptwei',ZpT_corr(genZ.pt,self._year))
+                #weights.add('zptwei',ZpT_corr(genZ.pt,self._year))
             # weights.add('puweight', compiled['2017_pileupweight'](events.Pileup.nPU))
         ##############
         if(isRealData):output['cutflow'][dataset]['all']  += 1.
@@ -312,8 +312,8 @@ class NanoProcessor(processor.ProcessorABC):
                 trigger_ele = np.zeros(len(events), dtype='bool')
 
         else : 
-            trigger_mu = trigger_mm#|trigger_m
-            trigger_ele = trigger_ee#|trigger_e
+            trigger_mu = trigger_mm|trigger_m
+            trigger_ele = trigger_ee|trigger_e
         selection.add('trigger_ee', ak.to_numpy(trigger_ele))
         selection.add('trigger_mumu', ak.to_numpy(trigger_mu))
         del trigger_ele, trigger_mu, trigger_m,trigger_mm,trigger_e,trigger_ee
@@ -374,7 +374,7 @@ class NanoProcessor(processor.ProcessorABC):
                 },with_name="PtEtaPhiMLorentzVector",)
 
         req_global = ak.any((leppair.lep1.pt>25) & (ll_cand.pt>20) & (leppair.lep1.charge+leppair.lep2.charge==0) & (events.MET.pt>20)  & ((abs(ll_cand.mass-91.)<15) | (abs(events.MET.pt-91.)<15)),axis=-1)
-        req_sr = ak.any((abs(met.delta_phi(leppair.lep1))>0.2) & (abs(met.delta_phi(leppair.lep2))>0.2) & (make_p4(leppair.lep1).delta_r(make_p4(leppair.lep2))>0.02),axis=-1) 
+        req_sr = ak.any((abs(met.delta_phi(leppair.lep1))>0.2) & (abs(met.delta_phi(leppair.lep2))>0.2) & (make_p4(leppair.lep1).delta_r(make_p4(leppair.lep2))>0.4),axis=-1) 
         req_zmassll =  ak.any((abs(ll_cand.mass-91.)<15),axis=-1)
         
         selection.add('global_selection',ak.to_numpy(req_global))
@@ -440,9 +440,10 @@ class NanoProcessor(processor.ProcessorABC):
                 lep1cut=llcut.lep1
                 lep2cut=llcut.lep2
                 if not isRealData:
-                        if ch=='ee':lepsf=eleSFs(lep1cut,self._year,self._corr)*eleSFs(lep2cut,self._year,self._corr)
-                        elif ch=='mumu':lepsf=muSFs(lep1cut,self._year,self._corr)*muSFs(lep2cut,self._year,self._corr)
+                   if ch=='ee':lepsf=eleSFs(lep1cut,self._year,self._corr)*eleSFs(lep2cut,self._year,self._corr)
+                   elif ch=='mumu':lepsf=muSFs(lep1cut,self._year,self._corr)*muSFs(lep2cut,self._year,self._corr)
                 else : lepsf =weights.weight()[cut]
+                # lepsf =weights.weight()[cut] 
                 if 'jetcsv_' in histname:
                     fields = {l: normalize(sel_cjet_csv[histname.replace('jetcsv_','')],cut) for l in h.fields if l in dir(sel_cjet_csv)}
                     if isRealData:flavor= ak.zeros_like(normalize(sel_cjet_csv['pt'],cut))

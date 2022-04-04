@@ -202,7 +202,7 @@ class NanoProcessor(processor.ProcessorABC):
         pt_axis   = hist.Bin("pt",   r" $p_{T}$ [GeV]", 50, 0, 300)
         eta_axis  = hist.Bin("eta",  r" $\eta$", 25, -2.5, 2.5)
         phi_axis  = hist.Bin("phi",  r" $\phi$", 30, -3, 3)
-        mass_axis = hist.Bin("mass", r" $m$ [GeV]", 40, 0, 120)
+        mass_axis = hist.Bin("mass", r" $m$ [GeV]", 50, 0, 300)
         mt_axis =  hist.Bin("mt", r" $m_{T}$ [GeV]", 30, 0, 300)
         dr_axis = hist.Bin("dr","$\Delta$R",20,0,5)
         # MET vars
@@ -342,7 +342,7 @@ class NanoProcessor(processor.ProcessorABC):
         selection.add('trigger_ee', ak.to_numpy(trigger_ele))
         selection.add('trigger_mumu', ak.to_numpy(trigger_mu))
         selection.add('trigger_emu', ak.to_numpy(trigger_em))
-        del trigger_ele,trigger_e,trigger_ee,trigger_em,trigger_m,trigger_mm,trigger_mu
+        del trigger_e,trigger_ee,trigger_m,trigger_mm
         metfilter = np.ones(len(events), dtype='bool')
         for flag in self._met_filters[self._year]['data' if isRealData else 'mc']:
             metfilter &= np.array(events.Flag[flag])
@@ -397,9 +397,10 @@ class NanoProcessor(processor.ProcessorABC):
                     "energy":events.MET.sumEt,
                 },with_name="PtEtaPhiMLorentzVector",)
         
-        req_global = ak.any((leppair.lep1.pt>25) & (ll_cand.mass>12) & (ll_cand.pt>30) & (leppair.lep1.charge+leppair.lep2.charge==0) & (events.MET.pt>20) & (make_p4(leppair.lep1).delta_r(make_p4(leppair.lep2))>0.02),axis=-1)
+        req_global = ak.any((leppair.lep1.pt>25) & (ll_cand.mass>12) & (ll_cand.pt>30) & (leppair.lep1.charge+leppair.lep2.charge==0) & (events.MET.pt>20) & (make_p4(leppair.lep1).delta_r(make_p4(leppair.lep2))>0.4),axis=-1)
         req_sr = ak.any((mT(leppair.lep2,met)>30) & (mT(ll_cand,met)>60)  & (events.MET.sumEt>45),axis=-1) 
-        req_llmass = ak.any((abs(ll_cand.mass-91.18)> 15),axis=-1)
+        req_llmass = ak.all((abs(ll_cand.mass-91.18)> 15),axis=-1)
+        # print(req_llmass.tolist(),abs(ll_cand.mass-91.18).tolist())
         # print(dataset,abs(ll_cand.mass-91.18).tolist())  
         
         selection.add('global_selection',ak.to_numpy(req_global))
@@ -439,7 +440,7 @@ class NanoProcessor(processor.ProcessorABC):
         selection.add('llmass',ak.to_numpy(req_llmass))
         selection.add('SR',ak.to_numpy(req_sr))
         selection.add('SR1',ak.to_numpy(req_sr1))
-        selection.add('SR2',ak.to_numpy(req_sr1))
+        selection.add('SR2',ak.to_numpy(req_sr2))
         selection.add('top_CR1',ak.to_numpy(req_top_cr1))
         selection.add('top_CR2',ak.to_numpy(req_top_cr2))
         selection.add('DY_CR1',ak.to_numpy(req_dy_cr1))
@@ -465,10 +466,10 @@ class NanoProcessor(processor.ProcessorABC):
         output['cutflow'][dataset]['global selection'] += ak.sum(req_global)
         output['cutflow'][dataset]['signal region'] += ak.sum(req_sr&req_global)  
         output['cutflow'][dataset]['selected jets'] +=ak.sum(req_sr&req_global&(ak.sum(seljet,axis=1)>0))
-        output['cutflow'][dataset]['all ee'] +=ak.sum(req_sr&req_global&(ak.sum(seljet,axis=1)>0&req_llmass)
+        output['cutflow'][dataset]['all ee'] +=ak.sum(req_sr&req_global&(ak.sum(seljet,axis=1)>0&req_llmass&trigger_ele)
         &(nele==2))
-        output['cutflow'][dataset]['all mumu'] +=ak.sum(req_sr&req_global&(ak.sum(seljet,axis=1)>0)&(nmu==2)&req_llmass)
-        output['cutflow'][dataset]['all emu'] +=ak.sum(req_sr&req_global&(ak.sum(seljet,axis=1)>0)&(nele==1)&(nmu==1))
+        output['cutflow'][dataset]['all mumu'] +=ak.sum(req_sr&req_global&(ak.sum(seljet,axis=1)>0)&(nmu==2)&req_llmass&trigger_mu)
+        output['cutflow'][dataset]['all emu'] +=ak.sum(req_sr&req_global&(ak.sum(seljet,axis=1)>0)&(nele==1)&(nmu==1)&trigger_em)
         # output['cutflow'][dataset]['selected jets'] +=ak.sum(ak.num(sel_jet) > 0)
 
         lepflav = ['ee','mumu','emu']
@@ -478,9 +479,10 @@ class NanoProcessor(processor.ProcessorABC):
             for ch in lepflav:
                 for r in reg:
                     if ch=='emu':cut = selection.all('lepsel','global_selection','metfilter','lumi',r,ch, 'trigger_%s'%(ch))
-                    else :cut = selection.all('lepsel','global_selection','metfilter','lumi',r,ch, 'trigger_%s'%(ch),'llmass')
+                    elif ch=='ee' or ch=='mumu' :cut = selection.all('lepsel','global_selection','metfilter','lumi',r,ch, 'trigger_%s'%(ch),'llmass')
                     llcut = ll_cand[cut]
                     llcut = llcut[:,0]
+
                     lep1cut = llcut.lep1
                     lep2cut = llcut.lep2
                     if not isRealData:
@@ -489,6 +491,8 @@ class NanoProcessor(processor.ProcessorABC):
                         else:
                             lepsf=np.where(lep1cut.lep_flav==11,eleSFs(lep1cut,self._year,self._corr)*muSFs(lep2cut,self._year,self._corr),1.)*np.where(lep1cut.lep_flav==13,eleSFs(lep2cut,self._year,self._corr)*muSFs(lep1cut,self._year,self._corr),1.)
                     else : lepsf =weights.weight()[cut]
+                    print(weights.weight()[cut]*lepsf)
+                    # print(lepsf)
                     if 'jetflav_' in histname:
                         fields = {l: normalize(sel_cjet_flav[histname.replace('jetflav_','')],cut) for l in h.fields if l in dir(sel_cjet_flav)}
                         if isRealData:flavor= ak.zeros_like(normalize(sel_cjet_flav['pt'],cut))
