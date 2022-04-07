@@ -189,7 +189,7 @@ class NanoProcessor(processor.ProcessorABC):
         iso_axis = hist.Bin("pfRelIso03_all", r"Rel. Iso", 40,0,4)
         dxy_axis = hist.Bin("dxy", r"d_{xy}", 20,-0.2,0.2)
         dz_axis = hist.Bin("dz", r"d_{z}", 20,0,1)
-        dr_axis = hist.Bin("dr","$\Delta$R",20,0,5)
+        dr_axis = hist.Bin("dr","$\Delta$R",20,0,4)
         costheta_axis = hist.Bin("costheta", "cos$\theta$",20,-1,1)
         # MET vars
         
@@ -263,7 +263,7 @@ class NanoProcessor(processor.ProcessorABC):
         dataset = events.metadata['dataset']
         isRealData = not hasattr(events, "genWeight")
         selection = processor.PackedSelection()
-        if(isRealData):output['sumw'][dataset] += 1.
+        if(isRealData):output['sumw'][dataset] += len(events)
         else:output['sumw'][dataset] += ak.sum(events.genWeight/abs(events.genWeight))
         req_lumi=np.ones(len(events), dtype='bool')
         if(isRealData): req_lumi=self._lumiMasks[self._year](events.run, events.luminosityBlock)
@@ -279,7 +279,7 @@ class NanoProcessor(processor.ProcessorABC):
                 #weights.add('zptwei',ZpT_corr(flatten(genZ.pt,self._year))
             # weights.add('puweight', compiled['2017_pileupweight'](events.Pileup.nPU))
         ##############
-        if(isRealData):output['cutflow'][dataset]['all']  += 1.
+        if(isRealData):output['cutflow'][dataset]['all']  += len(events)
         else:output['cutflow'][dataset]['all']  += ak.sum(events.genWeight/abs(events.genWeight))
         trigger_e = np.zeros(len(events), dtype='bool')
         trigger_m = np.zeros(len(events), dtype='bool')
@@ -425,13 +425,13 @@ class NanoProcessor(processor.ProcessorABC):
         higgs_cand = ak.pad_none(higgs_cand,1,axis=0)
         #print(higgs_cand)
         #higgs_cand = higgs_cand[ak.argsort(higgs_cand.pt, axis=-1,ascending=False)]
-        req_global = (ll_cands.lep1.pt>25) & (ll_cands.lep1.charge+ll_cands.lep2.charge==0)  & (ll_cands.mass<120) & (ll_cands.mass>60)
+        req_global = (higgs_cand.ll_cands.lep1.pt>25) & (higgs_cand.ll_cands.lep1.charge+higgs_cand.ll_cands.lep2.charge==0)  & (higgs_cand.ll_cands.mass<120) & (higgs_cand.ll_cands.mass>60)
         
          
-        req_dr = (make_p4(ll_cands.lep1).delta_r(jj_cands.jet1)>0.4)&(make_p4(ll_cands.lep1).delta_r(jj_cands.jet2)>0.4)&(make_p4(ll_cands.lep2).delta_r(jj_cands.jet2)>0.4)&(make_p4(ll_cands.lep2).delta_r(jj_cands.jet1)>0.4)&(make_p4(jj_cands.jet1).delta_r(jj_cands.jet2)>0.4)&(make_p4(ll_cands.lep1).delta_r(ll_cands.lep2)>0.4)
+        req_dr = (make_p4(higgs_cand.ll_cands.lep1).delta_r(make_p4(higgs_cand.jj_cands.jet1))>0.4)&(make_p4(higgs_cand.ll_cands.lep1).delta_r(make_p4(higgs_cand.jj_cands.jet2))>0.4)&(make_p4(higgs_cand.ll_cands.lep2).delta_r(make_p4(higgs_cand.jj_cands.jet2))>0.4)&(make_p4(higgs_cand.ll_cands.lep2).delta_r(make_p4(higgs_cand.jj_cands.jet1))>0.4)&(make_p4(higgs_cand.jj_cands.jet1).delta_r(make_p4(higgs_cand.jj_cands.jet2))>0.4)&(make_p4(higgs_cand.ll_cands.lep1).delta_r(make_p4(higgs_cand.ll_cands.lep2))>0.4)
         
-        req_zllmass =  abs(ll_cands.mass-91.)<15
-        req_zqqmass = jj_cands.mass<116
+        req_zllmass =  abs(higgs_cand.ll_cands.mass-91.)<15
+        req_zqqmass = higgs_cand.jj_cands.mass<116
         req_hmass =  higgs_cand.mass<250
 
         
@@ -446,7 +446,7 @@ class NanoProcessor(processor.ProcessorABC):
                
         # ###########
 
-        seljet = (cjet.pt > 20) & (abs(cjet.eta) <= 2.4)&((cjet.puId > 0)|(cjet.pt>50)) &(cjet.jetId>5)&(ak.all(ak.all((cjet.delta_r(ll_cands.lep1)>0.4)&(cjet.delta_r(ll_cands.lep2)>0.4)&(cjet.delta_r(jj_cands.jet1)>0.4)&(cjet.delta_r(jj_cands.jet2)>0.4),axis=-1),axis=-1))
+        seljet = (cjet.pt > 20) & (abs(cjet.eta) <= 2.4)&((cjet.puId > 0)|(cjet.pt>50)) &(cjet.jetId>5)&(ak.all(ak.all((cjet.delta_r(higgs_cand.ll_cands.lep1)>0.4)&(cjet.delta_r(higgs_cand.ll_cands.lep2)>0.4)&(cjet.delta_r(higgs_cand.jj_cands.jet1)>0.4)&(cjet.delta_r(higgs_cand.jj_cands.jet2)>0.4),axis=-1),axis=-1))
         sel_cjet = ak.mask(cjet,seljet)
         # if(ak.count(sel_cjet.pt)>0):sel_cjet=
         
