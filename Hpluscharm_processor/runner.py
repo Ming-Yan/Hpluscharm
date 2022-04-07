@@ -51,6 +51,9 @@ def get_main_parser():
     parser.add_argument('--samples', '--json', dest='samplejson', default='dummy_samples.json',
                         help='JSON file containing dataset and file locations (default: %(default)s)'
                         )
+    parser.add_argument( '--year',  type=str, default="2017",
+                        help='year, default(2017)'
+                        )
 
     # Scale out
     parser.add_argument('--split', action='store_true', help='chunk-chunk')
@@ -153,17 +156,23 @@ if __name__ == '__main__':
 
     # load workflow
     if args.workflow =="test":
-        from ctag_DY_valid_sf import NanoProcessor
+        from hplusc_HZZ2l2q_process_test import NanoProcessor
+        processor_instance = NanoProcessor(year=args.year,version=args.version)
+    elif args.workflow =="GEN":
+        from hplusc_gen_process import NanoProcessor
         processor_instance = NanoProcessor()
     elif args.workflow =="HWW2l2nu":
         from hplusc_HWW2l2nu_process import NanoProcessor
-        processor_instance = NanoProcessor()
+        processor_instance = NanoProcessor(year=args.year,version=args.version)
     elif args.workflow =="HWW2qlnu":
         from hplusc_HWW2qlnu_process import NanoProcessor
-        processor_instance = NanoProcessor()
+        processor_instance = NanoProcessor(year=args.year,version=args.version)
     elif args.workflow =="HZZ2l2q":
         from hplusc_HZZ2l2q_process import NanoProcessor
-        processor_instance = NanoProcessor()
+        processor_instance = NanoProcessor(year=args.year,version=args.version)
+    elif args.workflow =="HZZ2l2nu":
+        from hplusc_HZZ2l2nu_process import NanoProcessor
+        processor_instance = NanoProcessor(year=args.year,version=args.version)
     elif args.workflow =="HZZ2l2nu":
         from hplusc_HZZ2l2nu_process import NanoProcessor
         processor_instance = NanoProcessor()
@@ -259,12 +268,12 @@ if __name__ == '__main__':
                             init_blocks=args.workers,
                             max_blocks=(args.workers)+2,
                             worker_init="\n".join(env_extra + condor_extra),
-                            walltime="00:20:00",
+                            walltime="00:30:00",
                         ),
                     )
                 ],
-                retries=20,
                 retry_handler=retry_handler,
+                retries=50,
             )
             print("parsl/condor")
         else:

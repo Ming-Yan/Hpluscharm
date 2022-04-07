@@ -33,9 +33,9 @@ def normalize(val, cut):
 
 class NanoProcessor(processor.ProcessorABC):
     # Define histograms
-    def __init__(self, year="2017"):    
+    def __init__(self, year="2017",version="test"):    
         self._year=year
-       
+        self._version=version
         self._mu1hlt = {
             '2016': [
                 'IsoTkMu24'
@@ -175,7 +175,8 @@ class NanoProcessor(processor.ProcessorABC):
         flav_axis = hist.Bin("flav", r"Genflavour",[0,1,4,5,6])
         lepflav_axis = hist.Cat("lepflav",['ee','mumu','emu'])
         # Events
-        njet_axis  = hist.Bin("nj",  r"N jets",      [0,1,2,3,4,5,6,7,8,9,10])
+        njet_axis  = hist.Bin("nj",  r"N jets",      [0,1,2,3,4,5,6,7])
+        nalep_axis = hist.Bin("nalep",  r"N jets",      [0,1,2,3])
         nbjet_axis = hist.Bin("nbj", r"N b-jets",    [0,1,2,3,4,5,6,7,8,9,10])            
         ncjet_axis = hist.Bin("nbj", r"N b-jets",    [0,1,2,3,4,5,6,7,8,9,10])  
         # kinematic variables       
@@ -185,6 +186,9 @@ class NanoProcessor(processor.ProcessorABC):
 
         mass_axis = hist.Bin("mass", r" $m$ [GeV]", 40, 0, 400)
         llmass_axis = hist.Bin("mass", r" $m$ [GeV]", 40, 60, 120)
+        iso_axis = hist.Bin("pfRelIso03_all", r"Rel. Iso", 40,0,4)
+        dxy_axis = hist.Bin("dxy", r"d_{xy}", 20,-0.2,0.2)
+        dz_axis = hist.Bin("dz", r"d_{z}", 20,0,1)
         dr_axis = hist.Bin("dr","$\Delta$R",20,0,5)
         costheta_axis = hist.Bin("costheta", "cos$\theta$",20,-1,1)
         # MET vars
@@ -196,6 +200,8 @@ class NanoProcessor(processor.ProcessorABC):
             btag_axes.append(hist.Bin(d, d , 50, 0, 1))  
         _hist_event_dict = {
                 'nj'  : hist.Hist("Counts", dataset_axis,  lepflav_axis, njet_axis),
+                'nele'  : hist.Hist("Counts", dataset_axis,  lepflav_axis, nalep_axis),
+                'nmu'  : hist.Hist("Counts", dataset_axis,  lepflav_axis, nalep_axis),
                 'hc_dr'  : hist.Hist("Counts", dataset_axis, lepflav_axis, dr_axis),
                 'zs_dr' : hist.Hist("Counts", dataset_axis, lepflav_axis, dr_axis),
                 'jjc_dr': hist.Hist("Counts", dataset_axis, lepflav_axis, dr_axis),
@@ -227,6 +233,11 @@ class NanoProcessor(processor.ProcessorABC):
                 _hist_event_dict["%s_phi" %(i)]=hist.Hist("Counts", dataset_axis,  lepflav_axis, phi_axis)
                 if i =='ll' : _hist_event_dict["%s_mass" %(i)]=hist.Hist("Counts", dataset_axis, lepflav_axis, llmass_axis)
                 else:_hist_event_dict["%s_mass" %(i)]=hist.Hist("Counts", dataset_axis, lepflav_axis, mass_axis)
+                if 'lep' in i: 
+                    _hist_event_dict["%s_pfRelIso03_all" %(i)]=hist.Hist("Counts", dataset_axis, lepflav_axis, iso_axis)
+                    _hist_event_dict["%s_dxy" %(i)]=hist.Hist("Counts", dataset_axis, lepflav_axis, dxy_axis)
+                    _hist_event_dict["%s_dz" %(i)]=hist.Hist("Counts", dataset_axis, lepflav_axis, dz_axis)
+
             
         
         for disc, axis in zip(disc_list,btag_axes):
@@ -321,25 +332,34 @@ class NanoProcessor(processor.ProcessorABC):
         ## Muon cuts
         # muon twiki: https://twiki.cern.ch/twiki/bin/view/CMS/SWGuideMuonIdRun2
         event_mu = events.Muon[ak.argsort(events.Muon.pt, axis=1,ascending=False)]
-        musel = ((event_mu.pt > 13) & (abs(event_mu.eta) < 2.4)&(event_mu.mvaId>=3) &(event_mu.pfRelIso03_all<0.35)&(abs(event_mu.dxy)<0.5)&(abs(event_mu.dz)<1))
+        musel = ((event_mu.pt > 13) & (abs(event_mu.eta) < 2.4)&(event_mu.mvaId>=3) &(event_mu.pfRelIso04_all<0.15)&(abs(event_mu.dxy)<0.05)&(abs(event_mu.dz)<0.1))
         event_mu["lep_flav"] = 13*event_mu.charge
         
         event_mu = event_mu[musel]
         nmu = ak.sum(musel,axis=1)
+        namu = ak.sum((event_mu.pt>10)&(abs(event_mu.eta) < 2.4)&(event_mu.pfRelIso04_all<0.2),axis=1)
         event_mu= ak.pad_none(event_mu,2,axis=1)
         
         # ## Electron cuts
         # # electron twiki: https://twiki.cern.ch/twiki/bin/viewauth/CMS/CutBasedElectronIdentificationRun2
         event_e = events.Electron[ak.argsort(events.Electron.pt, axis=1,ascending=False)]
         event_e["lep_flav"] = 11*event_e.charge
-        elesel = ((event_e.pt > 13) & (abs(event_e.eta) < 2.5)&(event_e.mvaFall17V2Iso_WP90==1)& (abs(event_e.dxy)<0.5)&(abs(event_e.dz)<1))
+        elesel = ((event_e.pt > 13) & (abs(event_e.eta) < 2.5)&(event_e.mvaFall17V2Iso_WP90==1)& (abs(event_e.dxy)<0.05)&(abs(event_e.dz)<0.1))
         event_e = event_e[elesel]
         nele = ak.sum(elesel,axis=1)
+        naele = ak.sum((event_e.pt>12)&(abs(event_e.eta) < 2.5)&(event_e.pfRelIso03_all<0.2),axis=1)
         event_e = ak.pad_none(event_e,2,axis=1)
         
-        selection.add('lepsel',ak.to_numpy((nele==2)|(nmu==2)))
+        selection.add('lepsel',ak.to_numpy((nele>=2)|(nmu>=2)))
         corr_jet =  jec(events,events.Jet,dataset,self._year,self._corr)
-        event_jet = corr_jet[ak.argsort(corr_jet.btagDeepFlavCvL, axis=1,ascending=False)]
+        ranked_deepJet = corr_jet.btagDeepFlavCvL
+        ####TEST
+        if self._version =='test':
+            corr_jet[corr_jet.btagDeepFlavCvL==0].btagDeepFlavCvL=1e-10
+            ranked_deepJet = corr_jet.btagDeepFlavCvB/corr_jet.btagDeepFlavCvL
+        ######
+        event_jet = corr_jet[ak.argsort(ranked_deepJet,axis=1,ascending=False)]
+        # event_jet = corr_jet[ak.argsort(corr_jet.btagDeepFlavCvL, axis=1,ascending=False)]
         jet_sel = (event_jet.pt > 20) & (abs(event_jet.eta) <= 2.4)&((event_jet.puId > 0)|(event_jet.pt>50)) &(event_jet.jetId>5) 
         event_jet =event_jet[jet_sel]
         njet = ak.sum(jet_sel,axis=1)
@@ -405,14 +425,16 @@ class NanoProcessor(processor.ProcessorABC):
         higgs_cand = ak.pad_none(higgs_cand,1,axis=0)
         #print(higgs_cand)
         #higgs_cand = higgs_cand[ak.argsort(higgs_cand.pt, axis=-1,ascending=False)]
-        req_global = ak.any(ak.any((ll_cands.lep1.pt>25) & (ll_cands.lep1.charge+ll_cands.lep2.charge==0)  & (ll_cands.mass<120) & (ll_cands.mass>60),axis=-1),axis=-1) & ak.any(ak.any(make_p4(ll_cands.lep1).delta_r(jj_cands.jet1)>0.4,axis=-1),axis=-1) & ak.any(ak.any(make_p4(ll_cands.lep1).delta_r(jj_cands.jet2)>0.4,axis=-1),axis=-1)& ak.any(ak.any(make_p4(ll_cands.lep2).delta_r(jj_cands.jet1)>0.4,axis=-1),axis=-1)& ak.any(ak.any(make_p4(ll_cands.lep2).delta_r(jj_cands.jet2)>0.4,axis=-1),axis=-1) & ak.any(ak.any(make_p4(ll_cands.lep2).delta_r(ll_cands.lep1)>0.4,axis=-1),axis=-1)& ak.any(ak.any(make_p4(jj_cands.jet2).delta_r(jj_cands.jet1)>0.4,axis=-1),axis=-1) #& (make_p4(ll_cands.lep1).delta_r(make_p4(ll_cands.lep2))>0.02),axis=-1),axis=-1)
-        req_zllmass =  ak.any(ak.any((abs(ll_cands.mass-91.)<15),axis=-1),axis=-1)
-        req_zqqmass = ak.any(ak.any(jj_cands.mass<116,axis=-1),axis=-1)
-        req_hmass =  ak.any(ak.any(higgs_cand.mass<250,axis=-1),axis=-1)
+        req_global = (ll_cands.lep1.pt>25) & (ll_cands.lep1.charge+ll_cands.lep2.charge==0)  & (ll_cands.mass<120) & (ll_cands.mass>60)
+        
+         
+        req_dr = (make_p4(ll_cands.lep1).delta_r(jj_cands.jet1)>0.4)&(make_p4(ll_cands.lep1).delta_r(jj_cands.jet2)>0.4)&(make_p4(ll_cands.lep2).delta_r(jj_cands.jet2)>0.4)&(make_p4(ll_cands.lep2).delta_r(jj_cands.jet1)>0.4)&(make_p4(jj_cands.jet1).delta_r(jj_cands.jet2)>0.4)&(make_p4(ll_cands.lep1).delta_r(ll_cands.lep2)>0.4)
+        
+        req_zllmass =  abs(ll_cands.mass-91.)<15
+        req_zqqmass = jj_cands.mass<116
+        req_hmass =  higgs_cand.mass<250
 
-        selection.add('global_selection',ak.to_numpy(req_global))
-        selection.add('Z_selection',ak.to_numpy(req_zllmass&req_zqqmass))
-        selection.add('H_selection',ak.to_numpy(req_hmass))
+        
 
         mask2e =  req_hmass & req_zllmass&req_zqqmass&req_global & (ak.num(event_e)==2)& (event_e[:,0].pt>25) & (event_e[:,1].pt>13)
         mask2mu =  req_hmass & req_zllmass&req_zqqmass&req_global & (ak.num(event_mu)==2)& (event_mu[:,0].pt>25) &(event_mu[:,1].pt>13)
@@ -424,19 +446,23 @@ class NanoProcessor(processor.ProcessorABC):
                
         # ###########
 
-        seljet = (cjet.pt > 20) & (abs(cjet.eta) <= 2.4)&((cjet.puId > 0)|(cjet.pt>50)) &(cjet.jetId>5)&(ak.all(ak.all(cjet.delta_r(ll_cands.lep1)>0.4,axis=-1),axis=-1))&(ak.all(ak.all(cjet.delta_r(ll_cands.lep2)>0.4,axis=-1),axis=-1))&(ak.all(ak.all(cjet.delta_r(jj_cands.jet1)>0.4,axis=-1),axis=-1))&(ak.all(ak.all(cjet.delta_r(jj_cands.jet2)>0.4,axis=-1),axis=-1))
+        seljet = (cjet.pt > 20) & (abs(cjet.eta) <= 2.4)&((cjet.puId > 0)|(cjet.pt>50)) &(cjet.jetId>5)&(ak.all(ak.all((cjet.delta_r(ll_cands.lep1)>0.4)&(cjet.delta_r(ll_cands.lep2)>0.4)&(cjet.delta_r(jj_cands.jet1)>0.4)&(cjet.delta_r(jj_cands.jet2)>0.4),axis=-1),axis=-1))
         sel_cjet = ak.mask(cjet,seljet)
+        # if(ak.count(sel_cjet.pt)>0):sel_cjet=
+        
+        output['cutflow'][dataset]['global selection'] += ak.sum(ak.any(ak.any(req_global,axis=-1),axis=-1))
+        output['cutflow'][dataset]['dilepton mass'] += ak.sum(ak.any(ak.any(req_zllmass&req_global,axis=-1),axis=-1))
+        output['cutflow'][dataset]['dijet mass'] +=ak.sum(ak.any(ak.any(req_zllmass&req_global&req_zqqmass,axis=-1),axis=-1))
+        output['cutflow'][dataset]['higgs mass'] +=ak.sum(ak.any(ak.any(req_zllmass&req_global&req_zqqmass&req_hmass,axis=-1),axis=-1))
+        output['cutflow'][dataset]['dr'] +=ak.sum(ak.any(ak.any(req_zllmass&req_global&req_zqqmass&req_hmass&req_dr,axis=-1),axis=-1))
+        
+        output['cutflow'][dataset]['tag one jet'] +=ak.sum(ak.any(ak.any(req_zllmass&req_global&req_zqqmass&req_hmass&req_dr,axis=-1),axis=-1)&seljet)
+        output['cutflow'][dataset]['jet efficiency'] +=ak.sum(ak.any(ak.any(req_zllmass&req_global&req_zqqmass&req_hmass&req_dr,axis=-1),axis=-1)&seljet&(njet>=3))
+        output['cutflow'][dataset]['electron efficiency'] +=ak.sum(ak.any(ak.any(req_zllmass&req_global&req_zqqmass&req_hmass&req_dr,axis=-1),axis=-1)&seljet&(njet>=3)&(nele==2))
+        output['cutflow'][dataset]['muon efficiency'] +=ak.sum(ak.any(ak.any(req_zllmass&req_global&req_zqqmass&req_hmass&req_dr,axis=-1),axis=-1)&seljet&(njet>=3)&(nmu==2))
+        selection.add('SR',ak.to_numpy(ak.any(ak.any(req_zllmass&req_global&req_zqqmass&req_hmass&req_dr,axis=-1),axis=-1)))
+        
         selection.add('cjetsel',ak.to_numpy(seljet))
-        
-        output['cutflow'][dataset]['global selection'] += ak.sum(req_global)
-        output['cutflow'][dataset]['dilepton mass'] += ak.sum(req_zllmass&req_global)
-        output['cutflow'][dataset]['dijet mass'] +=ak.sum(req_zllmass&req_global&req_zqqmass)
-        output['cutflow'][dataset]['higgs mass'] +=ak.sum(req_zllmass&req_global&req_zqqmass&req_hmass)
-        output['cutflow'][dataset]['tag one jet'] +=ak.sum(req_zllmass&req_global&req_zqqmass&seljet&req_hmass)
-        output['cutflow'][dataset]['jet efficiency'] +=ak.sum(req_zllmass&req_global&req_zqqmass&seljet&(njet>=3)&req_hmass)
-        output['cutflow'][dataset]['electron efficiency'] +=ak.sum(req_zllmass&req_global&req_zqqmass&seljet&(njet>=3)&(nele==2)&req_hmass)
-        output['cutflow'][dataset]['muon efficiency'] +=ak.sum(req_zllmass&req_global&req_zqqmass&seljet&(njet>=3)&(nmu==2)&req_hmass)
-        
         selection.add('ee',ak.to_numpy((ak.num(event_e)==2)& (event_e[:,0].pt>25) & (event_e[:,1].pt>13)))
         selection.add('mumu',ak.to_numpy((ak.num(event_mu)==2)& (event_mu[:,0].pt>25) &(event_mu[:,1].pt>13)))
 
@@ -445,11 +471,18 @@ class NanoProcessor(processor.ProcessorABC):
 
         for histname, h in output.items():
             for ch in lepflav:
-                cut = selection.all('jetsel','lepsel','global_selection','Z_selection','H_selection','lumi','metfilter','cjetsel',ch,'trigger_%s'%(ch))
+                cut = selection.all('jetsel','lepsel','SR','lumi','metfilter','cjetsel',ch,'trigger_%s'%(ch))
                 
-                
-                hcut = higgs_cand[cut]
-                hcut = hcut[:,0,0] 
+                sr_mask = ak.mask(higgs_cand,req_zllmass&req_global&req_zqqmass&req_hmass&req_dr)
+                if(ak.count(sr_mask.mass)>0):sr_mask = sr_mask[ak.argsort(abs(sr_mask.ll_cands.mass-91.18), axis=-1)]
+                # if(ak.count(sr_mask.mass)>0):sr_mask = sr_mask[ak.argsort(abs(sr_mask.ll_cands.mass-91.18), axis=-2)]
+                hcut = sr_mask[cut]
+                hcut = hcut[:,:,0] 
+                if(ak.count(hcut.mass)>0):hcut = hcut[ak.argsort(abs(hcut.ll_cands.mass-91.18), axis=-1)]
+                # print('cut',hcut.mass.tolist())
+                hcut = hcut[:,0]
+                # print(hcut.mass.tolist())
+                # print(make_p4(hcut.ll_cands.lep2).delta_r(hcut.jj_cands.jet2).tolist())
                 llcut = hcut.ll_cands
                 jjcut = hcut.jj_cands
                 lep1cut=llcut.lep1
@@ -457,12 +490,11 @@ class NanoProcessor(processor.ProcessorABC):
                 jet1cut=jjcut.jet1
                 jet2cut=jjcut.jet2   
                 charmcut = sel_cjet[cut]
+                # print(ak.type(flatten(charmcut.pt)),ak.type(flatten(hcut.pt)))
                 if not isRealData:
                        if ch=='ee':lepsf=eleSFs(lep1cut,self._year,self._corr)*eleSFs(lep2cut,self._year,self._corr)
                        elif ch=='mumu':lepsf=muSFs(lep1cut,self._year,self._corr)*muSFs(lep2cut,self._year,self._corr)
                 else : lepsf =weights.weight()[cut]
-                # lepsf =weights.weight()[cut]
-                # print(lepsf*weights.weight()[cut],weights.weight()[cut])
                 if 'cjet_' in histname:
                     fields = {l: normalize(sel_cjet[histname.replace('cjet_','')],cut) for l in h.fields if l in dir(sel_cjet)}
                     if isRealData:flavor= ak.zeros_like((weights.weight()[cut]))
@@ -494,11 +526,10 @@ class NanoProcessor(processor.ProcessorABC):
                     fields = {l:  flatten(hcut[histname.replace('higgs_','')]) for l in h.fields if l in dir(hcut)}
                     h.fill(dataset=dataset, lepflav =ch, **fields,weight=weights.weight()[cut]*lepsf)  
                 else :
-                    # print("h",hcut.pt.tolist())
-                    # print("c",charmcut.pt.tolist())
                     output['nj'].fill(dataset=dataset,lepflav=ch,nj=normalize(njet,cut),weight=weights.weight()[cut]*lepsf)
-
-                    output['hc_dr'].fill(dataset=dataset,lepflav=ch,dr=hcut.delta_r(charmcut),weight=weights.weight()[cut]*lepsf)                    
+                    output['nele'].fill(dataset=dataset,lepflav=ch,nalep=normalize(naele-nele,cut),weight=weights.weight()[cut]*lepsf)
+                    output['nmu'].fill(dataset=dataset,lepflav=ch,nalep=normalize(namu-nmu,cut),weight=weights.weight()[cut]*lepsf)    
+                    output['hc_dr'].fill(dataset=dataset,lepflav=ch,dr=flatten(hcut.delta_r(charmcut)),weight=weights.weight()[cut]*lepsf)                    
                     output['zs_dr'].fill(dataset=dataset,lepflav=ch,dr=flatten(llcut.delta_r(jjcut)),weight=weights.weight()[cut]*lepsf) 
                     output['j1j2_dr'].fill(dataset=dataset,lepflav=ch,dr=flatten(make_p4(jet1cut).delta_r(make_p4(jet2cut))),weight=weights.weight()[cut]*lepsf)
                     output['l1l2_dr'].fill(dataset=dataset,lepflav=ch,dr=flatten(make_p4(lep1cut).delta_r(make_p4(lep2cut))),weight=weights.weight()[cut]*lepsf)
@@ -508,7 +539,7 @@ class NanoProcessor(processor.ProcessorABC):
                     output['l2j2_dr'].fill(dataset=dataset,lepflav=ch,dr=flatten(make_p4(lep2cut).delta_r(make_p4(jet2cut))),weight=weights.weight()[cut]*lepsf)                    
                     output['jjc_dr'].fill(dataset=dataset,lepflav=ch,dr=flatten(jjcut.delta_r(charmcut)),weight=weights.weight()[cut]*lepsf)
                     output['cj_dr'].fill(dataset=dataset,lepflav=ch,dr=flatten(make_p4(jet1cut).delta_r(charmcut)),weight=weights.weight()[cut]*lepsf)
-                    output['lc_dr'].fill(dataset=dataset,lepflav=ch,dr=flatten(make_p4(jet1cut).delta_r(make_p4(lep1cut))),weight=weights.weight()[cut]*lepsf)
+                    output['lc_dr'].fill(dataset=dataset,lepflav=ch,dr=flatten(make_p4(charmcut).delta_r(make_p4(lep1cut))),weight=weights.weight()[cut]*lepsf)
                     ll_hCM = llcut.boost(-1*hcut.boostvec)#boost to higgs frame
                     poslep = make_p4(ak.where(lep1cut.charge>0,lep1cut,lep2cut))
                     poslep_hCM = poslep.boost(-1*hcut.boostvec)
