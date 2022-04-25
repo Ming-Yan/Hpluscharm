@@ -11,7 +11,7 @@ import coffea
 from coffea import hist, processor
 from coffea.nanoevents.methods import vector
 import awkward as ak
-from utils.correction import jec,muSFs,eleSFs,init_corr,ZpT_corr
+from utils.correction import jec,muSFs,eleSFs,init_corr,puwei,nJet_corr
 from coffea.lumi_tools import LumiMask
 
 from coffea.analysis_tools import Weights
@@ -200,6 +200,7 @@ class NanoProcessor(processor.ProcessorABC):
             btag_axes.append(hist.Bin(d, d , 50, 0, 1))  
         _hist_event_dict = {
                 'nj'  : hist.Hist("Counts", dataset_axis,  lepflav_axis, njet_axis),
+                'njnosel'  : hist.Hist("Counts", dataset_axis,  lepflav_axis, njet_axis),
                 'nele'  : hist.Hist("Counts", dataset_axis,  lepflav_axis, nalep_axis),
                 'nmu'  : hist.Hist("Counts", dataset_axis,  lepflav_axis, nalep_axis),
                 'hc_dr'  : hist.Hist("Counts", dataset_axis, lepflav_axis, dr_axis),
@@ -274,6 +275,11 @@ class NanoProcessor(processor.ProcessorABC):
         else:
             weights.add('genweight',events.genWeight/abs(events.genWeight)
             )
+
+            if self._year in ("2016", "2017"):
+                weights.add("L1Prefiring", events.L1PreFiringWeight.Nom, events.L1PreFiringWeight.Up, events.L1PreFiringWeight.Dn)
+            weights.add('puweight',puwei(events.Pileup.nPU,self._corr))
+
             if 'DY' in dataset :
                 genZ = events.GenPart[(events.GenPart.hasFlags(["fromHardProcess"])==True) & (events.GenPart.hasFlags(["isHardProcess"])==True)& (events.GenPart.pdgId==23)]                
                 #weights.add('zptwei',ZpT_corr(flatten(genZ.pt,self._year))
@@ -345,9 +351,10 @@ class NanoProcessor(processor.ProcessorABC):
         event_e = events.Electron[ak.argsort(events.Electron.pt, axis=1,ascending=False)]
         event_e["lep_flav"] = 11*event_e.charge
         elesel = ((event_e.pt > 13) & (abs(event_e.eta) < 2.5)&(event_e.mvaFall17V2Iso_WP90==1)& (abs(event_e.dxy)<0.05)&(abs(event_e.dz)<0.1))
+        naele = ak.sum((event_e.pt>12)&(abs(event_e.eta) < 2.5)&(event_e.pfRelIso03_all<0.2),axis=1)
         event_e = event_e[elesel]
         nele = ak.sum(elesel,axis=1)
-        naele = ak.sum((event_e.pt>12)&(abs(event_e.eta) < 2.5)&(event_e.pfRelIso03_all<0.2),axis=1)
+        
         event_e = ak.pad_none(event_e,2,axis=1)
         
         selection.add('lepsel',ak.to_numpy((nele>=2)|(nmu>=2)))
@@ -360,17 +367,19 @@ class NanoProcessor(processor.ProcessorABC):
         ######
         event_jet = corr_jet[ak.argsort(ranked_deepJet,axis=1,ascending=False)]
         # event_jet = corr_jet[ak.argsort(corr_jet.btagDeepFlavCvL, axis=1,ascending=False)]
-        jet_sel = (event_jet.pt > 20) & (abs(event_jet.eta) <= 2.4)&((event_jet.puId > 0)|(event_jet.pt>50)) &(event_jet.jetId>5) 
+        jet_sel = (event_jet.pt > 20) & (abs(event_jet.eta) <= 2.4)&((event_jet.puId > 6)|(event_jet.pt>50)) &(event_jet.jetId>5) #&(ak.all(event_jet.metric_table(event_e)>0.4,axis=2))&(ak.all(event_jet.metric_table(event_mu)>0.4,axis=2))
+        print('dr',(event_jet.metric_table(event_e).tolist()))
+        print(ak.all(event_jet.metric_table(event_e)>0.4,axis=2).tolist())
         event_jet =event_jet[jet_sel]
         njet = ak.sum(jet_sel,axis=1)
+
         event_jet = ak.pad_none(event_jet,3,axis=1)
         selection.add('jetsel',ak.to_numpy(njet>=3))
+        if 'DY' in dataset :weights.add('njwei',nJet_corr(njet,self._corr))
         cjet = event_jet[:,0]
      
         rest_jet = event_jet[:,1:]
-        # good_leptons = ak.with_name(
-                # ak.concatenate([event_e, event_mu], axis=1),
-                # "PtEtaPhiMCandidate", )
+
         good_leptons = ak.concatenate([event_e, event_mu], axis=1)
         pair_2lep = ak.combinations(
                 good_leptons,
@@ -407,7 +416,7 @@ class NanoProcessor(processor.ProcessorABC):
                     "phi": (pair_2j.jet1+pair_2j.jet2).phi,
                     "mass": (pair_2j.jet1+pair_2j.jet2).mass,
                 },with_name="PtEtaPhiMLorentzVector",)
-        # jj_cand = jj_cand[ak.argsort(jj_cand.pt, axis=1,ascending=False)]
+
         if(ak.count(jj_cand.mass)>0):jj_cand = jj_cand[ak.argsort(abs(jj_cand.mass-91.18), axis=1)]
         higgs_cands, (ll_cands,jj_cands)= ll_cand.metric_table(jj_cand,axis=1,metric=lambda jj_cand, ll_cand: (jj_cand+ll_cand),return_combinations=True)
         # print(ak.type(ll_cands.ll_cand))
@@ -423,8 +432,8 @@ class NanoProcessor(processor.ProcessorABC):
             },with_name="PtEtaPhiMLorentzVector",
         )
         higgs_cand = ak.pad_none(higgs_cand,1,axis=0)
-        #print(higgs_cand)
-        #higgs_cand = higgs_cand[ak.argsort(higgs_cand.pt, axis=-1,ascending=False)]
+
+
         req_global = (higgs_cand.ll_cands.lep1.pt>25) & (higgs_cand.ll_cands.lep1.charge+higgs_cand.ll_cands.lep2.charge==0)  & (higgs_cand.ll_cands.mass<120) & (higgs_cand.ll_cands.mass>60)
         
          
@@ -439,14 +448,14 @@ class NanoProcessor(processor.ProcessorABC):
         mask2e =  req_hmass & req_zllmass&req_zqqmass&req_global & (ak.num(event_e)==2)& (event_e[:,0].pt>25) & (event_e[:,1].pt>13)
         mask2mu =  req_hmass & req_zllmass&req_zqqmass&req_global & (ak.num(event_mu)==2)& (event_mu[:,0].pt>25) &(event_mu[:,1].pt>13)
         mask2lep = [ak.any(tup) for tup in zip(mask2mu, mask2e)]
-        # mask2jet = req_hmass & req_zllmass&req_global&req_zqqmass
-        # event_jet = ak.mask(event_jet,mask2jet)
+        #mask2jet = req_hmass & req_zllmass&req_global&req_zqqmass
+        #event_jet = ak.mask(event_jet,mask2jet)
         good_leptons = ak.mask(good_leptons,mask2lep)
         
                
         # ###########
 
-        seljet = (cjet.pt > 20) & (abs(cjet.eta) <= 2.4)&((cjet.puId > 0)|(cjet.pt>50)) &(cjet.jetId>5)&(ak.all(ak.all((cjet.delta_r(higgs_cand.ll_cands.lep1)>0.4)&(cjet.delta_r(higgs_cand.ll_cands.lep2)>0.4)&(cjet.delta_r(higgs_cand.jj_cands.jet1)>0.4)&(cjet.delta_r(higgs_cand.jj_cands.jet2)>0.4),axis=-1),axis=-1))
+        seljet = (cjet.pt > 20) & (abs(cjet.eta) <= 2.4)&((cjet.puId > 6)|(cjet.pt>50)) &(cjet.jetId>5)&(ak.all(ak.all((cjet.delta_r(higgs_cand.ll_cands.lep1)>0.4)&(cjet.delta_r(higgs_cand.ll_cands.lep2)>0.4)&(cjet.delta_r(higgs_cand.jj_cands.jet1)>0.4)&(cjet.delta_r(higgs_cand.jj_cands.jet2)>0.4),axis=-1),axis=-1))
         sel_cjet = ak.mask(cjet,seljet)
         # if(ak.count(sel_cjet.pt)>0):sel_cjet=
         
@@ -472,17 +481,14 @@ class NanoProcessor(processor.ProcessorABC):
         for histname, h in output.items():
             for ch in lepflav:
                 cut = selection.all('jetsel','lepsel','SR','lumi','metfilter','cjetsel',ch,'trigger_%s'%(ch))
-                
                 sr_mask = ak.mask(higgs_cand,req_zllmass&req_global&req_zqqmass&req_hmass&req_dr)
                 if(ak.count(sr_mask.mass)>0):sr_mask = sr_mask[ak.argsort(abs(sr_mask.ll_cands.mass-91.18), axis=-1)]
-                # if(ak.count(sr_mask.mass)>0):sr_mask = sr_mask[ak.argsort(abs(sr_mask.ll_cands.mass-91.18), axis=-2)]
+
                 hcut = sr_mask[cut]
                 hcut = hcut[:,:,0] 
                 if(ak.count(hcut.mass)>0):hcut = hcut[ak.argsort(abs(hcut.ll_cands.mass-91.18), axis=-1)]
-                # print('cut',hcut.mass.tolist())
+
                 hcut = hcut[:,0]
-                # print(hcut.mass.tolist())
-                # print(make_p4(hcut.ll_cands.lep2).delta_r(hcut.jj_cands.jet2).tolist())
                 llcut = hcut.ll_cands
                 jjcut = hcut.jj_cands
                 lep1cut=llcut.lep1
@@ -490,56 +496,59 @@ class NanoProcessor(processor.ProcessorABC):
                 jet1cut=jjcut.jet1
                 jet2cut=jjcut.jet2   
                 charmcut = sel_cjet[cut]
-                # print(ak.type(flatten(charmcut.pt)),ak.type(flatten(hcut.pt)))
+
                 if not isRealData:
                        if ch=='ee':lepsf=eleSFs(lep1cut,self._year,self._corr)*eleSFs(lep2cut,self._year,self._corr)
                        elif ch=='mumu':lepsf=muSFs(lep1cut,self._year,self._corr)*muSFs(lep2cut,self._year,self._corr)
-                else : lepsf =weights.weight()[cut]
+                       sf = lepsf
+                else : sf =weights.weight()[cut]
                 if 'cjet_' in histname:
                     fields = {l: normalize(sel_cjet[histname.replace('cjet_','')],cut) for l in h.fields if l in dir(sel_cjet)}
                     if isRealData:flavor= ak.zeros_like((weights.weight()[cut]))
                     else :flavor= normalize(sel_cjet.hadronFlavour+1*((sel_cjet.partonFlavour == 0 ) & (sel_cjet.hadronFlavour==0)),cut)
-                    h.fill(dataset=dataset, lepflav =ch,flav=flavor, **fields,weight=weights.weight()[cut]*lepsf)                  
+                    h.fill(dataset=dataset, lepflav =ch,flav=flavor, **fields,weight=weights.weight()[cut]*sf)                  
                 elif 'jet1_' in histname:
                     fields = {l: flatten(jet1cut[histname.replace('jet1_','')]) for l in h.fields if l in dir(jet1cut)}
-                    if isRealData:flavor= ak.zeros_like(lepsf)
+                    if isRealData:flavor= ak.zeros_like(sf)
                     else :flavor= flatten(jet1cut.hadronFlavour+1*((jet1cut.partonFlavour == 0 ) & (jet1cut.hadronFlavour==0)))
-                    h.fill(dataset=dataset, lepflav =ch,flav=flavor, **fields,weight=weights.weight()[cut]*lepsf) 
+                    h.fill(dataset=dataset, lepflav =ch,flav=flavor, **fields,weight=weights.weight()[cut]*sf) 
                 elif 'jet2_' in histname:
                     fields = {l: flatten(jet2cut[histname.replace('jet2_','')]) for l in h.fields if l in dir(jet2cut)}
                     if isRealData:flavor= ak.zeros_like((weights.weight()[cut]))
                     else :flavor= flatten(jet2cut.hadronFlavour+1*((jet2cut.partonFlavour == 0 ) & (jet2cut.hadronFlavour==0)))
-                    h.fill(dataset=dataset, lepflav =ch,flav=flavor, **fields,weight=weights.weight()[cut]*lepsf)    
+                    h.fill(dataset=dataset, lepflav =ch,flav=flavor, **fields,weight=weights.weight()[cut]*sf)    
                 elif 'lep1_' in histname:
                     fields = {l: flatten(lep1cut[histname.replace('lep1_','')]) for l in h.fields if l in dir(lep1cut)}
-                    h.fill(dataset=dataset,lepflav=ch, **fields,weight=weights.weight()[cut]*lepsf)
+                    h.fill(dataset=dataset,lepflav=ch, **fields,weight=weights.weight()[cut]*sf)
                 elif 'lep2_' in histname:
                     fields = {l: flatten(lep2cut[histname.replace('lep2_','')]) for l in h.fields if l in dir(lep2cut)}
-                    h.fill(dataset=dataset,lepflav=ch, **fields,weight=weights.weight()[cut]*lepsf)
+                    h.fill(dataset=dataset,lepflav=ch, **fields,weight=weights.weight()[cut]*sf)
                 elif 'll_' in histname:
                     fields = {l: flatten(llcut[histname.replace('ll_','')]) for l in h.fields if l in dir(llcut)}
-                    h.fill(dataset=dataset, lepflav =ch, **fields,weight=weights.weight()[cut]*lepsf)  
+                    h.fill(dataset=dataset, lepflav =ch, **fields,weight=weights.weight()[cut]*sf)  
                 elif 'jj_' in histname:
                     fields = {l:  flatten(jjcut[histname.replace('jj_','')]) for l in h.fields if l in dir(jjcut)}
-                    h.fill(dataset=dataset, lepflav =ch, **fields,weight=weights.weight()[cut]*lepsf)
+                    h.fill(dataset=dataset, lepflav =ch, **fields,weight=weights.weight()[cut]*sf)
                 elif 'higgs_' in histname:
                     fields = {l:  flatten(hcut[histname.replace('higgs_','')]) for l in h.fields if l in dir(hcut)}
-                    h.fill(dataset=dataset, lepflav =ch, **fields,weight=weights.weight()[cut]*lepsf)  
+                    h.fill(dataset=dataset, lepflav =ch, **fields,weight=weights.weight()[cut]*sf)  
                 else :
-                    output['nj'].fill(dataset=dataset,lepflav=ch,nj=normalize(njet,cut),weight=weights.weight()[cut]*lepsf)
-                    output['nele'].fill(dataset=dataset,lepflav=ch,nalep=normalize(naele-nele,cut),weight=weights.weight()[cut]*lepsf)
-                    output['nmu'].fill(dataset=dataset,lepflav=ch,nalep=normalize(namu-nmu,cut),weight=weights.weight()[cut]*lepsf)    
-                    output['hc_dr'].fill(dataset=dataset,lepflav=ch,dr=flatten(hcut.delta_r(charmcut)),weight=weights.weight()[cut]*lepsf)                    
-                    output['zs_dr'].fill(dataset=dataset,lepflav=ch,dr=flatten(llcut.delta_r(jjcut)),weight=weights.weight()[cut]*lepsf) 
-                    output['j1j2_dr'].fill(dataset=dataset,lepflav=ch,dr=flatten(make_p4(jet1cut).delta_r(make_p4(jet2cut))),weight=weights.weight()[cut]*lepsf)
-                    output['l1l2_dr'].fill(dataset=dataset,lepflav=ch,dr=flatten(make_p4(lep1cut).delta_r(make_p4(lep2cut))),weight=weights.weight()[cut]*lepsf)
-                    output['l1j1_dr'].fill(dataset=dataset,lepflav=ch,dr=flatten(make_p4(lep1cut).delta_r(make_p4(jet1cut))),weight=weights.weight()[cut]*lepsf)
-                    output['l1j2_dr'].fill(dataset=dataset,lepflav=ch,dr=flatten(make_p4(lep1cut).delta_r(make_p4(jet2cut))),weight=weights.weight()[cut]*lepsf)
-                    output['l2j1_dr'].fill(dataset=dataset,lepflav=ch,dr=flatten(make_p4(jet1cut).delta_r(make_p4(lep2cut))),weight=weights.weight()[cut]*lepsf)
-                    output['l2j2_dr'].fill(dataset=dataset,lepflav=ch,dr=flatten(make_p4(lep2cut).delta_r(make_p4(jet2cut))),weight=weights.weight()[cut]*lepsf)                    
-                    output['jjc_dr'].fill(dataset=dataset,lepflav=ch,dr=flatten(jjcut.delta_r(charmcut)),weight=weights.weight()[cut]*lepsf)
-                    output['cj_dr'].fill(dataset=dataset,lepflav=ch,dr=flatten(make_p4(jet1cut).delta_r(charmcut)),weight=weights.weight()[cut]*lepsf)
-                    output['lc_dr'].fill(dataset=dataset,lepflav=ch,dr=flatten(make_p4(charmcut).delta_r(make_p4(lep1cut))),weight=weights.weight()[cut]*lepsf)
+
+                    output['nj'].fill(dataset=dataset,lepflav=ch,nj=normalize(njet,cut),weight=weights.weight()[cut]*sf)
+                    output['njnosel'].fill(dataset=dataset,lepflav=ch,nj=flatten(ak.count(events[cut].Jet.pt,axis=-1)),weight=weights.weight()[cut]*sf)
+                    output['nele'].fill(dataset=dataset,lepflav=ch,nalep=normalize(naele-nele,cut),weight=weights.weight()[cut]*sf)
+                    output['nmu'].fill(dataset=dataset,lepflav=ch,nalep=normalize(namu-nmu,cut),weight=weights.weight()[cut]*sf)    
+                    output['hc_dr'].fill(dataset=dataset,lepflav=ch,dr=flatten(hcut.delta_r(charmcut)),weight=weights.weight()[cut]*sf)                    
+                    output['zs_dr'].fill(dataset=dataset,lepflav=ch,dr=flatten(llcut.delta_r(jjcut)),weight=weights.weight()[cut]*sf) 
+                    output['j1j2_dr'].fill(dataset=dataset,lepflav=ch,dr=flatten(make_p4(jet1cut).delta_r(make_p4(jet2cut))),weight=weights.weight()[cut]*sf)
+                    output['l1l2_dr'].fill(dataset=dataset,lepflav=ch,dr=flatten(make_p4(lep1cut).delta_r(make_p4(lep2cut))),weight=weights.weight()[cut]*sf)
+                    output['l1j1_dr'].fill(dataset=dataset,lepflav=ch,dr=flatten(make_p4(lep1cut).delta_r(make_p4(jet1cut))),weight=weights.weight()[cut]*sf)
+                    output['l1j2_dr'].fill(dataset=dataset,lepflav=ch,dr=flatten(make_p4(lep1cut).delta_r(make_p4(jet2cut))),weight=weights.weight()[cut]*sf)
+                    output['l2j1_dr'].fill(dataset=dataset,lepflav=ch,dr=flatten(make_p4(jet1cut).delta_r(make_p4(lep2cut))),weight=weights.weight()[cut]*sf)
+                    output['l2j2_dr'].fill(dataset=dataset,lepflav=ch,dr=flatten(make_p4(lep2cut).delta_r(make_p4(jet2cut))),weight=weights.weight()[cut]*sf)                    
+                    output['jjc_dr'].fill(dataset=dataset,lepflav=ch,dr=flatten(jjcut.delta_r(charmcut)),weight=weights.weight()[cut]*sf)
+                    output['cj_dr'].fill(dataset=dataset,lepflav=ch,dr=flatten(make_p4(jet1cut).delta_r(charmcut)),weight=weights.weight()[cut]*sf)
+                    output['lc_dr'].fill(dataset=dataset,lepflav=ch,dr=flatten(make_p4(charmcut).delta_r(make_p4(lep1cut))),weight=weights.weight()[cut]*sf)
                     ll_hCM = llcut.boost(-1*hcut.boostvec)#boost to higgs frame
                     poslep = make_p4(ak.where(lep1cut.charge>0,lep1cut,lep2cut))
                     poslep_hCM = poslep.boost(-1*hcut.boostvec)
@@ -547,11 +556,11 @@ class NanoProcessor(processor.ProcessorABC):
                     jet_hCM =jet1cut.boost(-1*hcut.boostvec)
                     jet_ZCM = jet_hCM.boost(-1*jjcut.boostvec)
                     
-                    output['costheta_pz'].fill(dataset=dataset,lepflav=ch,costheta=flatten(np.cos(ll_hCM.theta)),weight=weights.weight()[cut]*lepsf) 
-                    output['costheta_ll'].fill(dataset=dataset,lepflav=ch,costheta=flatten(np.cos(poslep_ZCM.theta)),weight=weights.weight()[cut]*lepsf) 
-                    output['costheta_pz'].fill(dataset=dataset,lepflav=ch,costheta=flatten(np.cos(jet_ZCM.theta)),weight=weights.weight()[cut]*lepsf) 
-                    output['phi_zz'].fill(dataset=dataset,lepflav=ch,phi=flatten(ll_hCM.phi),weight=weights.weight()[cut]*lepsf) 
-                    output['phi_lq'].fill(dataset=dataset,lepflav=ch,phi=flatten(jet_ZCM.delta_phi(poslep_ZCM)),weight=weights.weight()[cut]*lepsf)
+                    output['costheta_pz'].fill(dataset=dataset,lepflav=ch,costheta=flatten(np.cos(ll_hCM.theta)),weight=weights.weight()[cut]*sf) 
+                    output['costheta_ll'].fill(dataset=dataset,lepflav=ch,costheta=flatten(np.cos(poslep_ZCM.theta)),weight=weights.weight()[cut]*sf) 
+                    output['costheta_pz'].fill(dataset=dataset,lepflav=ch,costheta=flatten(np.cos(jet_ZCM.theta)),weight=weights.weight()[cut]*sf) 
+                    output['phi_zz'].fill(dataset=dataset,lepflav=ch,phi=flatten(ll_hCM.phi),weight=weights.weight()[cut]*sf) 
+                    output['phi_lq'].fill(dataset=dataset,lepflav=ch,phi=flatten(jet_ZCM.delta_phi(poslep_ZCM)),weight=weights.weight()[cut]*sf)
                     
         return output
 

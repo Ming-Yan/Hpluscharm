@@ -882,7 +882,7 @@
         "root://xrootd-cms.infn.it///store/data/Run2017F/DoubleEG/NANOAOD/UL2017_MiniAODv2_NanoAODv9-v1/270000/FE8DA99A-913E-F645-B97D-5F1A6444946E.root",
         "root://xrootd-cms.infn.it///store/data/Run2017F/DoubleEG/NANOAOD/UL2017_MiniAODv2_NanoAODv9-v1/270000/C8305E7F-543E-0944-8DCE-3645400139A3.root",
         "root://xrootd-cms.infn.it///store/data/Run2017F/DoubleEG/NANOAOD/UL2017_MiniAODv2_NanoAODv9-v1/270000/98C333B9-FAFB-5B47-B30C-2BBB154C661A.root"
-    ]
+    ],
 
     "DoubleMuon_Run2017B-UL2017_MiniAODv2_NanoAODv9-v1": [
         "root://xrootd-cms.infn.it///store/data/Run2017B/DoubleMuon/NANOAOD/UL2017_MiniAODv2_NanoAODv9-v1/280000/10AE822E-7D57-2244-B31F-FFB818DB9742.root",
