@@ -21,9 +21,22 @@
     "VV":["WW_TuneCP5_13TeV-pythia8","WZ_TuneCP5_13TeV-pythia8","ZZ_TuneCP5_13TeV-pythia8"]
 },
 "data" :{
-"data_ee" : ["DoubleEG_Run2017D-UL2017_MiniAODv2_NanoAODv9-v1","SingleElectron_Run2017D-UL2017_MiniAODv2_NanoAODv9-v1"],
-"data_mumu" : ["DoubleMuon_Run2017D-UL2017_MiniAODv2_NanoAODv9-v1","SingleMuon_Run2017D-UL2017_MiniAODv2_NanoAODv9-v1"],
-"data_emu":["MuonEG_Run2017D-UL2017_MiniAODv2_NanoAODv9-v1"]
+"data_ee" : [
+    "DoubleEG_Run2017B-UL2017_MiniAODv2_NanoAODv9-v1","SingleElectron_Run2017B-UL2017_MiniAODv2_NanoAODv9-v1",
+    "DoubleEG_Run2017C-UL2017_MiniAODv2_NanoAODv9-v1","SingleElectron_Run2017C-UL2017_MiniAODv2_NanoAODv9-v1",
+    "DoubleEG_Run2017D-UL2017_MiniAODv2_NanoAODv9-v1","SingleElectron_Run2017D-UL2017_MiniAODv2_NanoAODv9-v1",
+    "DoubleEG_Run2017E-UL2017_MiniAODv2_NanoAODv9-v1","SingleElectron_Run2017E-UL2017_MiniAODv2_NanoAODv9-v1",
+    "DoubleEG_Run2017F-UL2017_MiniAODv2_NanoAODv9-v1","SingleElectron_Run2017F-UL2017_MiniAODv2_NanoAODv9-v1"
+
+],
+"data_mumu" : [
+    "DoubleMuon_Run2017B-UL2017_MiniAODv2_NanoAODv9-v1","SingleMuon_Run2017B-UL2017_MiniAODv2_NanoAODv9-v1",
+    "DoubleMuon_Run2017C-UL2017_MiniAODv2_NanoAODv9-v1","SingleMuon_Run2017C-UL2017_MiniAODv2_NanoAODv9-v1",
+    "DoubleMuon_Run2017D-UL2017_MiniAODv2_NanoAODv9-v1","SingleMuon_Run2017D-UL2017_MiniAODv2_NanoAODv9-v1",
+    "DoubleMuon_Run2017E-UL2017_MiniAODv2_NanoAODv9-v1","SingleMuon_Run2017E-UL2017_MiniAODv2_NanoAODv9-v1",
+    "DoubleMuon_Run2017F-UL2017_MiniAODv2_NanoAODv9-v1","SingleMuon_Run2017F-UL2017_MiniAODv2_NanoAODv9-v1"
+],
+"data_emu":["MuonEG_Run2017B-UL2017_MiniAODv2_NanoAODv9-v1","MuonEG_Run2017C-UL2017_MiniAODv2_NanoAODv9-v1","MuonEG_Run2017D-UL2017_MiniAODv2_NanoAODv9-v1","MuonEG_Run2017E-UL2017_MiniAODv2_NanoAODv9-v1","MuonEG_Run2017F-UL2017_MiniAODv2_NanoAODv9-v1"]
 },
 "data_lnu" :{
 "data_ee" : ["DoubleEG_Run2017D-UL2017_MiniAODv2_NanoAODv9-v1"],
