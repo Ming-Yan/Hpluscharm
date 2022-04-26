@@ -54,7 +54,8 @@ def get_main_parser():
     parser.add_argument( '--year',  type=str, default="2017",
                         help='year, default(2017)'
                         )
-
+    parser.add_argument('-v','--version',type=str,default='',help='version names')
+    parser.add_argument('--export_array', action='store_true',default=False, help='stored selected events to np.arrays')
     # Scale out
     parser.add_argument('--split', action='store_true', help='chunk-chunk')
     parser.add_argument('--executor', 
@@ -72,13 +73,14 @@ def get_main_parser():
                              '- `dask/lpc` - custom lpc/condor setup (due to write access restrictions)'
                              '- `dask/lxplus` - custom lxplus/condor setup (due to port restrictions)'
                         )
-    parser.add_argument('-j', '--workers', type=int, default=12,
+    parser.add_argument('-j', '--workers', type=int, default=2,
                         help='Number of workers (cores/threads) to use for multi-worker executors '
                              '(e.g. futures or condor) (default: %(default)s)')
     parser.add_argument('-s', '--scaleout', type=int, default=6,
                         help='Number of nodes to scale out to if using slurm/condor. Total number of '
                              'concurrent threads is ``workers x scaleout`` (default: %(default)s)'
                         )
+    parser.add_argument('--memory', type=int, default=4, help='Required memory')
     parser.add_argument('--voms', default=None, type=str,
                         help='Path to voms proxy, accessible to worker nodes. By default a copy will be made to $HOME.'
                         )
@@ -89,9 +91,8 @@ def get_main_parser():
     parser.add_argument('--limit', type=int, default=None, metavar='N', help='Limit to the first N files of each dataset in sample JSON')
     parser.add_argument('--chunk', type=int, default=50000000, metavar='N', help='Number of events per process chunk')
     parser.add_argument('--max', type=int, default=None, metavar='N', help='Max number of chunks to run in total')
-    parser.add_argument('--cores', type=int, default=None, help='Required memory')
-    parser.add_argument('--memory', type=int, default=4, help='Required memory')
-    parser.add_argument('-v','--version',type=str,default='',help='additional info')
+    
+    
     return parser
 
 
@@ -160,12 +161,13 @@ if __name__ == '__main__':
     if args.workflow =="testnj":
         from hplusc_njqq_process import NanoProcessor
         processor_instance = NanoProcessor(year=args.year,version=args.version)
+    
     elif args.workflow =="GEN":
         from hplusc_gen_process import NanoProcessor
         processor_instance = NanoProcessor()
     elif args.workflow =="HWW2l2nu":
         from hplusc_HWW2l2nu_process import NanoProcessor
-        processor_instance = NanoProcessor(year=args.year,version=args.version)
+        processor_instance = NanoProcessor(year=args.year,version=args.version,export_array=args.export_array)
     elif args.workflow =="HWW2l2nutest":
         from hplusc_HWW2l2nutest_process import NanoProcessor
         processor_instance = NanoProcessor(year=args.year,version=args.version)
@@ -198,7 +200,7 @@ if __name__ == '__main__':
 
             env_extra = [
             'export XRD_RUNFORKHANDLER=1',
-         f'export X509_USER_PROXY={_x509_path}',
+            f'export X509_USER_PROXY={_x509_path}',
             f'export X509_CERT_DIR={os.environ["X509_CERT_DIR"]} ',
             f'export PYTHONPATH=$PYTHONPATH:{os.getcwd()}',
         ]
@@ -267,10 +269,10 @@ if __name__ == '__main__':
                         
                         provider=CondorProvider(
                          nodes_per_block=1,
-                            cores_per_slot=args.cores,
+                            cores_per_slot=args.workers,
                             mem_per_slot = args.memory,                            
-                            init_blocks=args.workers,
-                            max_blocks=(args.workers)+2,
+                            init_blocks=args.scaleout,
+                            max_blocks=(args.scaleout)+2,
                             worker_init="\n".join(env_extra + condor_extra),
                             walltime="00:30:00",
                         ),
@@ -317,7 +319,7 @@ if __name__ == '__main__':
                                           },
                                           chunksize=args.chunk,
                                           maxchunks=args.max)
-
+            
 
     elif 'dask' in args.executor:
         from dask_jobqueue import SLURMCluster, HTCondorCluster

@@ -10,24 +10,15 @@ from functools import partial
 # import numba
 from helpers.util import make_p4
 
-def mT(obj1,obj2):
-    return np.sqrt(2.*obj1.pt*obj2.pt*(1.-np.cos(obj1.phi-obj2.phi)))
-def flatten(ar): # flatten awkward into a 1d array to hist
-    return ak.flatten(ar, axis=None)
-def normalize(val, cut):
-            if cut is None:
-                ar = ak.to_numpy(ak.fill_none(val, np.nan))
-                return ar
-            else:
-                ar = ak.to_numpy(ak.fill_none(val[cut], np.nan))
-                return ar
-
+from utils.util import mT, flatten, normalize
+# from config.config import *
 
 class NanoProcessor(processor.ProcessorABC):
     # Define histograms
-    def __init__(self, year="2017",version="test"):    
+    def __init__(self, year="2017",version="test",export_array=False):    
         self._year=year
         self._version=version
+        self._export_array=export_array
         self._mu1hlt = {
             '2016': [
                 'IsoTkMu24'
@@ -285,10 +276,25 @@ class NanoProcessor(processor.ProcessorABC):
             {**_hist_event_dict,   
             'cutflow': processor.defaultdict_accumulator(
                 # we don't use a lambda function to avoid pickle issues
-                partial(processor.defaultdict_accumulator, int))})
+                partial(processor.defaultdict_accumulator, int))}
+            
+                )
         self._accumulator['sumw'] = processor.defaultdict_accumulator(float)
-
-
+        
+        array_dict = {}
+        if self._export_array:
+            for d in _hist_event_dict.keys():
+                if d=='nj' or d=='nele' or d=='nmu' or d=='njmet':
+                    array_dict[d]=processor.column_accumulator(np.empty(shape=(0,),dtype='int'))
+                else: array_dict[d] = processor.column_accumulator(np.zeros(shape=(0,)))
+            general_array = ['lumi','run','event','jetflav', 'region','lepflav','weight','lepwei','puwei','l1wei']
+            for d in general_array:
+                if d=='region' or d=='lepflav': array_dict[d]= processor.column_accumulator(np.empty(shape=(0,),dtype='<U6'))
+                elif 'wei' in d:array_dict[d]=processor.column_accumulator(np.ones(shape=(0,)))
+                elif d=='run' or d=='lumi' or d=='jetflav': array_dict[d]=processor.column_accumulator(np.empty(shape=(0,),dtype='int'))
+                elif d=='event':array_dict[d]=processor.column_accumulator(np.empty(shape=(0,),dtype='long'))
+                else:array_dict[d]= processor.column_accumulator(np.zeros(shape=(0,)))
+            self._accumulator['array'] = processor.defaultdict_accumulator(partial(processor.defaultdict_accumulator, **array_dict))
     @property
     def accumulator(self):
         return self._accumulator
@@ -569,47 +575,95 @@ class NanoProcessor(processor.ProcessorABC):
                     elif 'll_' in histname:
                         fields = {l: ak.fill_none(flatten(llcut[histname.replace('ll_','')]),np.nan) for l in h.fields if l in dir(llcut)}
                         h.fill(dataset=dataset,lepflav=ch, region = r, flav=flavor,**fields,weight=weights.weight()[cut]*sf) 
+                if self._export_array:
+                    output['array'][dataset]['weight']+=processor.column_accumulator(ak.to_numpy(normalize(weights.weight()[cut]*sf)))
+                    output['array'][dataset]['lepwei']+=processor.column_accumulator(ak.to_numpy(normalize(sf)))
+                    output['array'][dataset]['puwei']+=processor.column_accumulator(ak.to_numpy(normalize(weights.partial_weight(include=['puweight'])[cut])))
+                    output['array'][dataset]['l1wei']+=processor.column_accumulator(ak.to_numpy(normalize(weights.partial_weight(include=['L1prefireweight'])[cut])))
+                    output['array'][dataset]['event']+=processor.column_accumulator(ak.to_numpy(normalize(events[cut].event)))
+                    output['array'][dataset]['run']+=processor.column_accumulator(ak.to_numpy(normalize(events[cut].run)))
+                    output['array'][dataset]['lumi']+=processor.column_accumulator(ak.to_numpy(normalize(events[cut].luminosityBlock)))
+                    output['array'][dataset]['lepflav']+=processor.column_accumulator(np.full_like(ak.to_numpy(normalize(nseljet)),ch,dtype='<U6'))
+                    output['array'][dataset]['jetflav']+=processor.column_accumulator(ak.to_numpy(normalize(flavor)))
+                    output['array'][dataset]['region']+=processor.column_accumulator(np.full_like(ak.to_numpy(normalize(nseljet)),r,dtype='<U6'))
+                    output['array'][dataset]['nj']+=processor.column_accumulator(ak.to_numpy(normalize(nseljet)))
+                    output['array'][dataset]['nele']+=processor.column_accumulator(ak.to_numpy(normalize(naele-nele,cut)))
+                    output['array'][dataset]['nmu']+=processor.column_accumulator(ak.to_numpy(normalize(namu-nmu,cut)))
+                    output['array'][dataset]['METTkMETdphi']+=processor.column_accumulator(ak.to_numpy(flatten(met[cut].delta_phi(tkmet[cut]))))
+                    output['array'][dataset]['njmet']+=processor.column_accumulator(ak.to_numpy(normalize(ak.sum((met[cut].delta_phi(sel_jetflav[cut])<0.5),axis=1))))
+                    output['array'][dataset]['mT1']+=processor.column_accumulator(ak.to_numpy(flatten(mT(lep1cut,met[cut]))))
+                    output['array'][dataset]['mT2']+=processor.column_accumulator(ak.to_numpy(flatten(mT(lep2cut,met[cut]))))
+                    output['array'][dataset]['mTh']+=processor.column_accumulator(ak.to_numpy(flatten(mT(llcut,met[cut]))))
+                    # if 'SR' in r:
+                    output['array'][dataset]['l1l2_dr']+=processor.column_accumulator(ak.to_numpy(flatten(make_p4(lep1cut).delta_r(make_p4(lep2cut)))))
+                    output['array'][dataset]['l1met_dphi']+=processor.column_accumulator(ak.to_numpy(flatten(lep1cut.delta_phi(met[cut]))))
+                    output['array'][dataset]['l2met_dphi']+=processor.column_accumulator(ak.to_numpy(flatten(lep2cut.delta_phi(met[cut]))))
+                    output['array'][dataset]['llmet_dphi']+=processor.column_accumulator(ak.to_numpy(flatten(llcut.delta_phi(met[cut]))))
+                    output['array'][dataset]['l1c_dr']+=processor.column_accumulator(ak.to_numpy(normalize(make_p4(lep1cut).delta_r(make_p4(sel_cjet_flav)))))
+                    output['array'][dataset]['cmet_dphi']+=processor.column_accumulator(ak.to_numpy(normalize(met[cut].delta_phi(sel_cjet_flav))))
+                    output['array'][dataset]['l2c_dr']+=processor.column_accumulator(ak.to_numpy(normalize(make_p4(lep2cut).delta_r(make_p4(sel_cjet_flav)))))
+                    output['array'][dataset]['l2W1_dphi']+=processor.column_accumulator(ak.to_numpy(flatten(lep2cut.delta_phi((w1cut)))))
+                    output['array'][dataset]['metW1_dphi']+=processor.column_accumulator(ak.to_numpy(flatten(met[cut].delta_phi((w1cut)))))
+                    output['array'][dataset]['cW1_dphi']+=processor.column_accumulator(ak.to_numpy(normalize((w1cut).delta_phi(sel_cjet_flav))))
+                    output['array'][dataset]['l1W2_dphi']+=processor.column_accumulator(ak.to_numpy(flatten(lep1cut.delta_phi((w2cut)))))
+                    output['array'][dataset]['llc_dr']+=processor.column_accumulator(ak.to_numpy(normalize(make_p4(llcut).delta_r(make_p4(sel_cjet_flav)))))  
+                    output['array'][dataset]['llW1_dphi']+=processor.column_accumulator(ak.to_numpy(flatten(w1cut.delta_phi((llcut)))))
+                    output['array'][dataset]['llW2_dphi']+=processor.column_accumulator(ak.to_numpy(flatten(w2cut.delta_phi((llcut)))))
+                    output['array'][dataset]['llh_dphi']+=processor.column_accumulator(ak.to_numpy(flatten(hcut.delta_phi((llcut)))))
+                    output['array'][dataset]['l2W2_dphi']+=processor.column_accumulator(ak.to_numpy(flatten(lep2cut.delta_phi((w2cut)))))
+                    output['array'][dataset]['metW2_dphi']+=processor.column_accumulator(ak.to_numpy(flatten(met[cut].delta_phi((w2cut)))))
+                    output['array'][dataset]['cW2_dphi']+=processor.column_accumulator(ak.to_numpy(normalize((w2cut).delta_phi(sel_cjet_flav))))            
+                    output['array'][dataset]['l1h_dphi']+=processor.column_accumulator(ak.to_numpy(flatten((lep1cut).delta_phi((hcut)))))     
+                    output['array'][dataset]['meth_dphi']+=processor.column_accumulator(ak.to_numpy(flatten((met[cut]).delta_phi((hcut)))))  
+                    output['array'][dataset]['ch_dphi']+=processor.column_accumulator(ak.to_numpy(normalize(hcut.delta_phi(sel_cjet_flav))))  
+                    output['array'][dataset]['W1h_dphi']+=processor.column_accumulator(ak.to_numpy(flatten((w1cut).delta_phi((hcut)))))  
+                    output['array'][dataset]['W2h_dphi']+=processor.column_accumulator(ak.to_numpy(flatten((w2cut).delta_phi((hcut)))))  
+                    output['array'][dataset]['lll1_dr']+=processor.column_accumulator(ak.to_numpy(flatten(make_p4(lep1cut).delta_r(make_p4(llcut)))))  
+                    output['array'][dataset]['lll2_dr']+=processor.column_accumulator(ak.to_numpy(flatten(make_p4(lep2cut).delta_r(make_p4(llcut)))))  
+                    output['array'][dataset]['l1W1_dphi']+=processor.column_accumulator(ak.to_numpy(flatten(lep1cut.delta_phi((w1cut)))))
+                    output['array'][dataset]['W1W2_dphi']+=processor.column_accumulator(ak.to_numpy(flatten((w1cut).delta_phi((w2cut)))))     
+                    output['array'][dataset]['l2h_dphi']+=processor.column_accumulator(ak.to_numpy(flatten((lep2cut).delta_phi((hcut)))))  
+                      
+                output['nj'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,nj=ak.fill_none(nseljet,np.nan),weight=weights.weight()[cut]*sf)                            
+                output['nele'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,nalep=normalize(naele-nele,cut),weight=weights.weight()[cut]*sf)
+                output['nmu'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,nalep=normalize(namu-nmu,cut),weight=weights.weight()[cut]*sf)        
+                output['njmet'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,nj=ak.fill_none(ak.sum((met[cut].delta_phi(sel_jetflav[cut])<0.5),axis=1),np.nan),weight=weights.weight()[cut]*sf)                    
+                output['METTkMETdphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=flatten(met[cut].delta_phi(tkmet[cut])),weight=weights.weight()[cut]*sf)
                     
-                    output['nj'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,nj=ak.fill_none(nseljet,np.nan),weight=weights.weight()[cut]*sf)                            
-                    output['nele'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,nalep=normalize(naele-nele,cut),weight=weights.weight()[cut]*sf)
-                    output['nmu'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,nalep=normalize(namu-nmu,cut),weight=weights.weight()[cut]*sf)        
-                    output['njmet'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,nj=ak.fill_none(ak.sum((met[cut].delta_phi(sel_jetflav[cut])<0.5),axis=1),np.nan),weight=weights.weight()[cut]*sf)                    
-                    output['METTkMETdphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=flatten(met[cut].delta_phi(tkmet[cut])),weight=weights.weight()[cut]*sf)
-                    
-                    output['mT1'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,mt=flatten(mT(lep1cut,met[cut])),weight=weights.weight()[cut]*sf)
-                    output['mT2'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,mt=flatten(mT(lep2cut,met[cut])),weight=weights.weight()[cut]*sf)
-                    output['mTh'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,mt=flatten(mT(llcut,met[cut])),weight=weights.weight()[cut]*sf)
+                output['mT1'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,mt=flatten(mT(lep1cut,met[cut])),weight=weights.weight()[cut]*sf)
+                output['mT2'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,mt=flatten(mT(lep2cut,met[cut])),weight=weights.weight()[cut]*sf)
+                output['mTh'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,mt=flatten(mT(llcut,met[cut])),weight=weights.weight()[cut]*sf)
                     
 
-                    if 'SR' in r :
-                        output['l1l2_dr'].fill(dataset=dataset,lepflav=ch,region=r,flav=flavor,dr=flatten(make_p4(lep1cut).delta_r(make_p4(lep2cut))),weight=weights.weight()[cut]*sf)
-                        output['l1met_dphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=flatten(lep1cut.delta_phi(met[cut])),weight=weights.weight()[cut]*sf)
-                        output['l2met_dphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=flatten(lep2cut.delta_phi(met[cut])),weight=weights.weight()[cut]*sf)
-                        output['llmet_dphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=flatten(met[cut].delta_phi((llcut))),weight=weights.weight()[cut]*sf)
-                        output['l1c_dr'].fill(dataset=dataset,lepflav=ch,region=r,flav=flavor,dr=ak.fill_none(make_p4(lep1cut).delta_r(make_p4(sel_cjet_flav)),np.nan),weight=weights.weight()[cut]*sf)
-                        output['cmet_dphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=ak.fill_none(met[cut].delta_phi(sel_cjet_flav),np.nan),weight=weights.weight()[cut]*sf)
-                        output['l2c_dr'].fill(dataset=dataset,lepflav=ch,region=r,flav=flavor,dr=ak.fill_none(make_p4(lep2cut).delta_r(make_p4(sel_cjet_flav)),np.nan),weight=weights.weight()[cut]*sf)
-                        output['l1W1_dphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=flatten(lep1cut.delta_phi((w1cut))),weight=weights.weight()[cut]*sf)
-                        output['l2W1_dphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=flatten(lep2cut.delta_phi((w1cut))),weight=weights.weight()[cut]*sf)
-                        output['metW1_dphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=flatten(met[cut].delta_phi((w1cut))),weight=weights.weight()[cut]*sf)
-                        output['cW1_dphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=ak.fill_none((w1cut).delta_phi(sel_cjet_flav),np.nan),weight=weights.weight()[cut]*sf)                
-                        output['l1W2_dphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=flatten(lep1cut.delta_phi((w2cut))),weight=weights.weight()[cut]*sf)
-                        output['l2W2_dphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=flatten(lep2cut.delta_phi((w2cut))),weight=weights.weight()[cut]*sf)
-                        output['metW2_dphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=flatten(met[cut].delta_phi((w2cut))),weight=weights.weight()[cut]*sf)
-                        output['cW2_dphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=ak.fill_none((w2cut).delta_phi(sel_cjet_flav),np.nan),weight=weights.weight()[cut]*sf)                
-                        output['W1W2_dphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=flatten((w1cut).delta_phi((w2cut))),weight=weights.weight()[cut]*sf)
-                        output['l1h_dphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=flatten((lep1cut).delta_phi((hcut))),weight=weights.weight()[cut]*sf)
-                        output['l2h_dphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=flatten((lep2cut).delta_phi((hcut))),weight=weights.weight()[cut]*sf)
-                        output['meth_dphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=flatten((met[cut]).delta_phi((hcut))),weight=weights.weight()[cut]*sf)
-                        output['ch_dphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=ak.fill_none(hcut.delta_phi(sel_cjet_flav),np.nan),weight=weights.weight()[cut]*sf)
-                        output['W1h_dphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=flatten((w1cut).delta_phi((hcut))),weight=weights.weight()[cut]*sf)
-                        output['W2h_dphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=flatten((w2cut).delta_phi((hcut))),weight=weights.weight()[cut]*sf)
-                        output['lll1_dr'].fill(dataset=dataset,lepflav=ch,region=r,flav=flavor,dr=flatten(make_p4(lep1cut).delta_r(make_p4(llcut))),weight=weights.weight()[cut]*sf)
-                        output['lll2_dr'].fill(dataset=dataset,lepflav=ch,region=r,flav=flavor,dr=flatten(make_p4(lep2cut).delta_r(make_p4(llcut))),weight=weights.weight()[cut]*sf)
-                        output['llc_dr'].fill(dataset=dataset,lepflav=ch,region=r,flav=flavor,dr=ak.fill_none(make_p4(llcut).delta_r(make_p4(sel_cjet_flav)),np.nan),weight=weights.weight()[cut]*sf)
-                        output['llW1_dphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=flatten(w1cut.delta_phi((llcut))),weight=weights.weight()[cut]*sf)
-                        output['llW2_dphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=flatten(w2cut.delta_phi((llcut))),weight=weights.weight()[cut]*sf)
-                        output['llh_dphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=flatten(hcut.delta_phi((llcut))),weight=weights.weight()[cut]*sf)
+                if 'SR' in r :
+                    output['l1l2_dr'].fill(dataset=dataset,lepflav=ch,region=r,flav=flavor,dr=flatten(make_p4(lep1cut).delta_r(make_p4(lep2cut))),weight=weights.weight()[cut]*sf)
+                    output['l1met_dphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=flatten(lep1cut.delta_phi(met[cut])),weight=weights.weight()[cut]*sf)
+                    output['l2met_dphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=flatten(lep2cut.delta_phi(met[cut])),weight=weights.weight()[cut]*sf)
+                    output['llmet_dphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=flatten(met[cut].delta_phi((llcut))),weight=weights.weight()[cut]*sf)
+                    output['l1c_dr'].fill(dataset=dataset,lepflav=ch,region=r,flav=flavor,dr=ak.fill_none(make_p4(lep1cut).delta_r(make_p4(sel_cjet_flav)),np.nan),weight=weights.weight()[cut]*sf)
+                    output['cmet_dphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=ak.fill_none(met[cut].delta_phi(sel_cjet_flav),np.nan),weight=weights.weight()[cut]*sf)
+                    output['l2c_dr'].fill(dataset=dataset,lepflav=ch,region=r,flav=flavor,dr=ak.fill_none(make_p4(lep2cut).delta_r(make_p4(sel_cjet_flav)),np.nan),weight=weights.weight()[cut]*sf)
+                    output['l1W1_dphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=flatten(lep1cut.delta_phi((w1cut))),weight=weights.weight()[cut]*sf)
+                    output['l2W1_dphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=flatten(lep2cut.delta_phi((w1cut))),weight=weights.weight()[cut]*sf)
+                    output['metW1_dphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=flatten(met[cut].delta_phi((w1cut))),weight=weights.weight()[cut]*sf)
+                    output['cW1_dphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=ak.fill_none((w1cut).delta_phi(sel_cjet_flav),np.nan),weight=weights.weight()[cut]*sf)                
+                    output['l1W2_dphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=flatten(lep1cut.delta_phi((w2cut))),weight=weights.weight()[cut]*sf)
+                    output['l2W2_dphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=flatten(lep2cut.delta_phi((w2cut))),weight=weights.weight()[cut]*sf)
+                    output['metW2_dphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=flatten(met[cut].delta_phi((w2cut))),weight=weights.weight()[cut]*sf)
+                    output['cW2_dphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=ak.fill_none((w2cut).delta_phi(sel_cjet_flav),np.nan),weight=weights.weight()[cut]*sf)                
+                    output['W1W2_dphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=flatten((w1cut).delta_phi((w2cut))),weight=weights.weight()[cut]*sf)
+                    output['l1h_dphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=flatten((lep1cut).delta_phi((hcut))),weight=weights.weight()[cut]*sf)
+                    output['l2h_dphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=flatten((lep2cut).delta_phi((hcut))),weight=weights.weight()[cut]*sf)
+                    output['meth_dphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=flatten((met[cut]).delta_phi((hcut))),weight=weights.weight()[cut]*sf)
+                    output['ch_dphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=ak.fill_none(hcut.delta_phi(sel_cjet_flav),np.nan),weight=weights.weight()[cut]*sf)
+                    output['W1h_dphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=flatten((w1cut).delta_phi((hcut))),weight=weights.weight()[cut]*sf)
+                    output['W2h_dphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=flatten((w2cut).delta_phi((hcut))),weight=weights.weight()[cut]*sf)
+                    output['lll1_dr'].fill(dataset=dataset,lepflav=ch,region=r,flav=flavor,dr=flatten(make_p4(lep1cut).delta_r(make_p4(llcut))),weight=weights.weight()[cut]*sf)
+                    output['lll2_dr'].fill(dataset=dataset,lepflav=ch,region=r,flav=flavor,dr=flatten(make_p4(lep2cut).delta_r(make_p4(llcut))),weight=weights.weight()[cut]*sf)
+                    output['llc_dr'].fill(dataset=dataset,lepflav=ch,region=r,flav=flavor,dr=ak.fill_none(make_p4(llcut).delta_r(make_p4(sel_cjet_flav)),np.nan),weight=weights.weight()[cut]*sf)
+                    output['llW1_dphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=flatten(w1cut.delta_phi((llcut))),weight=weights.weight()[cut]*sf)
+                    output['llW2_dphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=flatten(w2cut.delta_phi((llcut))),weight=weights.weight()[cut]*sf)
+                    output['llh_dphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=flatten(hcut.delta_phi((llcut))),weight=weights.weight()[cut]*sf)
                         # output['jetmet_dphi'].fill(dataset=dataset,lepflav=ch,region = r, flav=flavor,phi=flatten(jet.delta_phi((llcut))),weight=weights.weight()[cut]*sf)
                 
         del leppair, ll_cand, sel_cjet_flav,met,tkmet    
