@@ -20,6 +20,10 @@ from helpers.util import reduce_and, reduce_or, nano_mask_or, get_ht, normalize,
 
 def mT(obj1,obj2):
     return np.sqrt(2.*obj1.pt*obj2.pt*(1.-np.cos(obj1.phi-obj2.phi)))
+def mT2(lep,met):
+    mt2 = np.power(np.sqrt(lep.pt**2+lep.mass**2)+np.sqrt(met.pt**2+91.18**2),2)-np.power(lep.pt+met.pt,2)
+    return np.sqrt(abs(mt2))
+    
 def flatten(ar): # flatten awkward into a 1d array to hist
     return ak.flatten(ar, axis=None)
 def normalize(val, cut):
@@ -93,6 +97,8 @@ class NanoProcessor(processor.ProcessorABC):
                 'genmetc_dphi' : hist.Hist("Counts", dataset_axis,  phi_axis),
                 'genmetl_dphi' : hist.Hist("Counts", dataset_axis,  phi_axis),
                 'genmetll_dphi' : hist.Hist("Counts", dataset_axis,  phi_axis),
+                'genmet_mt':hist.Hist("Counts",dataset_axis,mass_axis),
+                'genmet_mt2':hist.Hist("Counts",dataset_axis,cmass_axis),
                 'matched_deepJet':hist.Hist("Counts", dataset_axis,flav_axis,  cvl_axis,cvb_axis),
                 'matched_deepCSV':hist.Hist("Counts", dataset_axis,flav_axis,  cvl_axis,cvb_axis),
             }
@@ -132,7 +138,7 @@ class NanoProcessor(processor.ProcessorABC):
         
         genc = events.GenPart[(abs(events.GenPart.pdgId) == 4)& (events.GenPart.pt!=0) & (events.GenPart.hasFlags(["fromHardProcess"])==True) & (events.GenPart.hasFlags(["isHardProcess"])==True)]
         matchj = genc.nearest(events.Jet,threshold=0.1)
-        print(flatten(matchj.hadronFlavour))
+
         
         # print(ak.type(matchj))
         # if "WW" in dataset : momid=24
@@ -150,6 +156,7 @@ class NanoProcessor(processor.ProcessorABC):
                     "pt":  events.GenMET.pt,
                     "phi": events.GenMET.phi,
                 },with_name="PtEtaPhiMLorentzVector",)
+
         else:
             genjet = events.GenPart[(abs(events.GenPart.pdgId) <6)& (events.GenPart.hasFlags(["fromHardProcess"])==True) & (events.GenPart.hasFlags(["isHardProcess"])==True)]
             genjet = genjet[genjet.parent.pdgId==23]
@@ -191,6 +198,10 @@ class NanoProcessor(processor.ProcessorABC):
             output['genmetc_dphi'].fill(dataset=dataset,phi=flatten(genmet.delta_phi(genc)))
             output['genmetl_dphi'].fill(dataset=dataset,phi=flatten(genmet.delta_phi(genlep)))            
             output['genmetll_dphi'].fill(dataset=dataset,phi=flatten(genmet.delta_phi(genzl))) 
+            output['genmet_mt'].fill(dataset=dataset,mass=flatten(mT(genmet,genzl)))
+
+            output['genmet_mt2'].fill(dataset=dataset,mass=flatten(mT2(genzl,genmet)))
+
         else:
             output['genjet1_pt'].fill(dataset=dataset,pt=flatten(genjet[:,0].pt))
             output['genjet1_eta'].fill(dataset=dataset,eta=flatten(genjet[:,0].eta))
@@ -206,6 +217,7 @@ class NanoProcessor(processor.ProcessorABC):
             output['genjjc_dr'].fill(dataset=dataset,dr=flatten(genzj.delta_r(genc)))
             output['genj1c_dr'].fill(dataset=dataset,dr=flatten(genjet[:,0].delta_r(genc)))
             output['genj2c_dr'].fill(dataset=dataset,dr=flatten(genjet[:,1].delta_r(genc)))
+
             # if 'LNu' in dataset:
             #     output['genmetcphi'].fill(dataset=dataset,phi=flatten(genmet.delta_phi(genc)))
             #     output['genmetlphi'].fill(dataset=dataset,phi=flatten(genmet.delta_phi(genlep)))            
