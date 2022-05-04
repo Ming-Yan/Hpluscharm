@@ -254,10 +254,10 @@ class NanoProcessor(processor.ProcessorABC):
         objects=['jetflav','lep1','lep2','ll']
         
         for i in objects:
-            if  'jet' in i: 
-                _hist_event_dict["%s_pt" %(i)]=hist.Hist("Counts", dataset_axis, lepflav_axis,region_axis, flav_axis, pt_axis)
-                _hist_event_dict["%s_eta" %(i)]=hist.Hist("Counts", dataset_axis, lepflav_axis,region_axis,flav_axis, eta_axis)
-                _hist_event_dict["%s_phi" %(i)]=hist.Hist("Counts", dataset_axis, lepflav_axis,region_axis,flav_axis, phi_axis)
+            
+            _hist_event_dict["%s_pt" %(i)]=hist.Hist("Counts", dataset_axis, lepflav_axis,region_axis, flav_axis, pt_axis)
+            _hist_event_dict["%s_eta" %(i)]=hist.Hist("Counts", dataset_axis, lepflav_axis,region_axis,flav_axis, eta_axis)
+            _hist_event_dict["%s_phi" %(i)]=hist.Hist("Counts", dataset_axis, lepflav_axis,region_axis,flav_axis, phi_axis)
                 # _hist_event_dict["%s_mass" %(i)]=hist.Hist("Counts", dataset_axis, lepflav_axis,region_axis,flav_axis, mass_axis)
             
             if i =='ll': _hist_event_dict["%s_mass" %(i)]=hist.Hist("Counts", dataset_axis, lepflav_axis,region_axis,flav_axis, mass_axis)
@@ -523,7 +523,6 @@ class NanoProcessor(processor.ProcessorABC):
         
         for r in reg:
             for ch in lepflav:                
-                print(r,ch)
                 if 'SR' in r and (ch=='ee' or ch=='mumu') :cut = selection.all('lepsel','metfilter','lumi','%s_%s'%(r,ch),ch, 'trigger_%s'%(ch),'llmass')
                 else :cut = selection.all('lepsel','metfilter','lumi','%s_%s'%(r,ch),ch, 'trigger_%s'%(ch))
                 
@@ -558,23 +557,28 @@ class NanoProcessor(processor.ProcessorABC):
                 for histname, h in output.items():
                     
                     if 'jetflav_' in histname:
-                        fields = {l: ak.fill_none(sel_cjet_flav[histname.replace('jetflav_','')],np.nan) for l in h.fields if l in dir(sel_cjet_flav)}
-                        h.fill(dataset=dataset, lepflav =ch, region = r, flav=flavor, **fields,weight=weights.weight()[cut]*sf)  
+                        fields = {l: normalize(sel_cjet_flav[histname.replace('jetflav_','')]) for l in h.fields if l in dir(sel_cjet_flav)}
+                        h.fill(dataset=dataset, lepflav =ch, region = r, flav=flavor, **fields,weight=weights.weight()[cut]*sf) 
+                        if self._export_array:output['array'][dataset][histname]+=processor.column_accumulator(ak.to_numpy(normalize(sel_cjet_flav[histname.replace('jetflav_','')]))) 
                     # # elif 'jetcsv_' in histname:
                     #     fields = {l: normalize(sel_cjet_csv[histname.replace('jetcsv_','')],cut) for l in h.fields if l in dir(sel_cjet_csv)}
                     #     h.fill(dataset=dataset,lepflav =ch, flav=normalize(sel_cjet_csv.hadronFlavour+1*((sel_cjet_csv.partonFlavour == 0 ) & (sel_cjet_csv.hadronFlavour==0)),cut), **fields,weight=weights.weight()[cut]*sf)    
                     elif 'lep1_' in histname:
-                        fields = {l: ak.fill_none(flatten(lep1cut[histname.replace('lep1_','')]),np.nan) for l in h.fields if l in dir(lep1cut)}
+                        fields = {l: normalize(flatten(lep1cut[histname.replace('lep1_','')])) for l in h.fields if l in dir(lep1cut)}
                         h.fill(dataset=dataset,lepflav=ch,region = r, flav=flavor, **fields,weight=weights.weight()[cut]*sf)
+                        if self._export_array:output['array'][dataset][histname]+=processor.column_accumulator(ak.to_numpy(normalize(flatten(lep1cut[histname.replace('lep1_','')])))) 
                     elif 'lep2_' in histname:
-                        fields = {l: ak.fill_none(flatten(lep2cut[histname.replace('lep2_','')]),np.nan) for l in h.fields if l in dir(lep2cut)}
+                        fields = {l: normalize(flatten(lep2cut[histname.replace('lep2_','')])) for l in h.fields if l in dir(lep2cut)}
                         h.fill(dataset=dataset,lepflav=ch,region = r, flav=flavor, **fields,weight=weights.weight()[cut]*sf)
+                        if self._export_array:output['array'][dataset][histname]+=processor.column_accumulator(ak.to_numpy(normalize(flatten(lep2cut[histname.replace('lep2_','')])))) 
                     elif 'MET_' in histname:
                         fields = {l: normalize(events.MET[histname.replace('MET_','')],cut) for l in h.fields if l in dir(events.MET)}
                         h.fill(dataset=dataset, lepflav =ch, region = r, flav=flavor,**fields,weight=weights.weight()[cut]*sf) 
+                        if self._export_array:output['array'][dataset][histname]+=processor.column_accumulator(ak.to_numpy(normalize(events.MET[histname.replace('MET_','')],cut))) 
                     elif 'll_' in histname:
-                        fields = {l: ak.fill_none(flatten(llcut[histname.replace('ll_','')]),np.nan) for l in h.fields if l in dir(llcut)}
+                        fields = {l: normalize(flatten(llcut[histname.replace('ll_','')])) for l in h.fields if l in dir(llcut)}
                         h.fill(dataset=dataset,lepflav=ch, region = r, flav=flavor,**fields,weight=weights.weight()[cut]*sf) 
+                        if self._export_array:output['array'][dataset][histname]+=processor.column_accumulator(ak.to_numpy(normalize(flatten(llcut[histname.replace('ll_','')])))) 
                 if self._export_array:
                     output['array'][dataset]['weight']+=processor.column_accumulator(ak.to_numpy(normalize(weights.weight()[cut]*sf)))
                     output['array'][dataset]['lepwei']+=processor.column_accumulator(ak.to_numpy(normalize(sf)))

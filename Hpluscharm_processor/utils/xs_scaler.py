@@ -1,16 +1,23 @@
 import os
 def read_xs(files):
     import json
+    def findfile(name, path):
+        for dirpath, dirname, filename in os.walk(path):
+            if name in filename:
+                return os.path.join(dirpath, name)
+            
+    filepath = findfile(files, "/nfs/dust/cms/user/milee/Hpluscharm/")
 
-    f = open(files)
+    f = open(os.path.abspath(filepath))
+    
     data = json.load(f)
     xs_dict={}
     for obj in data:
         xs_dict[obj['process_name']]=float(obj['cross_section'])
     return xs_dict
-def scale_xs(hist,lumi,events,unscale=False,xsfile="metadata/xsection.json"):
+def scale_xs(hist,lumi,events,unscale=False,xsfile="xsection.json"):
 
-    xs_dict = read_xs(os.getcwd()+"/"+xsfile)
+    xs_dict = read_xs(xsfile)
     scales={}
 
     for key in events:
