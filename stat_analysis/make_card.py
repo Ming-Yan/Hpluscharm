@@ -112,9 +112,9 @@ year = args.year
 bkg_proc = ['st','vv','vjets','ttbar']
 sig_proc = ['hc']
 cats = {
-  'ee':[(1,'SR'),(2,'SR2'),(3,'top_CR'),(4,'DY_CR'),(5,'HM_CR')],
-  'mumu':[(1,'SR'),(2,'SR2'),(3,'top_CR'),(4,'DY_CR'),(5,'HM_CR')],
-  'emu':[(1,'SR'),(2,'SR2'),(3,'top_CR'),(5,'HM_CR')],
+  'ee':[(1,'SR'),(2,'SR2'),(3,'top_CR'),(4,'DY_CR')],#,(5,'HM_CR')],
+  'mumu':[(1,'SR'),(2,'SR2'),(3,'top_CR'),(4,'DY_CR')],#,(5,'HM_CR')],
+  'emu':[(1,'SR'),(2,'SR2'),(3,'top_CR')]#,(5,'HM_CR')],
 }
 for chn in chns:
   if args.chn != 'all' and args.chn != chn:continue
@@ -128,23 +128,24 @@ for chn in chns:
   for region in regions:
     file = 'shape/templates_%s_%s_%s_%s.root' %(region,chn,args.observable,args.year)
     if region == 'top_CR' : file='shape/templates_%s_%s_nj_%s.root' %(region,chn,args.year)
-    elif 'SR' in region : file='shape/templates_%s_LM_%s_ll_mass_%s.root' %(region,chn,args.year)
+    # elif 'SR' in region : file='shape/templates_%s_LM_%s_ll_mass_%s.root' %(region,chn,args.year)
     if chn == 'emu' and region == 'DY_CR' : continue
-    if chn=='emu' and region =='HM_CR':i=5
+    # if chn=='emu' and region =='HM_CR':i=5
     cb.cp().channel([chn]).signals().bin_id([i]).ExtractShapes(file, '$PROCESS', '$PROCESS')
     cb.cp().channel([chn]).backgrounds().bin_id([i]).ExtractShapes(file, '$PROCESS', '$PROCESS')
-    #if region == 'top_CR' or region=='SR':
-    #  binning=np.linspace(0,300,num=args.rebin)
-    #  cb.cp().channel(chn).bin_id([i]).VariableRebin(binning)
-    # if 'SR' in region:
-    # if 'SR' ==region : binning=np.linespace(0,72,num=12)
-    # else: binning=np.linespace(0,72,num=6)
+    if region == 'top_CR' or region=='SR':
+      binning=np.linspace(0,300,num=args.rebin)
+      cb.cp().channel(chn).bin_id([i]).VariableRebin(binning)
     cb.cp().AddSyst(cb,'lumi_13TeV','lnN', ch.SystMap()(1.023))
     # cb.cp().AddSyst(cb,'adhoc_13TeV','shape',ch.SystMap()(1.25))
     # cb.cp().process(['hc']).AddSyst(cb,'CMS_hc','lnN',ch.SystMap()(1.50))
     cb.cp().process(['st','vv']).AddSyst(cb,'CMS_vvst','lnN',ch.SystMap()(1.15))
     cb.cp().process(['ttbar']).AddSyst(cb,'CMS_ttbar','lnN',ch.SystMap()(1.005))
     cb.cp().process(['vjets']).AddSyst(cb,'CMS_vjet','lnN',ch.SystMap()(1.05))
+    cb.cp().channel([chn]).process(['ttbar']).AddSyst(cb, 'SF_tt_%s' %(chn),'rateParam',ch.SystMap()
+     (1.0))
+    if chn !='emu' :cb.cp().channel([chn]).process(['vjets']).AddSyst(cb, 'SF_vjets_%s' %(chn),'rateParam',ch.SystMap()
+     (1.0))
     i=i+1
     
   
@@ -154,9 +155,9 @@ writer.SetWildcardMasses([])
 
 for chn in chns:
   writer.WriteCards(chn,cb.cp().channel([chn]))
-  # cb.AddDatacardLineAtEnd("* autoMCStats 0")
+  cb.AddDatacardLineAtEnd("* autoMCStats 0")
 cb.cp().mass("*").WriteDatacard("cards/"+args.output_folder+args.year+args.observable+"/combine"+args.chn+".txt","cards/"+args.output_folder+args.year+args.observable+"/combineinput"+args.chn+".root");
-# cb.AddDatacardLineAtEnd("* autoMCStats 0")
+cb.AddDatacardLineAtEnd("* autoMCStats 0")
   
 
   
