@@ -11,6 +11,7 @@ from functools import partial
 from helpers.util import make_p4
 
 from utils.util import mT, flatten, normalize
+# from utils.topmass import getnu4vec
 # from config.config import *
 
 class NanoProcessor(processor.ProcessorABC):
@@ -251,7 +252,7 @@ class NanoProcessor(processor.ProcessorABC):
                 # 'jetmet_dphi':hist.Hist("Counts", dataset_axis, lepflav_axis,region_axis,flav_axis, phi_axis),
 
             }
-        objects=['jetflav','lep1','lep2','ll']
+        objects=['jetflav','lep1','lep2','ll','top1','top2','nw1','nw2']
         
         for i in objects:
             
@@ -463,6 +464,9 @@ class NanoProcessor(processor.ProcessorABC):
         # eventcsv_jet = corr_jet[ak.argsort(ranked_deepCSV,axis=1,ascending=False)]
         jetsel = (eventflav_jet.pt > 20) & (abs(eventflav_jet.eta) <= 2.4)&((eventflav_jet.puId > 6)|(eventflav_jet.pt>50)) &(eventflav_jet.jetId>5)&ak.all((eventflav_jet.metric_table(ll_cand.lep1)>0.4)&(eventflav_jet.metric_table(ll_cand.lep2)>0.4),axis=2)&ak.all(eventflav_jet.metric_table(aele)>0.4,axis=2)&ak.all(eventflav_jet.metric_table(amu)>0.4,axis=2)
         njet = ak.sum(jetsel,axis=1)
+        topjetsel= (eventflav_jet.pt > 20) & (abs(eventflav_jet.eta) <= 2.4)&((eventflav_jet.puId > 6)|(eventflav_jet.pt>50)) &(eventflav_jet.jetId>5)&(eventflav_jet.btagDeepFlavB>0.0532)
+        
+
         cvbcutll = (eventflav_jet.btagDeepFlavCvB>=0.42)
         cvlcutll = (eventflav_jet.btagDeepFlavCvL>=0.22)
         cvbcutem = (eventflav_jet.btagDeepFlavCvB>=0.5)
@@ -487,7 +491,7 @@ class NanoProcessor(processor.ProcessorABC):
         # sel_jetpn = ak.mask(sel_jetpn,ak.num(pair_4lep)>0)
         # sel_cjet_pn = ak.pad_none(sel_jetpn,1,axis=1)
         # sel_cjet_pn = sel_cjet_pn[:,0]
-
+        
         if 'DoubleEG' in dataset :output['cutflow'][dataset]['trigger'] += ak.sum(trigger_ele)
         elif 'DoubleMuon' in dataset :output['cutflow'][dataset]['trigger'] += ak.sum(trigger_mu)
          
@@ -532,8 +536,12 @@ class NanoProcessor(processor.ProcessorABC):
                 sel_cjet_flav = sel_jetflav[cut]    
                 if(ak.count(sel_cjet_flav.pt)>0):sel_cjet_flav  = sel_cjet_flav[ak.argsort(sel_cjet_flav.btagDeepFlavCvB,axis=1,ascending=False)]
                 nseljet = ak.count(sel_cjet_flav.pt,axis=1)
+                topjets = ak.mask(eventflav_jet,topjetsel)[cut]
+                if (ak.count(topjets.pt)>0):topjets  = topjets[ak.argsort(topjets.btagDeepFlavCvB,axis=1,ascending=False)]
+                
                 sel_cjet_flav = ak.pad_none(sel_cjet_flav,1,axis=1)    
-                sel_cjet_flav = sel_cjet_flav[:,0]                
+                sel_cjet_flav = sel_cjet_flav[:,0]               
+                 
                 llcut = ll_cands[cut]
                 llcut = llcut[:,0]
                 lep1cut = llcut.lep1
@@ -541,6 +549,15 @@ class NanoProcessor(processor.ProcessorABC):
                 w1cut = lep1cut+met[cut]
                 w2cut = lep2cut+met[cut]
                 hcut = llcut+met[cut]
+
+                # topjet1 = lep1cut.nearest(topjets)
+                # topjet2 = lep2cut.nearest(topjets)
+                # neu1 = getnu4vec(lep1cut,met[cut])
+                # neu2 = getnu4vec(lep2cut,met[cut])
+                # top1cut=topjet1+lep1cut+neu1
+                # top2cut=topjet2+lep2cut+neu2
+                # nw1cut=lep1cut+neu1
+                # nw2cut=lep2cut+neu2
                 if isRealData:flavor= ak.zeros_like(sel_cjet_flav['pt'])
                 else :flavor=sel_cjet_flav.hadronFlavour+1*((sel_cjet_flav.partonFlavour == 0 ) & (sel_cjet_flav.hadronFlavour==0))
                 if not isRealData:
@@ -555,7 +572,6 @@ class NanoProcessor(processor.ProcessorABC):
                 else : 
                     sf =weights.weight()[cut]
                 for histname, h in output.items():
-                    
                     if 'jetflav_' in histname:
                         fields = {l: normalize(sel_cjet_flav[histname.replace('jetflav_','')]) for l in h.fields if l in dir(sel_cjet_flav)}
                         h.fill(dataset=dataset, lepflav =ch, region = r, flav=flavor, **fields,weight=weights.weight()[cut]*sf) 
@@ -579,6 +595,22 @@ class NanoProcessor(processor.ProcessorABC):
                         fields = {l: normalize(flatten(llcut[histname.replace('ll_','')])) for l in h.fields if l in dir(llcut)}
                         h.fill(dataset=dataset,lepflav=ch, region = r, flav=flavor,**fields,weight=weights.weight()[cut]*sf) 
                         if self._export_array:output['array'][dataset][histname]+=processor.column_accumulator(ak.to_numpy(normalize(flatten(llcut[histname.replace('ll_','')])))) 
+                    # elif 'top1_' in histname:
+                    #     fields = {l: normalize(flatten(top1cut[histname.replace('top1_','')])) for l in h.fields if l in dir(top1cut)}
+                    #     h.fill(dataset=dataset,lepflav=ch, region = r, flav=flavor,**fields,weight=weights.weight()[cut]*sf) 
+                    #     if self._export_array:output['array'][dataset][histname]+=processor.column_accumulator(ak.to_numpy(normalize(flatten(top1cut[histname.replace('top1_','')])))) 
+                    # elif 'top2_' in histname:
+                    #     fields = {l: normalize(flatten(top2cut[histname.replace('top2_','')])) for l in h.fields if l in dir(top2cut)}
+                    #     h.fill(dataset=dataset,lepflav=ch, region = r, flav=flavor,**fields,weight=weights.weight()[cut]*sf) 
+                    #     if self._export_array:output['array'][dataset][histname]+=processor.column_accumulator(ak.to_numpy(normalize(flatten(top2cut[histname.replace('top2_','')]))))
+                    # elif 'nw1_' in histname:
+                    #     fields = {l: normalize(flatten(nw1cut[histname.replace('nw1_','')])) for l in h.fields if l in dir(nw1cut)}
+                    #     h.fill(dataset=dataset,lepflav=ch, region = r, flav=flavor,**fields,weight=weights.weight()[cut]*sf) 
+                    #     if self._export_array:output['array'][dataset][histname]+=processor.column_accumulator(ak.to_numpy(normalize(flatten(nw1cut[histname.replace('nw1_','')])))) 
+                    # elif 'nw2_' in histname:
+                    #     fields = {l: normalize(flatten(nw2cut[histname.replace('nw2_','')])) for l in h.fields if l in dir(nw2cut)}
+                    #     h.fill(dataset=dataset,lepflav=ch, region = r, flav=flavor,**fields,weight=weights.weight()[cut]*sf) 
+                    #     if self._export_array:output['array'][dataset][histname]+=processor.column_accumulator(ak.to_numpy(normalize(flatten(nw2cut[histname.replace('nw2_','')])))) 
                 if self._export_array:
                     output['array'][dataset]['weight']+=processor.column_accumulator(ak.to_numpy(normalize(weights.weight()[cut]*sf)))
                     output['array'][dataset]['lepwei']+=processor.column_accumulator(ak.to_numpy(normalize(sf)))

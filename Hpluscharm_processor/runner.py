@@ -206,6 +206,7 @@ if __name__ == '__main__':
         ]
 
             condor_extra = [
+            f'cd {os.getcwd()}'
             f'source {os.environ["HOME"]}/.bashrc',
             'source activate coffea'
             ]
