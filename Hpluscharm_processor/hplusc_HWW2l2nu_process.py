@@ -12,165 +12,26 @@ from helpers.util import make_p4
 
 from utils.util import mT, flatten, normalize
 # from utils.topmass import getnu4vec
-# from config.config import *
+from config.HWW2l2nu_config import lumiMasks,mu1hlt,mu2hlt,e1hlt,e2hlt,emuhlt,met_filters
 
+def empty_column_accumulator():
+    return processor.column_accumulator(np.array([],dtype=np.float64))
+def defaultdict_accumulator():
+    return processor.defaultdict_accumulator(empty_column_accumulator)
+    
 class NanoProcessor(processor.ProcessorABC):
     # Define histograms
     def __init__(self, year="2017",version="test",export_array=False):    
         self._year=year
         self._version=version
         self._export_array=export_array
-        self._mu1hlt = {
-            '2016': [
-                'IsoTkMu24'
-            ],
-            '2017': [
-                'IsoMu27'
-            ],
-            '2018': [
-                'IsoMu24'
-            ],
-        }   
-        self._mu2hlt = {
-            '2016': [
-                'Mu17_TrkIsoVVL_Mu8_TrkIsoVVL',
-                'Mu17_TrkIsoVVL_TkMu8_TrkIsoVVL',
-                'Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ',#runH
-                'Mu17_TrkIsoVVL_TkMu8_TrkIsoVVL_DZ',#runH
-            ],
-            '2017': [
-                
-                'Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_Mass3p8',
-                'Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_Mass8',
-            ],
-            '2018': [
-                
-                'Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_Mass3p8',
-            ],
-        }   
-        self._e1hlt = {
-            '2016': [
-                'Ele27_WPTight_Gsf',
-                'Ele25_eta2p1_WPTight_Gsf'
-            ],
-            '2017': [
-                'Ele35_WPTight_Gsf',
-            ],
-            '2018': [
-                'Ele32_WPTight_Gsf',
-            ],
-        }   
-        self._e2hlt = {
-            '2016': [
-                'Ele23_Ele12_CaloIdL_TrackIdL_IsoVL_DZ',
-            ],
-            '2017': [
-                'Ele23_Ele12_CaloIdL_TrackIdL_IsoVL',
-            ],
-            '2018': [
-                'Ele23_Ele12_CaloIdL_TrackIdL_IsoVL',
-            ],
-        }    
-        self._emuhlt =  {
-            '2016': [
-                'Mu8_TrkIsoVVL_Ele23_CaloIdL_TrackIdL_IsoVL',
-                'Mu23_TrkIsoVVL_Ele12_CaloIdL_TrackIdL_IsoVL',
-                'Mu8_TrkIsoVVL_Ele23_CaloIdL_TrackIdL_IsoVL_DZ',
-                'Mu23_TrkIsoVVL_Ele12_CaloIdL_TrackIdL_IsoVL_DZ',
-            ],
-            '2017': [
-                'Mu23_TrkIsoVVL_Ele12_CaloIdL_TrackIdL_IsoVL',
-                'Mu12_TrkIsoVVL_Ele23_CaloIdL_TrackIdL_IsoVL',
-                'Mu12_TrkIsoVVL_Ele23_CaloIdL_TrackIdL_IsoVL_DZ',
-                'Mu23_TrkIsoVVL_Ele12_CaloIdL_TrackIdL_IsoVL_DZ',    
-            ],
-            '2018': [
-               'Mu12_TrkIsoVVL_Ele23_CaloIdL_TrackIdL_IsoVL_DZ',
-                'Mu23_TrkIsoVVL_Ele12_CaloIdL_TrackIdL_IsoVL_DZ',  
-            ],
-        }   
-        self._met_filters = {
-            '2016': {
-                'data': [
-                    'goodVertices',
-                    'globalSuperTightHalo2016Filter',
-                    'HBHENoiseFilter',
-                    'HBHENoiseIsoFilter',
-                    'EcalDeadCellTriggerPrimitiveFilter',
-                    'BadPFMuonFilter',
-                    'BadPFMuonDzFilter',
-                    'eeBadScFilter',
-                ],
-                'mc': [
-                    'goodVertices',
-                    'globalSuperTightHalo2016Filter',
-                    'HBHENoiseFilter',
-                    'HBHENoiseIsoFilter',
-                    'EcalDeadCellTriggerPrimitiveFilter',
-                    'BadPFMuonFilter',
-                    'BadPFMuonDzFilter',
-                    'eeBadScFilter',
-                ],
-            },
-            '2017': {
-                'data': [
-                    'goodVertices',
-                    'globalSuperTightHalo2016Filter',
-                    'HBHENoiseFilter',
-                    'HBHENoiseIsoFilter',
-                    'EcalDeadCellTriggerPrimitiveFilter',
-                    'BadPFMuonFilter',
-                    'BadPFMuonDzFilter',
-                    'hfNoisyHitsFilter',
-                    'eeBadScFilter',
-                    'ecalBadCalibFilter',
-                ],
-                'mc': [
-                    'goodVertices',
-                    'globalSuperTightHalo2016Filter',
-                    'HBHENoiseFilter',
-                    'HBHENoiseIsoFilter',
-                    'EcalDeadCellTriggerPrimitiveFilter',
-                    'BadPFMuonFilter',
-                    'BadPFMuonDzFilter',
-                    'hfNoisyHitsFilter',
-                    'eeBadScFilter',
-                    'ecalBadCalibFilter',
-                ],
-            },
-            '2018': {
-                'data': [
-                    'goodVertices',
-                    'globalSuperTightHalo2016Filter',
-                    'HBHENoiseFilter',
-                    'HBHENoiseIsoFilter',
-                    'EcalDeadCellTriggerPrimitiveFilter',
-                    'BadPFMuonFilter',
-                    'BadPFMuonDzFilter',
-                    'hfNoisyHitsFilter',
-                    'eeBadScFilter',
-                    'ecalBadCalibFilter',
-                ],
-                'mc': [
-                    'goodVertices',
-                    'globalSuperTightHalo2016Filter',
-                    'HBHENoiseFilter',
-                    'HBHENoiseIsoFilter',
-                    'EcalDeadCellTriggerPrimitiveFilter',
-                    'BadPFMuonFilter',
-                    'BadPFMuonDzFilter',
-                    'hfNoisyHitsFilter',
-                    'eeBadScFilter',
-                    'ecalBadCalibFilter',
-                ],
-            },
-        }
-        self._lumiMasks = {
-    '2016': LumiMask('data/Lumimask/Cert_271036-284044_13TeV_Legacy2016_Collisions16_JSON.txt'),
-    '2017': LumiMask('data/Lumimask/Cert_294927-306462_13TeV_UL2017_Collisions17_GoldenJSON.txt'),
-    '2018': LumiMask('data/Lumimask/Cert_271036-284044_13TeV_Legacy2016_Collisions16_JSON.txt')
-}
-        
+        self._mu1hlt = mu1hlt
+        self._mu2hlt = mu2hlt
+        self._e1hlt = e1hlt
+        self._e2hlt = e2hlt
+        self._emuhlt = emuhlt
+        self._met_filters = met_filters
+        self._lumiMasks =lumiMasks
         self._corr,self._jetfactory = init_corr(year)
         # Define axes
         # Should read axes from NanoAOD config
@@ -272,30 +133,18 @@ class NanoProcessor(processor.ProcessorABC):
             _hist_event_dict["jetflav_%s" %(disc)] = hist.Hist("Counts", dataset_axis,lepflav_axis,region_axis,flav_axis, axis)
             # _hist_event_dict["jetpn_%s" %(disc)] = hist.Hist("Counts", dataset_axis,lepflav_axis,region_axis,flav_axis, axis)
         self.event_hists = list(_hist_event_dict.keys())
-    
-        self._accumulator = processor.dict_accumulator(
-            {**_hist_event_dict,   
-            'cutflow': processor.defaultdict_accumulator(
-                # we don't use a lambda function to avoid pickle issues
-                partial(processor.defaultdict_accumulator, int))}
+        
+        
+        
+        if self._export_array:_hist_event_dict['array'] = processor.defaultdict_accumulator(defaultdict_accumulator)
+        self._accumulator = processor.dict_accumulator({
+            **_hist_event_dict,'cutflow': processor.defaultdict_accumulator(
+        #         # we don't use a lambda function to avoid pickle issues
+                partial(processor.defaultdict_accumulator, int))})
             
-                )
+        #         )
         self._accumulator['sumw'] = processor.defaultdict_accumulator(float)
         
-        array_dict = {}
-        if self._export_array:
-            for d in _hist_event_dict.keys():
-                if d=='nj' or d=='nele' or d=='nmu' or d=='njmet':
-                    array_dict[d]=processor.column_accumulator(np.empty(shape=(0,),dtype='int'))
-                else: array_dict[d] = processor.column_accumulator(np.zeros(shape=(0,)))
-            general_array = ['lumi','run','event','jetflav', 'region','lepflav','weight','lepwei','puwei','l1wei']
-            for d in general_array:
-                if d=='region' or d=='lepflav': array_dict[d]= processor.column_accumulator(np.empty(shape=(0,),dtype='<U6'))
-                elif 'wei' in d:array_dict[d]=processor.column_accumulator(np.ones(shape=(0,)))
-                elif d=='run' or d=='lumi' or d=='jetflav': array_dict[d]=processor.column_accumulator(np.empty(shape=(0,),dtype='int'))
-                elif d=='event':array_dict[d]=processor.column_accumulator(np.empty(shape=(0,),dtype='long'))
-                else:array_dict[d]= processor.column_accumulator(np.zeros(shape=(0,)))
-            self._accumulator['array'] = processor.defaultdict_accumulator(partial(processor.defaultdict_accumulator, **array_dict))
     @property
     def accumulator(self):
         return self._accumulator
@@ -454,17 +303,16 @@ class NanoProcessor(processor.ProcessorABC):
         ranked_deepJet = corr_jet.btagDeepFlavCvL
         # ranked_deepCSV = corr_jet.btagDeepCvL
         ####TEST
-        if self._version =='test':
-            corr_jet[corr_jet.btagDeepCvL==0].btagDeepCvL=1e-10
-            # corr_jet[corr_jet.btagDeepFlavCvL==0].btagDeepFlavCvL=1e-10
-            ranked_deepJet = corr_jet.btagDeepFlavCvB/corr_jet.btagDeepFlavCvL
-            # ranked_deepCSV = corr_jet.btagDeepCvL/corr_jet.btagDeepCvL
+        
+        corr_jet[corr_jet.btagDeepCvL==0].btagDeepCvL=1e-10
+        ranked_deepJet = corr_jet.btagDeepFlavCvB/corr_jet.btagDeepFlavCvL
         ######
         eventflav_jet = corr_jet[ak.argsort(ranked_deepJet,axis=1,ascending=False)]
         # eventcsv_jet = corr_jet[ak.argsort(ranked_deepCSV,axis=1,ascending=False)]
         jetsel = (eventflav_jet.pt > 20) & (abs(eventflav_jet.eta) <= 2.4)&((eventflav_jet.puId > 6)|(eventflav_jet.pt>50)) &(eventflav_jet.jetId>5)&ak.all((eventflav_jet.metric_table(ll_cand.lep1)>0.4)&(eventflav_jet.metric_table(ll_cand.lep2)>0.4),axis=2)&ak.all(eventflav_jet.metric_table(aele)>0.4,axis=2)&ak.all(eventflav_jet.metric_table(amu)>0.4,axis=2)
         njet = ak.sum(jetsel,axis=1)
         topjetsel= (eventflav_jet.pt > 20) & (abs(eventflav_jet.eta) <= 2.4)&((eventflav_jet.puId > 6)|(eventflav_jet.pt>50)) &(eventflav_jet.jetId>5)&(eventflav_jet.btagDeepFlavB>0.0532)
+
         
 
         cvbcutll = (eventflav_jet.btagDeepFlavCvB>=0.42)
@@ -478,6 +326,7 @@ class NanoProcessor(processor.ProcessorABC):
         top_cr2_cut = (mT(ll_cand.lep2,met)>30)& (ll_cand.mass>50) & (events.MET.sumEt>45)& (abs(ll_cand.mass-91.18)>15) 
         # req_WW_cr = ak.any((mT(ll_cand.lep2,met)>30)& (ll_cand.mass>50) & (events.MET.sumEt>45)& (abs(ll_cand.mass-91.18)>15) & (ll_cand.mass),axis=-1) 
         global_cut = (ll_cand.lep1.pt>25) & (ll_cand.mass>12) & (ll_cand.pt>30) & (ll_cand.lep1.charge+ll_cand.lep2.charge==0) & (events.MET.pt>20) & (make_p4(ll_cand.lep1).delta_r(make_p4(ll_cand.lep2))>0.4) & (abs(met.delta_phi(tkmet))<0.5)
+        if dataset == 'DY0JetsToLL_M-10to50_TuneCP5_13TeV-madgraphMLM-pythia8': global_cut=global_cut&(events.LHE.Njets==0)
         sr_cut = (mT(ll_cand.lep2,met)>30) & (mT(ll_cand,met)>60)  & (events.MET.sumEt>45) 
         llmass_cut = (abs(ll_cand.mass-91.18)> 15)
         
@@ -707,5 +556,5 @@ class NanoProcessor(processor.ProcessorABC):
         return output
 
     def postprocess(self, accumulator):
-        print(accumulator)
+        # print(accumulator)
         return accumulator
