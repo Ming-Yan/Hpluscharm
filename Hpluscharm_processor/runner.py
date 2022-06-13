@@ -206,7 +206,7 @@ if __name__ == '__main__':
         ]
 
             condor_extra = [
-            f'cd {os.getcwd()}'
+            f'cd {os.getcwd()}',
             f'source {os.environ["HOME"]}/.bashrc',
             'source activate coffea'
             ]
@@ -265,7 +265,7 @@ if __name__ == '__main__':
                     HighThroughputExecutor(
                         label='coffea_parsl_condor',
                         address=address_by_query(),
-                        max_workers=1,
+                        max_workers=2,
                         worker_debug=True,
                         
                         provider=CondorProvider(
