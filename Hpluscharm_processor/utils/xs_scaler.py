@@ -5,11 +5,10 @@ def read_xs(files):
         for dirpath, dirname, filename in os.walk(path):
             if name in filename:
                 return os.path.join(dirpath, name)
-            
-    filepath = findfile(files, "/nfs/dust/cms/user/milee/Hpluscharm/")
-
-    f = open(os.path.abspath(filepath))
+    filepath = findfile(files, str(os.getcwd()))
     
+    #f = open(os.path.abspath(filepath))
+    f = open('/afs/cern.ch/work/m/milee/Hpluscharm/Hpluscharm_processor/metadata/xsection.json')
     data = json.load(f)
     xs_dict={}
     for obj in data:

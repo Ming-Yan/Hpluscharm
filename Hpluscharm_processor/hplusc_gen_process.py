@@ -11,8 +11,6 @@ import coffea
 from coffea import hist, processor
 from coffea.nanoevents.methods import vector
 import awkward as ak
-from utils.correction import jec,muSFs,eleSFs,init_corr
-from coffea.lumi_tools import LumiMask
 from coffea.analysis_tools import Weights
 from functools import partial
 # import numba
