@@ -1,0 +1,9 @@
+{
+"HWW2l2nu":{
+    "signal":"coffea_output/hists_HWW2l2nu_signal_UL17arrays.coffea",
+    "background":"coffea_output/hists_HWW2l2nu_mcbkg_UL17array.coffea",
+    "data": "coffea_output/hists_HWW2l2nu_data2017array.coffea",
+    "background2":"coffea_output/hists_HWW2l2nu_dy_nlCR_all.coffea",
+    "background3":"coffea_output/hists_HWW2l2nu_dym10CR_all"
+}
+}

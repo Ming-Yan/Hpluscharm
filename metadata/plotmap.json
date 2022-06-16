@@ -1,4 +1,6 @@
-{
+{"HWW2l2nu":{
+    
+    "var_map":{
     "nj": "# of jets", 
     "nele": "# of additional e",
     "nmu": "# of additional $\\mu$",
@@ -124,5 +126,15 @@
     "costheta_ll":"cos$\\theta_{\\ell\\ell}$",
     "costheta_qq":"cos$\\theta_{jj}$",
     "phi_zz":"$\\phi_{ZZ}$",
-    "phi_lq":"$\\phi_{j\\ell}$"
+    "phi_lq":"$\\phi_{j\\ell}$"},
+    "region_map": {
+    "SR": "SR $N_j>$1",
+    "DY_CRb": "DY+b CR",
+    "DY_CRl": "DY+l CR",
+    "DY_CRc": "DY+c CR",
+    "top_CR": "top CR",
+    "DY_CR": "DY CR",
+    "SR2": "SR $N_j$==1"
+}
+}
 }

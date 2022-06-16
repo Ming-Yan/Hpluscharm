@@ -1,7 +1,5 @@
-{
-
-    "hww":{
-
+{	
+    "HWW2l2nu":{
 	"signal":["gchcWW2L2Nu"],
 	"W+jets": ["WJetsToLNu_TuneCP5_13TeV-amcatnloFXFX-pythia8"],
 	"Z+jets": ["DYJetsToTauTauToMuTauh_M-50_TuneCP5_13TeV-madgraphMLM-pythia8", 
@@ -25,7 +23,6 @@
 	    "DoubleEG_Run2017D-UL2017_MiniAODv2_NanoAODv9-v1","SingleElectron_Run2017D-UL2017_MiniAODv2_NanoAODv9-v1",
 	    "DoubleEG_Run2017E-UL2017_MiniAODv2_NanoAODv9-v1","SingleElectron_Run2017E-UL2017_MiniAODv2_NanoAODv9-v1",
 	    "DoubleEG_Run2017F-UL2017_MiniAODv2_NanoAODv9-v1","SingleElectron_Run2017F-UL2017_MiniAODv2_NanoAODv9-v1"
-
 	],
 	"data_mumu" : [
 	    "DoubleMuon_Run2017B-UL2017_MiniAODv2_NanoAODv9-v1","SingleMuon_Run2017B-UL2017_MiniAODv2_NanoAODv9-v1",
@@ -34,8 +31,17 @@
 	    "DoubleMuon_Run2017E-UL2017_MiniAODv2_NanoAODv9-v1","SingleMuon_Run2017E-UL2017_MiniAODv2_NanoAODv9-v1",
 	    "DoubleMuon_Run2017F-UL2017_MiniAODv2_NanoAODv9-v1","SingleMuon_Run2017F-UL2017_MiniAODv2_NanoAODv9-v1"
 	],
-	"data_emu":["MuonEG_Run2017B-UL2017_MiniAODv2_NanoAODv9-v1","MuonEG_Run2017C-UL2017_MiniAODv2_NanoAODv9-v1","MuonEG_Run2017D-UL2017_MiniAODv2_NanoAODv9-v1","MuonEG_Run2017E-UL2017_MiniAODv2_NanoAODv9-v1","MuonEG_Run2017F-UL2017_MiniAODv2_NanoAODv9-v1"]
-    
+	"data_emu":["MuonEG_Run2017B-UL2017_MiniAODv2_NanoAODv9-v1","MuonEG_Run2017C-UL2017_MiniAODv2_NanoAODv9-v1","MuonEG_Run2017D-UL2017_MiniAODv2_NanoAODv9-v1","MuonEG_Run2017E-UL2017_MiniAODv2_NanoAODv9-v1","MuonEG_Run2017F-UL2017_MiniAODv2_NanoAODv9-v1"],
+	"order":[
+                    "Z+jets",
+                    "W+jets",
+                    "tt-dilep",
+                    "tt-semilep",
+                    "ST",
+                    "WW",
+                    "WZ",
+                    "ZZ"
+                ]
     },
 
     "hww_tem":{
@@ -95,7 +101,6 @@
 	"vv":["WW_TuneCP5_13TeV-pythia8","WZ_TuneCP5_13TeV-pythia8","ZZ_TuneCP5_13TeV-pythia8"]    
     },
     "hzz_MC":{
-
 	"Z+jets": ["DYJetsToLL_M-50_TuneCP5_13TeV-amcatnloFXFX-pythia8"],
 	"W+jets": ["WJetsToLNu_TuneCP5_13TeV-amcatnloFXFX-pythia8"],
 	"top":["TTTo2L2Nu_TuneCP5_13TeV-powheg-pythia8","TTToSemiLeptonic_TuneCP5_13TeV-powheg-pythia8","ST_tW_top_5f_inclusiveDecays_TuneCP5_13TeV-powheg-pythia8","ST_tW_antitop_5f_inclusiveDecays_TuneCP5_13TeV-powheg-pythia8","ST_t-channel_antitop_4f_InclusiveDecays_TuneCP5_13TeV-powheg-madspin-pythia8","ST_t-channel_top_4f_InclusiveDecays_TuneCP5_13TeV-powheg-madspin-pythia8","ST_s-channel_4f_leptonDecays_TuneCP5_13TeV-amcatnlo-pythia8"],
@@ -118,11 +123,5 @@
 	    "DoubleMuon_Run2017F-UL2017_MiniAODv2_NanoAODv9-v1","SingleMuon_Run2017F-UL2017_MiniAODv2_NanoAODv9-v1"
 	],
 	"data_emu":["MuonEG_Run2017B-UL2017_MiniAODv2_NanoAODv9-v1","MuonEG_Run2017C-UL2017_MiniAODv2_NanoAODv9-v1","MuonEG_Run2017D-UL2017_MiniAODv2_NanoAODv9-v1","MuonEG_Run2017E-UL2017_MiniAODv2_NanoAODv9-v1","MuonEG_Run2017F-UL2017_MiniAODv2_NanoAODv9-v1"]
-    },
-    "data_lnu" :{
-	"data_ee" : ["DoubleEG_Run2017D-UL2017_MiniAODv2_NanoAODv9-v1"],
-	"data_mumu" : ["DoubleMuon_Run2017D-UL2017_MiniAODv2_NanoAODv9-v1"],
-	"data_emu":["MuonEG_Run2017D-UL2017_MiniAODv2_NanoAODv9-v1"]
     }
-    
 }
