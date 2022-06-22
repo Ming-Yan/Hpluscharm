@@ -5,8 +5,6 @@
     "nele": "# of additional e",
     "nmu": "# of additional $\\mu$",
     "njmet": "# of jets close to MET",
-    "nbj": "# of b-jets", 
-    "ncj":"# of c-jets",
     "hj_dr":"$\\Delta$R(H,j)",
     "hc_dr":"$\\Delta$R(H,c)",
     "zs_dr":"$\\Delta$R($Z_{1}$,$Z_{2}$)",

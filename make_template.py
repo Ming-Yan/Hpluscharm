@@ -12,8 +12,9 @@ import matplotlib.pyplot as plt
 import mplhep as hep
 from matplotlib.offsetbox import AnchoredText
 
-sys.path.append("..")
-from Hpluscharm_processor.utils.xs_scaler import scale_xs
+import importlib.resources
+
+from BTVNanoCommissioning.utils.xs_scaler import scale_xs
 
 
 with open("metadata/mergemap.json") as json_file:
@@ -60,6 +61,7 @@ if __name__ == "__main__":
         default="ee",
         choices=["ee", "mumu", "emu", "all"],
         type=str,
+        required=True,
         help="flavor",
     )
     parser.add_argument(
@@ -67,23 +69,24 @@ if __name__ == "__main__":
         default="SR2",
         choices=["SR", "SR2", "top_CR", "DY_CR", "all"],
         type=str,
+        required=True,
         help="Which region in templates",
     )
     parser.add_argument(
         "--input_sig",
-        default="hists_HWW2l2nu_signal_UL17array_4f.coffea",
+        default="../../coffea_output/hists_HWW2l2nu_signal_UL17_4f_arrays.coffea",
         type=str,
         help="Input signal files",
     )
     parser.add_argument(
         "--input_bkg",
-        default="hists_HWW2l2nu_mcbkg_UL17array.coffea",
+        default="../../coffea_output/hists_HWW2l2nu_mcbkg_UL17array.coffea",
         type=str,
         help="Input background files",
     )
     parser.add_argument(
         "--input_data",
-        default="hists_HWW2l2nu_data2017array.coffea",
+        default="../../coffea_output/hists_HWW2l2nu_data2017array.coffea",
         type=str,
         help="Input data files",
     )
@@ -97,7 +100,7 @@ if __name__ == "__main__":
         help="observable to the fit",
     )
     parser.add_argument("--prefix", type=str, default="", help="prefix of output")
-
+    parser.add_argument("--xs_path",type=str,default="../../metadata/xsection.json",help="xsection json file path")
     args = parser.parse_args()
     print("Running with the following options:")
     print(args)
@@ -105,8 +108,8 @@ if __name__ == "__main__":
     outputWWl_s = load(args.input_sig)
     outputWWl_b = load(args.input_bkg)
     outputWWl_data = load(args.input_data)
-    outputWWl_dy = load("hists_HWW2l2nu_dym10CR_all.coffea")
-    outputWWl_dynlo = load("hists_HWW2l2nu_dy_nlCR_all.coffea")
+    outputWWl_dy = load("../../coffea_output/hists_HWW2l2nu_dym10CR_all.coffea")
+    outputWWl_dynlo = load("../../coffea_output/hists_HWW2l2nu_dy_nlCR_all.coffea")
     eventWWl_s = outputWWl_s["sumw"]
     eventWWl_b = outputWWl_b["sumw"]
     eventWWl_dy = outputWWl_dy["sumw"]
@@ -118,25 +121,25 @@ if __name__ == "__main__":
     if args.year == 2018:
         lumi = 59800
     outputWWl_s[args.observable] = scale_xs(
-        outputWWl_s[args.observable], lumi, eventWWl_s
+        outputWWl_s[args.observable], lumi, eventWWl_s,args.xs_path
     )
     outputWWl_b[args.observable] = scale_xs(
-        outputWWl_b[args.observable], lumi, eventWWl_b
+        outputWWl_b[args.observable], lumi, eventWWl_b,args.xs_path
     )
     outputWWl_dy[args.observable] = scale_xs(
-        outputWWl_dy[args.observable], lumi, eventWWl_dy
+        outputWWl_dy[args.observable], lumi, eventWWl_dy,args.xs_path
     )
     outputWWl_dynlo[args.observable] = scale_xs(
-        outputWWl_dynlo[args.observable], lumi, eventWWl_dynlo
+        outputWWl_dynlo[args.observable], lumi, eventWWl_dynlo,args.xs_path
     )
     outputWWl_b[args.observable] = outputWWl_b[args.observable].group(
-        "dataset", hist.Cat("plotgroup", "plotgroup"), merge_map["hww_tem_zptbin"]
+        "dataset", hist.Cat("plotgroup", "plotgroup"), merge_map["HWW_template"]
     )
     outputWWl_dy[args.observable] = outputWWl_dy[args.observable].group(
-        "dataset", hist.Cat("plotgroup", "plotgroup"), merge_map["hww_tem_zptbin"]
+        "dataset", hist.Cat("plotgroup", "plotgroup"), merge_map["HWW_template"]
     )
     outputWWl_dynlo[args.observable] = outputWWl_dynlo[args.observable].group(
-        "dataset", hist.Cat("plotgroup", "plotgroup"), merge_map["hww_tem_zptbin"]
+        "dataset", hist.Cat("plotgroup", "plotgroup"), merge_map["HWW_template"]
     )
     outputWWl_data[args.observable] = outputWWl_data[args.observable].group(
         "dataset", hist.Cat("plotgroup", "plotgroup"), merge_map["data"]
@@ -151,7 +154,7 @@ if __name__ == "__main__":
         for flav in ["ee", "mumu", "emu"]:
             if args.flav != "all" and args.flav != flav:
                 continue
-            template_file = f"../../card_maker/shape/templates_{region}_{flav}_{args.observable}_{args.year}{args.prefix}.root"
+            template_file = f"../../../card_maker/shape/templates_{region}_{flav}_{args.observable}_{args.year}{args.prefix}.root"
             if os.path.exists(template_file):
                 os.remove(template_file)
             print(f"Will save templates to {template_file}")
@@ -163,7 +166,7 @@ if __name__ == "__main__":
                 .integrate("lepflav", flav)
                 .integrate("region", region)
                 .sum("flav")
-                .integrate("dataset", "gchcWW2L2Nu")
+                .integrate("dataset", "gchcWW2L2Nu_4f")
             )
             name = "data_obs"
             fout[name] = hist.export1d(
@@ -211,7 +214,7 @@ if __name__ == "__main__":
                 .integrate("lepflav", flav)
                 .integrate("region", region)
                 .sum("flav")
-                .integrate("dataset", "gchcWW2L2Nu"),
+                .integrate("dataset", "gchcWW2L2Nu_4f"),
                 ax=ax,
                 clear=False,
             )
@@ -233,5 +236,5 @@ if __name__ == "__main__":
             # ax.semilogy()
             hep.mpl_magic(ax=ax)
 
-            fig.savefig(f"plot/validate_{region}_{flav}_{args.observable}.pdf")
+            fig.savefig(f"validate_{region}_{flav}_{args.observable}.pdf")
     fout.close()
