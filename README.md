@@ -17,24 +17,12 @@ NOTE: always make sure that conda, python, and pip point to local Miniconda inst
 
 You can either use the default environment`base` or create a new one:
 ```
-# create new environment with python 3.7, e.g. environment of name `coffea`
-conda create --name coffea python3.7
-# activate environment `coffea`
+# create new environment named coffea with env.yml
+conda coffea create -f env.yml
+# activate environment coffea
 conda activate coffea
 ```
-Install coffea, xrootd, and more:
-```
-pip install git+https://github.com/CoffeaTeam/coffea.git #latest published release with `pip install coffea`
-conda install -c conda-forge xrootd
-conda install -c conda-forge ca-certificates
-conda install -c conda-forge ca-policy-lcg
-conda install -c conda-forge voms
-conda install -c conda-forge dask-jobqueue
-conda install -c anaconda bokeh 
-conda install -c conda-forge 'fsspec>=0.3.3'
-conda install dask
-conda install -c conda-forge parsl
-```
+
 Setup things with x509 proxy
 ```bash
 # There are some dependencies which are currently not available as packages, so we'll have to copy them from `/cvmfs/grid.cern.ch/etc/grid-security/`
@@ -94,7 +82,7 @@ For now only the selections and histogram producer are available.
 
 To test a small set of files to see whether the workflows run smoothly, run:
 ```
-python runner.py  --json metadata/higgs.json --limit 1 --wf HWW2l2nu
+python runner.py  --json metadata/higgs.json --limit 1 --wf HWW2l2nu ( --export_array)
 ```
 - Samples are in `metadata`
 - Corrections in `utils/correction.py` 
@@ -107,7 +95,7 @@ python runner.py  --json metadata/higgs.json --limit 1 --wf HWW2l2nu -j ${njobs}
 ### Scale out @DESY/lxcluster Aachen
 
 ```
-python runner.py  --json metadata/higgs.json --limit 1 --wf HWW2l2nu -j ${njobs} --executor parsl/condor --memory ${memory_per_jobs}
+python runner.py  --json metadata/higgs.json --limit 1 --wf HWW2l2nu  --year ${year}  -j ${cores} -s ${scaleout jobs} --executor parsl/condor --memory ${memory_per_jobs} --export_array
 ```
 ### Scale out @HPC Aachen
 
@@ -115,5 +103,20 @@ python runner.py  --json metadata/higgs.json --limit 1 --wf HWW2l2nu -j ${njobs}
 python runner.py  --json metadata/higgs.json --limit 1 --wf HWW2l2nu -j ${njobs} --executor parsl/slurm
 ```
 
+## Make the json files
+
+Use the `fetch.py` in `filefetcher`, the `$input_DAS_list` is the info extract from DAS, and output json files in `metadata/`
+
+```
+python fetch.py --input ${input_DAS_list} --output ${output_json_name} --site ${site}
+```
 
 
+
+## Create compiled corretions file(`pkl.gz`)
+
+Use the `utils/compile_jec.py`, editted the path in the `dict` of `jet_factory`
+
+```
+python -m utils.compile_jec data/jec_compiled.pkl.gz
+```
