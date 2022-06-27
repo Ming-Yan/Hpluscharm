@@ -1,21 +1,12 @@
-import csv
-from curses import meta
-from dataclasses import dataclass
-import gzip
 import pickle, os, sys, mplhep as hep, numpy as np
-from select import select
 
 from matplotlib.pyplot import jet
 
-import coffea
 from coffea import hist, processor
-from coffea.nanoevents.methods import vector
 import awkward as ak
 from coffea.analysis_tools import Weights
 from functools import partial
 
-# import numba
-from helpers.util import reduce_and, reduce_or, nano_mask_or, get_ht, normalize, make_p4
 
 
 def mT(obj1, obj2):
@@ -44,13 +35,14 @@ def normalize(val, cut):
 
 class NanoProcessor(processor.ProcessorABC):
     # Define histograms
-    def __init__(self, year="2017"):
+    def __init__(self, year="2017",campaign="UL17"):
         self._year = year
 
         # Define axes
         # Should read axes from NanoAOD config
         dataset_axis = hist.Cat("dataset", "Primary dataset")
         mass_axis = hist.Bin("mass", r" $m_{\\ell\\ell}$ [GeV]", 60, 0, 150)
+        hmass_axis = hist.Bin("mass", r" $m_{\\ell\\ell}$ [GeV]", 60, 100, 150)
         cmass_axis = hist.Bin("mass", r" $m_{\\ell\\ell}$ [GeV]", 50, 0, 200)
         pt_axis = hist.Bin("pt", r" $p_T$ [GeV]", 60, 0, 150)
         eta_axis = hist.Bin("eta", r" $\\eta$", 50, -2.5, 2.5)
@@ -106,6 +98,13 @@ class NanoProcessor(processor.ProcessorABC):
             "genmetll_dphi": hist.Hist("Counts", dataset_axis, phi_axis),
             "genmet_mt": hist.Hist("Counts", dataset_axis, mass_axis),
             "genmet_mt2": hist.Hist("Counts", dataset_axis, cmass_axis),
+            "genh_mass":  hist.Hist("Counts", dataset_axis, hmass_axis),
+            "genh_pt": hist.Hist("Counts", dataset_axis, pt_axis),
+            "genh_eta": hist.Hist("Counts", dataset_axis, eta_axis),
+            "genh_phi": hist.Hist("Counts", dataset_axis, phi_axis),
+            "genhc_dr": hist.Hist("Counts", dataset_axis, dr_axis),
+            "genhll_dr": hist.Hist("Counts", dataset_axis, dr_axis),
+            "genhmet_dphi": hist.Hist("Counts", dataset_axis, phi_axis),
             "matched_deepJet": hist.Hist(
                 "Counts", dataset_axis, flav_axis, cvl_axis, cvb_axis
             ),
@@ -155,11 +154,14 @@ class NanoProcessor(processor.ProcessorABC):
             )
 
         genc = events.GenPart[
-            (abs(events.GenPart.pdgId) == 4)
+            # (abs(events.GenPart.pdgId) < 6)&(abs(events.GenPart.pdgId)!= 4) 
+            (abs(events.GenPart.pdgId)==4) 
             & (events.GenPart.pt != 0)
             & (events.GenPart.hasFlags(["fromHardProcess"]) == True)
             & (events.GenPart.hasFlags(["isHardProcess"]) == True)
+            #& (events.GenPart.pt > 25)
         ]
+    
         matchj = genc.nearest(events.Jet, threshold=0.1)
 
         # print(ak.type(matchj))
@@ -200,7 +202,7 @@ class NanoProcessor(processor.ProcessorABC):
                 },
                 with_name="PtEtaPhiMLorentzVector",
             )
-
+            genh =  genlep[:, 0] + genlep[:, 1] + gennu[:, 0] + gennu[:, 1]
         else:
             genjet = events.GenPart[
                 (abs(events.GenPart.pdgId) < 6)
@@ -208,12 +210,22 @@ class NanoProcessor(processor.ProcessorABC):
                 & (events.GenPart.hasFlags(["isHardProcess"]) == True)
             ]
             genjet = genjet[genjet.parent.pdgId == 23]
-
+            genh =  genlep[:, 0] + genlep[:, 1] + genjet[:,0]+genjet[:,1]
             genzj = genjet[:, 0] + genjet[:, 1]
 
         genzl = genlep[:, 0] + genlep[:, 1]
-        # print(genlep[:,0].pt)
-        # print(genz.mass)
+        # print(ak.type(genh.pt),ak.type(genh[(ak.count(genc.pt,axis=1)>0)].pt))
+        # print(events[(ak.count(genc.pt,axis=1)>0)][0].GenPart.pdgId.tolist())
+        output["cutflow"][dataset]["select c"] += ak.sum(events[(ak.count(genc.pt,axis=1)>0)].genWeight / abs(events[(ak.count(genc.pt,axis=1)>0)].genWeight))
+        output["cutflow"][dataset]["lep"] += ak.sum(events[(genlep[:,0].pt>25)&(genlep[:,1].pt>12)&(abs(genlep[:,0].eta)<2.5)&(abs(genlep[:,1].eta)<2.5)&(genzl.mass>12)&(genlep[:,0].delta_r(genlep[:,1])>0.4)].genWeight / abs(events[(genlep[:,0].pt>25)&(genlep[:,1].pt>12)&(abs(genlep[:,0].eta)<2.5)&(abs(genlep[:,1].eta)<2.5)&(genzl.mass>12)&(genlep[:,0].delta_r(genlep[:,1])>0.4)].genWeight))
+        output["cutflow"][dataset]["nu"] += ak.sum(events[(genlep[:,0].pt>25)&(genlep[:,1].pt>12)&(abs(genlep[:,0].eta)<2.5)&(abs(genlep[:,1].eta)<2.5)&(genzl.mass>12)&(genlep[:,0].delta_r(genlep[:,1])>0.4)&(genmet.pt>45)&(mT(genlep[:,1],genmet)>30)&(mT(genzl,genmet)>60)].genWeight / abs(events[(genlep[:,0].pt>25)&(genlep[:,1].pt>12)&(abs(genlep[:,0].eta)<2.5)&(abs(genlep[:,1].eta)<2.5)&(genzl.mass>12)&(genmet.pt>45)&(mT(genlep[:,1],genmet)>30)&(mT(genzl,genmet)>60)&(genlep[:,0].delta_r(genlep[:,1])>0.4)].genWeight))
+        output["cutflow"][dataset]["jet"] += ak.sum(events[(genlep[:,0].pt>25)&(genlep[:,1].pt>12)&(abs(genlep[:,0].eta)<2.5)&(abs(genlep[:,1].eta)<2.5)&(genzl.mass>12)&(genlep[:,0].delta_r(genlep[:,1])>0.4)&(genmet.pt>45)&(mT(genlep[:,1],genmet)>30)&(mT(genzl,genmet)>60)&(ak.count((genc.pt>20)&(abs(genc.eta)<2.4)&(genc.delta_r(genlep[:,0])>0.4)&(genc.delta_r(genlep[:,1])>0.4),axis=1)>0)].genWeight / abs(events[(genlep[:,0].pt>25)&(genlep[:,1].pt>12)&(abs(genlep[:,0].eta)<2.5)&(abs(genlep[:,1].eta)<2.5)&(genzl.mass>12)&(genmet.pt>45)&(mT(genlep[:,1],genmet)>30)&(mT(genzl,genmet)>60)&(ak.count((genc.pt>20)&(abs(genc.eta)<2.4)&(genc.delta_r(genlep[:,0])>0.4)&(genc.delta_r(genlep[:,1])>0.4),axis=1)>0)&(genlep[:,0].delta_r(genlep[:,1])>0.4)].genWeight))
+        # &(genc.delta_r(genlep[:,0])>0.4)
+        
+        genlep = genlep[(ak.count(genc.pt,axis=1)>0)]
+        genzl = genzl[(ak.count(genc.pt,axis=1)>0)]
+        genh = genh[(ak.count(genc.pt,axis=1)>0)]    
+        genc = genc[(ak.count(genc.pt,axis=1)>0)]
         output["genlep1_pt"].fill(dataset=dataset, pt=flatten(genlep[:, 0].pt))
         output["genlep1_eta"].fill(dataset=dataset, eta=flatten(genlep[:, 0].eta))
         output["genlep1_phi"].fill(dataset=dataset, phi=flatten(genlep[:, 0].phi))
@@ -228,6 +240,11 @@ class NanoProcessor(processor.ProcessorABC):
         output["genc_eta"].fill(dataset=dataset, eta=flatten(genc.eta))
         output["genc_phi"].fill(dataset=dataset, phi=flatten(genc.phi))
         output["genc_mass"].fill(dataset=dataset, mass=flatten(genc.mass))
+        output["genh_pt"].fill(dataset=dataset, pt=flatten(genh[(ak.count(genc.pt,axis=1)>0)].pt))
+        output["genh_eta"].fill(dataset=dataset, eta=flatten(genh.eta))
+        output["genh_phi"].fill(dataset=dataset, phi=flatten(genh.phi))
+        output["genh_mass"].fill(dataset=dataset, mass=flatten(genh.mass))
+       
         output["genll_dr"].fill(
             dataset=dataset, dr=flatten(genlep[:, 0].delta_r(genlep[:, 1]))
         )
@@ -258,6 +275,9 @@ class NanoProcessor(processor.ProcessorABC):
         )
 
         if "2Nu" in dataset:
+            gennu = gennu[(ak.count(genc.pt,axis=1)>0)]
+            gennunu = gennunu[(ak.count(genc.pt,axis=1)>0)]
+            genmet = genmet[(ak.count(genc.pt,axis=1)>0)]
             output["gennu_pt"].fill(dataset=dataset, pt=flatten(gennunu.pt))
             output["gennu_phi"].fill(dataset=dataset, phi=flatten(gennunu.phi))
             output["gennuc_dphi"].fill(
@@ -283,6 +303,9 @@ class NanoProcessor(processor.ProcessorABC):
             output["genmet_mt"].fill(dataset=dataset, mass=flatten(mT(genmet, genzl)))
 
             output["genmet_mt2"].fill(dataset=dataset, mass=flatten(mT2(genzl, genmet)))
+            output["genhc_dr"].fill(dataset=dataset, dr=flatten(genh.delta_r(genc)))
+            output["genhll_dr"].fill(dataset=dataset, dr=flatten(genh.delta_r(genzl)))
+            output["genhmet_dphi"].fill(dataset=dataset, phi=flatten(genh.delta_phi(genmet)))
 
         else:
             output["genjet1_pt"].fill(dataset=dataset, pt=flatten(genjet[:, 0].pt))

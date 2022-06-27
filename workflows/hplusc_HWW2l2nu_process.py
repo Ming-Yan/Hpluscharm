@@ -201,6 +201,9 @@ class NanoProcessor(processor.ProcessorABC):
             "llh_dphi": hist.Hist(
                 "Counts", dataset_axis, lepflav_axis, region_axis, flav_axis, phi_axis
             ),
+            "genh_pt": hist.Hist(
+                "Counts", dataset_axis, lepflav_axis, pt_axis
+            ),
             # 'jetmet_dphi':hist.Hist("Counts", dataset_axis, lepflav_axis,region_axis,flav_axis, phi_axis),
         }
         objects = ["jetflav", "lep1", "lep2", "ll", "top1", "top2", "nw1", "nw2"]
@@ -306,10 +309,41 @@ class NanoProcessor(processor.ProcessorABC):
             )
             weights.add("puweight", self._pu["PU"](events.Pileup.nPU))
         ##############
+        if 'gchcWW2L2Nu_4f' in  dataset : 
+            genc = events.GenPart[
+                # (abs(events.GenPart.pdgId) < 6)&(abs(events.GenPart.pdgId)!= 4)                                                                   
+                (abs(events.GenPart.pdgId)==4)
+                & (events.GenPart.hasFlags(["fromHardProcess"]) == True)
+                & (events.GenPart.hasFlags(["isHardProcess"]) == True)
+                #& (events.GenPart.pt > 25)                                                                                                         
+            ]
+            genc = genc[ak.argsort(genc.status, axis=1, ascending=False)]
+            
+            
+           
+            genlep = events.GenPart[
+                (
+                    (abs(events.GenPart.pdgId) == 11)
+                    | (abs(events.GenPart.pdgId) == 13)
+                    | (abs(events.GenPart.pdgId) == 15)
+                )
+                & (events.GenPart.hasFlags(["fromHardProcess"]) == True)
+                & (events.GenPart.hasFlags(["isHardProcess"]) == True)
+            ]
+            genh = events.GenPart[
+                (abs(events.GenPart.pdgId) == 25)
+                & (events.GenPart.hasFlags(["fromHardProcess"]) == True)
+                & (events.GenPart.hasFlags(["isHardProcess"]) == True)
+            ]
+
         if isRealData:
             output["cutflow"][dataset]["all"] += len(events)
         else:
-            output["cutflow"][dataset]["all"] += ak.sum(
+            if 'gchcWW2L2Nu_4f' in  dataset :
+                output["cutflow"][dataset]["all"] += ak.sum(
+                events[ak.count(genc.pt,axis=1)>0].genWeight / abs(events[ak.count(genc.pt,axis=1)>0].genWeight)
+            )
+            else :output["cutflow"][dataset]["all"] += ak.sum(
                 events.genWeight / abs(events.genWeight)
             )
         trigger_ee = np.zeros(len(events), dtype="bool")
@@ -371,7 +405,7 @@ class NanoProcessor(processor.ProcessorABC):
             metfilter &= np.array(events.Flag[flag])
         selection.add("metfilter", metfilter)
         del metfilter
-
+        
         ## Muon cuts
         # muon twiki: https://twiki.cern.ch/twiki/bin/view/CMS/SWGuideMuonIdRun2
         event_mu = events.Muon
@@ -546,8 +580,9 @@ class NanoProcessor(processor.ProcessorABC):
             & (ll_cand.lep1.charge + ll_cand.lep2.charge == 0)
             & (events.MET.pt > 20)
             & (make_p4(ll_cand.lep1).delta_r(make_p4(ll_cand.lep2)) > 0.4)
-            & (abs(met.delta_phi(tkmet)) < 0.5)
+            & (abs(met.delta_phi(tkmet)) < 0.5)   
         )
+        if 'gchcWW2L2Nu_4f' in  dataset : global_cut = global_cut & (ak.count(genc.pt,axis=1)>0)
         if dataset == "DY0JetsToLL_M-10to50_TuneCP5_13TeV-madgraphMLM-pythia8":
             global_cut = global_cut & (events.LHE.Njets == 0)
         sr_cut = (
@@ -579,22 +614,79 @@ class NanoProcessor(processor.ProcessorABC):
         output["cutflow"][dataset]["signal region"] += ak.sum(
             ak.any(global_cut & sr_cut, axis=-1)
         )
-        output["cutflow"][dataset]["selected jets"] += ak.sum(
-            ak.any(global_cut & sr_cut, axis=-1) & (njet > 0)
-        )
+
+        output["cutflow"][dataset]["selected jet kin"] += ak.sum(
+            ak.any(global_cut & sr_cut, axis=-1) 
+            & (ak.sum(
+                (eventflav_jet.pt > 20)
+                & (abs(eventflav_jet.eta) <= 2.4),axis=1)>0))
+    
+
+        output["cutflow"][dataset]["selected jet lep dr"] += ak.sum(
+            ak.any(global_cut & sr_cut, axis=-1)
+            & (ak.sum(
+                (eventflav_jet.pt > 20)
+                & (abs(eventflav_jet.eta) <= 2.4)
+                & ak.all(
+                (eventflav_jet.metric_table(ll_cand.lep1) > 0.4)
+                & (eventflav_jet.metric_table(ll_cand.lep2) > 0.4),
+                axis=2,
+            )
+            ,axis=1)>0))
+        output["cutflow"][dataset]["selected jet alep dr"] += ak.sum(
+            ak.any(global_cut & sr_cut, axis=-1)
+            & (ak.sum(
+                (eventflav_jet.pt > 20)
+                & (abs(eventflav_jet.eta) <= 2.4)
+                & ak.all(
+                (eventflav_jet.metric_table(ll_cand.lep1) > 0.4)
+                & (eventflav_jet.metric_table(ll_cand.lep2) > 0.4),
+                axis=2)
+                & ak.all(eventflav_jet.metric_table(aele) > 0.4, axis=2)
+                & ak.all(eventflav_jet.metric_table(amu) > 0.4, axis=2)
+            ,axis=1)>0))
+        output["cutflow"][dataset]["selected jet id"] +=  ak.sum(
+            ak.any(global_cut & sr_cut, axis=-1)
+            & (ak.sum(
+                (eventflav_jet.pt > 20)
+                & (abs(eventflav_jet.eta) <= 2.4)
+                & ak.all(
+                (eventflav_jet.metric_table(ll_cand.lep1) > 0.4)
+                & (eventflav_jet.metric_table(ll_cand.lep2) > 0.4),
+                axis=2)
+                & ak.all(eventflav_jet.metric_table(aele) > 0.4, axis=2)
+                & ak.all(eventflav_jet.metric_table(amu) > 0.4, axis=2)
+                & ((eventflav_jet.puId > 6) | (eventflav_jet.pt > 50))
+                & (eventflav_jet.jetId > 5)
+            ,axis=1)>0))
+        output["cutflow"][dataset]["selected jet cvlcvb"] +=  ak.sum(
+            ak.any(global_cut & sr_cut, axis=-1)
+            & (ak.sum(
+                (eventflav_jet.pt > 20)
+                & (abs(eventflav_jet.eta) <= 2.4)
+                & ak.all(
+                (eventflav_jet.metric_table(ll_cand.lep1) > 0.4)
+                & (eventflav_jet.metric_table(ll_cand.lep2) > 0.4),
+                axis=2)
+                & ak.all(eventflav_jet.metric_table(aele) > 0.4, axis=2)
+                & ak.all(eventflav_jet.metric_table(amu) > 0.4, axis=2)
+                & ((eventflav_jet.puId > 6) | (eventflav_jet.pt > 50))
+                & (eventflav_jet.jetId > 5)
+            ,axis=1)>0))
+       
         output["cutflow"][dataset]["all ee"] += ak.sum(
             ak.any(global_cut & sr_cut, axis=-1)
             & (njet > 0)
             & (ak.all(llmass_cut) & trigger_ele)
-            & (nele == 2)
-            & (nmu == 0)
+            # & (nele == 2)
+            # & (nmu == 0)
         )
         output["cutflow"][dataset]["all mumu"] += ak.sum(
             ak.any(global_cut & sr_cut, axis=-1)
             & (njet > 0)
             & (ak.all(llmass_cut) & trigger_mu)
-            & (nmu == 2)
-            & (nele == 0)
+            # & (nmu == 2)
+            # & (nele == 0)
         )
         output["cutflow"][dataset]["all emu"] += ak.sum(
             ak.any(global_cut & sr_cut, axis=-1)
@@ -706,7 +798,7 @@ class NanoProcessor(processor.ProcessorABC):
             "mumu": jetsel & cvbcutll & cvlcutll,
             "emu": jetsel & cvbcutem & cvlcutem,
         }
-
+        genc = genc[:,0]
         for r in reg:
             for ch in lepflav:
                 if "SR" in r and (ch == "ee" or ch == "mumu"):
@@ -759,7 +851,12 @@ class NanoProcessor(processor.ProcessorABC):
                 w1cut = lep1cut + met[cut]
                 w2cut = lep2cut + met[cut]
                 hcut = llcut + met[cut]
-
+                if "gchcWW2L2Nu_4f" in dataset:
+                    
+                    genlepcut = genlep[cut]
+                    
+                    genccut = genc[cut]
+                    genhcut = genh[cut]
                 # topjet1 = lep1cut.nearest(topjets)
                 # topjet2 = lep2cut.nearest(topjets)
                 # neu1 = getnu4vec(lep1cut,met[cut])
@@ -1221,6 +1318,9 @@ class NanoProcessor(processor.ProcessorABC):
                 )
 
                 if "SR" in r:
+                    if "gchcWW2L2Nu_4f" in dataset:
+                        matched = (genlepcut[:,0].delta_r(lep1cut)<0.1) & (genlepcut[:,1].delta_r(lep2cut)<0.1) & (genccut.delta_r(sel_cjet_flav)<0.1)
+                        output["genh_pt"].fill(dataset=dataset,lepflav=ch,pt=flatten(normalize(genhcut.pt,matched)))
                     output["l1l2_dr"].fill(
                         dataset=dataset,
                         lepflav=ch,
