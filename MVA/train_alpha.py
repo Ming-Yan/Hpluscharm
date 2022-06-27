@@ -1,3 +1,4 @@
+import functools
 import argparse
 from coffea.util import load
 import numpy as np
@@ -143,7 +144,7 @@ if __name__ == "__main__":
 
     # Get columns list for categorical and numerical
 
-    focal_params = {"imbalance_alpha": [0.1, 1.0,10.]}
+    focal_params = {"imbalance_alpha": [0.0001, 0.01, 0.1, 1.0,10.,100.]}
 
     fix_params = {
         "eval_metric": ["logloss", "auc"],
@@ -152,10 +153,14 @@ if __name__ == "__main__":
         "colsample_bytree":0.5,
         "subsample":0.5
     }
-    scoring = {"AUC": "roc_auc", "Accuracy": make_scorer(accuracy_score)}
+
 
     clf = imb_xgb(fix_params, special_objective="weighted", num_round=500)#,early_stopping_rounds=100)
-    bdt = GridSearchCV(clf, param_grid=focal_params, n_jobs=5,scoring='f1',cv=5)
+    score_eval_func = functools.partial(clf.score_eval_func, mode='accuracy')
+    #accscore= accuracy_score(y, clf.predict_determine(x))
+    #accuracy = accuracy_score(y_test, best_model.predict_determine(X_test))
+    #scoring = {"Accuracy": make_scorer(accscore)}
+    bdt = GridSearchCV(clf, param_grid=focal_params, n_jobs=5,cv=5,scoring=make_scorer(score_eval_func))
     model = bdt.fit(x, y, sample_weight=np.abs(w))
     best_model = model.best_estimator_
 

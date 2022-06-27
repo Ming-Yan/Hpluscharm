@@ -148,7 +148,7 @@ if __name__ == "__main__":
     #        'n_estimators': [100, 500, 1000],
     #        'colsample_bytree': [0.3, 0.7]}
     # kfold = StratifiedKFold(n_splits=5, shuffle=True)
-    focal_params = {"focal_gamma": [0.5, 1.0, 1.5, 2.0]}
+    focal_params = {"focal_gamma": [ 1.0,1.1, 1.2, 1.3,1.4]}
     fix_params = {
         "eval_metric": ["logloss", "auc"],
         "max_depth": 3,
@@ -157,9 +157,9 @@ if __name__ == "__main__":
         "subsample":0.5
     }
     
-    clf = imb_xgb(fix_params, special_objective="focal", num_round=50)
-    score_eval_func = functools.partial(clf.score_eval_func, mode='f1')
-    bdt = GridSearchCV(clf, param_grid=focal_params, n_jobs=5,scoring=make_scorer(score_eval_func),cv=5)
+    clf = imb_xgb(fix_params, special_objective="focal", num_round=1000)
+    score_eval_func = functools.partial(clf.score_eval_func, mode='accuracy')
+    bdt = GridSearchCV(clf, param_grid=focal_params, n_jobs=5,cv=5,scoring=make_scorer(score_eval_func))
     model = bdt.fit(x, y, sample_weight=np.abs(w))
     best_model = model.best_estimator_
 

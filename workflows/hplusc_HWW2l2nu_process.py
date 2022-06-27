@@ -13,7 +13,8 @@ from Hpluscharm.config.HWW2l2nu_config import (
     HLTmenu,
     correction_config,
 )
-
+def dphilmet(l1,l2,met):
+    return np.where(abs(l1.delta_phi(met))<abs(l2.delta_phi(met)),abs(l1.delta_phi(met)),abs(l2.delta_phi(met)))
 class NanoProcessor(processor.ProcessorABC):
     # Define histograms
     def __init__(self, year="2017",campaign="UL17", export_array=False):
@@ -47,6 +48,8 @@ class NanoProcessor(processor.ProcessorABC):
         # Events
         njet_axis = hist.Bin("nj", r"N jets", [0, 1, 2, 3, 4, 5, 6, 7])
         nalep_axis = hist.Bin("nalep", r"N jets", [0, 1, 2, 3])
+        nsv_axis  = hist.Bin("nsv", r"N secondary vertices",20,0,20)
+        npv_axis  = hist.Bin("npvs", r"N primary vertices",50,0,100)
         # kinematic variables
         pt_axis = hist.Bin("pt", r" $p_{T}$ [GeV]", 50, 0, 300)
         eta_axis = hist.Bin("eta", r" $\eta$", 25, -2.5, 2.5)
@@ -59,7 +62,7 @@ class NanoProcessor(processor.ProcessorABC):
         dz_axis = hist.Bin("dz", r"d_{z}", 40, 0, 10)
         # MET vars
         signi_axis = hist.Bin("significance", r"MET $\sigma$", 20, 0, 10)
-
+        ratio_axis = hist.Bin("ratio","ratio",50 ,0,1)
         # sumEt_axis = hist.Bin("sumEt", r" MET sumEt", 50, 0, 300)
 
         # axis.StrCategory([], name='region', growth=True),
@@ -73,6 +76,12 @@ class NanoProcessor(processor.ProcessorABC):
         for d in disc_list:
             btag_axes.append(hist.Bin(d, d, 50, 0, 1))
         _hist_event_dict = {
+            "npvs": hist.Hist(
+                "Counts", dataset_axis, lepflav_axis, region_axis, flav_axis, npv_axis
+            ),
+            "nsv": hist.Hist(
+                "Counts", dataset_axis, lepflav_axis, region_axis, flav_axis, nsv_axis
+            ),
             "nj": hist.Hist(
                 "Counts", dataset_axis, lepflav_axis, region_axis, flav_axis, njet_axis
             ),
@@ -85,22 +94,44 @@ class NanoProcessor(processor.ProcessorABC):
             "njmet": hist.Hist(
                 "Counts", dataset_axis, lepflav_axis, region_axis, flav_axis, njet_axis
             ),
-            # 'MET_sumEt' : hist.Hist("Counts", dataset_axis, lepflav_axis,region_axis, flav_axis,sumEt_axis),
-            "MET_significance": hist.Hist(
-                "Counts",
-                dataset_axis,
-                lepflav_axis,
-                region_axis,
-                flav_axis,
-                flav_axis,
-                signi_axis,
-            ),
-            # 'MET_covXX' :
+            # "MET_significance": hist.Hist(
+            #     "Counts", dataset_axis, lepflav_axis, region_axis, flav_axis, signi_axis,
+            # ),
             "MET_phi": hist.Hist(
                 "Counts", dataset_axis, lepflav_axis, region_axis, flav_axis, phi_axis
             ),
             "MET_pt": hist.Hist(
                 "Counts", dataset_axis, lepflav_axis, region_axis, flav_axis, pt_axis
+            ),
+            "TkMET_pt": hist.Hist(
+                "Counts", dataset_axis, lepflav_axis, region_axis, flav_axis, pt_axis
+            ),
+            "PuppiMET_pt": hist.Hist(
+                "Counts", dataset_axis, lepflav_axis, region_axis, flav_axis, pt_axis
+            ),
+             "TkMET_phi": hist.Hist(
+                "Counts", dataset_axis, lepflav_axis, region_axis, flav_axis, phi_axis
+            ),
+            "PuppiMET_phi": hist.Hist(
+                "Counts", dataset_axis, lepflav_axis, region_axis, flav_axis, phi_axis
+            ),
+            "MET_ptdivet": hist.Hist(
+                "Counts", dataset_axis, lepflav_axis, region_axis, flav_axis, ratio_axis
+            ),
+            "u_par": hist.Hist(
+                "Counts", dataset_axis, lepflav_axis, region_axis, flav_axis, phi_axis
+            ),
+            "u_per": hist.Hist(
+                "Counts", dataset_axis, lepflav_axis, region_axis, flav_axis, phi_axis
+            ),
+            "MET_proj": hist.Hist(
+                "Counts", dataset_axis, lepflav_axis, region_axis, flav_axis, phi_axis
+            ),
+            "TkMET_proj": hist.Hist(
+                "Counts", dataset_axis, lepflav_axis, region_axis, flav_axis, phi_axis
+            ),
+            "minMET_proj": hist.Hist(
+                "Counts", dataset_axis, lepflav_axis, region_axis, flav_axis, phi_axis
             ),
             "METTkMETdphi": hist.Hist(
                 "Counts", dataset_axis, lepflav_axis, region_axis, flav_axis, phi_axis
@@ -200,6 +231,9 @@ class NanoProcessor(processor.ProcessorABC):
             ),
             "llh_dphi": hist.Hist(
                 "Counts", dataset_axis, lepflav_axis, region_axis, flav_axis, phi_axis
+            ),
+            "h_pt":hist.Hist(
+                "Counts", dataset_axis, lepflav_axis, region_axis, flav_axis, pt_axis
             ),
             # 'jetmet_dphi':hist.Hist("Counts", dataset_axis, lepflav_axis,region_axis,flav_axis, phi_axis),
         }
@@ -321,7 +355,6 @@ class NanoProcessor(processor.ProcessorABC):
         trigger_mm = np.zeros(len(events), dtype="bool")
         trigger_ele = np.zeros(len(events), dtype="bool")
         trigger_mu = np.zeros(len(events), dtype="bool")
-
         for t in self._mu1hlt:
             if t in events.HLT.fields:
                 trigger_m = trigger_m | events.HLT[t]
@@ -688,7 +721,7 @@ class NanoProcessor(processor.ProcessorABC):
                 & (ak.sum(jetsel & cvbcutem & cvlcutem, axis=1) >= 1)
             ),
         )
-
+        
         # selection.add('DY_CRb',ak.to_numpy(ak.any(dy_cr2_cut&global_cut,axis=-1)&(ak.sum(seljet&cvlcut&~cvbcut,axis=1)==1)))
         # selection.add('DY_CRl',ak.to_numpy(ak.any(dy_cr2_cut&global_cut,axis=-1)&(ak.sum(seljet&~cvlcut&cvbcut,axis=1)>=1)))
         # selection.add('DY_CRc',ak.to_numpy(ak.any(dy_cr2_cut&global_cut,axis=-1)&(ak.sum(seljet&cvlcut&cvbcut,axis=1)==1)))
@@ -759,7 +792,8 @@ class NanoProcessor(processor.ProcessorABC):
                 w1cut = lep1cut + met[cut]
                 w2cut = lep2cut + met[cut]
                 hcut = llcut + met[cut]
-
+                utv = -met[cut]-(lep1cut+lep2cut)
+                utv_p = np.sqrt(utv.px**2+utv.py**2+utv.pz**2)
                 # topjet1 = lep1cut.nearest(topjets)
                 # topjet2 = lep2cut.nearest(topjets)
                 # neu1 = getnu4vec(lep1cut,met[cut])
@@ -884,30 +918,31 @@ class NanoProcessor(processor.ProcessorABC):
                                     )
                                 )
                             )
-                    elif "MET_" in histname:
-                        fields = {
-                            l: normalize(events.MET[histname.replace("MET_", "")], cut)
-                            for l in h.fields
-                            if l in dir(events.MET)
-                        }
-                        h.fill(
-                            dataset=dataset,
-                            lepflav=ch,
-                            region=r,
-                            flav=flavor,
-                            **fields,
-                            weight=weights.weight()[cut] * sf
-                        )
-                        if self._export_array:
-                            output["array"][dataset][
-                                histname
-                            ] += processor.column_accumulator(
-                                ak.to_numpy(
-                                    normalize(
-                                        events.MET[histname.replace("MET_", "")], cut
-                                    )
-                                )
-                            )
+                    
+                    # elif "MET_" in histname and "TkMET_" not in histname and "PuppiMET_" not in histname  :
+                    #     fields = {
+                    #         l: normalize(events.MET[histname.replace("MET_", "")], cut)
+                    #         for l in h.fields
+                    #         if l in dir(events.MET)
+                    #     }
+                    #     h.fill(
+                    #         dataset=dataset,
+                    #         lepflav=ch,
+                    #         region=r,
+                    #         flav=flavor,
+                    #         **fields,
+                    #         weight=weights.weight()[cut] * sf
+                    #     )
+                    #     if self._export_array:
+                    #         output["array"][dataset][
+                    #             histname
+                    #         ] += processor.column_accumulator(
+                    #             ak.to_numpy(
+                    #                 normalize(
+                    #                     events.MET[histname.replace("MET_", "")], cut
+                    #                 )
+                    #             )
+                    #         )
                     elif "ll_" in histname:
                         fields = {
                             l: normalize(flatten(llcut[histname.replace("ll_", "")]))
@@ -932,6 +967,34 @@ class NanoProcessor(processor.ProcessorABC):
                                     )
                                 )
                             )
+                    # elif "h_" in histname and "dphi" not in histname:
+                    #     print(dir(hcut))
+                    #     fields = {
+                    #         l: normalize(flatten(make_p4(hcut[histname.replace("h_", "")])))
+                    #         for l in h.fields
+                    #         if l in dir(hcut)
+                    #     }
+                    #     h.fill(
+                    #         dataset=dataset,
+                    #         lepflav=ch,
+                    #         region=r,
+                    #         flav=flavor,
+                    #         **fields,
+                    #         weight=weights.weight()[cut] * sf
+                    #     )
+                    #     if self._export_array:
+                    #         output["array"][dataset][
+                    #             histname
+                    #         ] += processor.column_accumulator(
+                    #             ak.to_numpy(
+                    #                 normalize(
+                    #                     flatten(make_p4(hcut[histname.replace("h_", "")]))
+                    #                 )
+                    #             )
+                    #         )
+                    # print(hcut.pt)
+                    
+                    # print(events[cut])
                     # elif 'top1_' in histname:
                     #     fields = {l: normalize(flatten(top1cut[histname.replace('top1_','')])) for l in h.fields if l in dir(top1cut)}
                     #     h.fill(dataset=dataset,lepflav=ch, region = r, flav=flavor,**fields,weight=weights.weight()[cut]*sf)
@@ -1017,140 +1080,181 @@ class NanoProcessor(processor.ProcessorABC):
                     output["array"][dataset]["mTh"] += processor.column_accumulator(
                         ak.to_numpy(flatten(mT(llcut, met[cut])))
                     )
-                    # if 'SR' in r:
-                    output["array"][dataset]["l1l2_dr"] += processor.column_accumulator(
-                        ak.to_numpy(flatten(make_p4(lep1cut).delta_r(make_p4(lep2cut))))
-                    )
-                    output["array"][dataset][
-                        "l1met_dphi"
-                    ] += processor.column_accumulator(
-                        ak.to_numpy(flatten(lep1cut.delta_phi(met[cut])))
-                    )
-                    output["array"][dataset][
-                        "l2met_dphi"
-                    ] += processor.column_accumulator(
-                        ak.to_numpy(flatten(lep2cut.delta_phi(met[cut])))
-                    )
-                    output["array"][dataset][
-                        "llmet_dphi"
-                    ] += processor.column_accumulator(
-                        ak.to_numpy(flatten(llcut.delta_phi(met[cut])))
-                    )
-                    output["array"][dataset]["l1c_dr"] += processor.column_accumulator(
-                        ak.to_numpy(
-                            normalize(make_p4(lep1cut).delta_r(make_p4(sel_cjet_flav)))
+                    if 'SR' in r:
+                        output["array"][dataset]["npvs"] += processor.column_accumulator(
+                            ak.to_numpy(flatten(events[cut].PV.npvs))
                         )
-                    )
-                    output["array"][dataset][
-                        "cmet_dphi"
-                    ] += processor.column_accumulator(
-                        ak.to_numpy(normalize(met[cut].delta_phi(sel_cjet_flav)))
-                    )
-                    output["array"][dataset]["l2c_dr"] += processor.column_accumulator(
-                        ak.to_numpy(
-                            normalize(make_p4(lep2cut).delta_r(make_p4(sel_cjet_flav)))
+                        
+                        output["array"][dataset]["nsv"] += processor.column_accumulator(
+                            ak.to_numpy(flatten(ak.count(events[cut].SV.ntracks,axis=1)))
                         )
-                    )
-                    output["array"][dataset][
-                        "l2W1_dphi"
-                    ] += processor.column_accumulator(
-                        ak.to_numpy(flatten(lep2cut.delta_phi((w1cut))))
-                    )
-                    output["array"][dataset][
-                        "metW1_dphi"
-                    ] += processor.column_accumulator(
-                        ak.to_numpy(flatten(met[cut].delta_phi((w1cut))))
-                    )
-                    output["array"][dataset][
-                        "cW1_dphi"
-                    ] += processor.column_accumulator(
-                        ak.to_numpy(normalize((w1cut).delta_phi(sel_cjet_flav)))
-                    )
-                    output["array"][dataset][
-                        "l1W2_dphi"
-                    ] += processor.column_accumulator(
-                        ak.to_numpy(flatten(lep1cut.delta_phi((w2cut))))
-                    )
-                    output["array"][dataset]["llc_dr"] += processor.column_accumulator(
-                        ak.to_numpy(
-                            normalize(make_p4(llcut).delta_r(make_p4(sel_cjet_flav)))
+                        
+                        output["array"][dataset]["u_par"] += processor.column_accumulator(
+                            ak.to_numpy(flatten(utv_p*np.cos(utv.delta_phi(lep1cut+lep2cut))))
                         )
-                    )
-                    output["array"][dataset][
-                        "llW1_dphi"
-                    ] += processor.column_accumulator(
-                        ak.to_numpy(flatten(w1cut.delta_phi((llcut))))
-                    )
-                    output["array"][dataset][
-                        "llW2_dphi"
-                    ] += processor.column_accumulator(
-                        ak.to_numpy(flatten(w2cut.delta_phi((llcut))))
-                    )
-                    output["array"][dataset][
-                        "llh_dphi"
-                    ] += processor.column_accumulator(
-                        ak.to_numpy(flatten(hcut.delta_phi((llcut))))
-                    )
-                    output["array"][dataset][
-                        "l2W2_dphi"
-                    ] += processor.column_accumulator(
-                        ak.to_numpy(flatten(lep2cut.delta_phi((w2cut))))
-                    )
-                    output["array"][dataset][
-                        "metW2_dphi"
-                    ] += processor.column_accumulator(
-                        ak.to_numpy(flatten(met[cut].delta_phi((w2cut))))
-                    )
-                    output["array"][dataset][
-                        "cW2_dphi"
-                    ] += processor.column_accumulator(
-                        ak.to_numpy(normalize((w2cut).delta_phi(sel_cjet_flav)))
-                    )
-                    output["array"][dataset][
-                        "l1h_dphi"
-                    ] += processor.column_accumulator(
-                        ak.to_numpy(flatten((lep1cut).delta_phi((hcut))))
-                    )
-                    output["array"][dataset][
-                        "meth_dphi"
-                    ] += processor.column_accumulator(
-                        ak.to_numpy(flatten((met[cut]).delta_phi((hcut))))
-                    )
-                    output["array"][dataset]["ch_dphi"] += processor.column_accumulator(
-                        ak.to_numpy(normalize(hcut.delta_phi(sel_cjet_flav)))
-                    )
-                    output["array"][dataset][
-                        "W1h_dphi"
-                    ] += processor.column_accumulator(
-                        ak.to_numpy(flatten((w1cut).delta_phi((hcut))))
-                    )
-                    output["array"][dataset][
-                        "W2h_dphi"
-                    ] += processor.column_accumulator(
-                        ak.to_numpy(flatten((w2cut).delta_phi((hcut))))
-                    )
-                    output["array"][dataset]["lll1_dr"] += processor.column_accumulator(
-                        ak.to_numpy(flatten(make_p4(lep1cut).delta_r(make_p4(llcut))))
-                    )
-                    output["array"][dataset]["lll2_dr"] += processor.column_accumulator(
-                        ak.to_numpy(flatten(make_p4(lep2cut).delta_r(make_p4(llcut))))
-                    )
-                    output["array"][dataset][
-                        "l1W1_dphi"
-                    ] += processor.column_accumulator(
-                        ak.to_numpy(flatten(lep1cut.delta_phi((w1cut))))
-                    )
-                    output["array"][dataset][
-                        "W1W2_dphi"
-                    ] += processor.column_accumulator(
-                        ak.to_numpy(flatten((w1cut).delta_phi((w2cut))))
-                    )
-                    output["array"][dataset][
-                        "l2h_dphi"
-                    ] += processor.column_accumulator(
-                        ak.to_numpy(flatten((lep2cut).delta_phi((hcut))))
-                    )
-
+                        output["array"][dataset]["u_per"] += processor.column_accumulator(
+                            ak.to_numpy(flatten(utv_p*np.sin(utv.delta_phi(lep1cut+lep2cut))))
+                        )
+                        output["array"][dataset]["tkMET_pt"] += processor.column_accumulator(
+                            ak.to_numpy(flatten(tkmet[cut].pt))
+                        )
+                        output["array"][dataset]["PuppiMET_pt"] += processor.column_accumulator(
+                            ak.to_numpy(flatten(events[cut].PuppiMET.pt))
+                        )
+                        output["array"][dataset]["MET_proj"] += processor.column_accumulator(
+                            ak.to_numpy(flatten(np.where(dphilmet(lep1cut,lep2cut,met[cut]) < np.pi / 2.,np.sin(dphilmet(lep1cut,lep2cut,met[cut])) * met[cut].pt,met[cut].pt)))
+                        )
+                        output["array"][dataset]["TkMET_proj"] += processor.column_accumulator(
+                            ak.to_numpy(flatten(np.where(dphilmet(lep1cut,lep2cut,tkmet[cut]) < np.pi / 2.,np.sin(dphilmet(lep1cut,lep2cut,tkmet[cut])) * tkmet[cut].pt,tkmet[cut].pt)))
+                        )
+                        output["array"][dataset]["minMET_proj"] += processor.column_accumulator(
+                            ak.to_numpy(flatten(np.where(np.where(dphilmet(lep1cut,lep2cut,met[cut]) < np.pi / 2.,np.sin(dphilmet(lep1cut,lep2cut,met[cut])) * met[cut].pt,met[cut].pt)>np.where(dphilmet(lep1cut,lep2cut,tkmet[cut]) < np.pi / 2.,np.sin(dphilmet(lep1cut,lep2cut,tkmet[cut])) * tkmet[cut].pt,tkmet[cut].pt),np.where(dphilmet(lep1cut,lep2cut,met[cut]) < np.pi / 2.,np.sin(dphilmet(lep1cut,lep2cut,met[cut])) * met[cut].pt,met[cut].pt),np.where(dphilmet(lep1cut,lep2cut,tkmet[cut]) < np.pi / 2.,np.sin(dphilmet(lep1cut,lep2cut,tkmet[cut])) * tkmet[cut].pt,tkmet[cut].pt))))
+                        )
+                        output["array"][dataset]["MET_ptdivet"] += processor.column_accumulator(
+                            ak.to_numpy(flatten(met[cut].pt/np.sqrt(met[cut].energy)))
+                        )
+                        output["array"][dataset]["h_pt"] += processor.column_accumulator(
+                            ak.to_numpy(flatten(hcut.pt))
+                        )
+                        output["array"][dataset]["MET_pt"] += processor.column_accumulator(
+                            ak.to_numpy(flatten(met[cut].pt))
+                        )
+                        output["array"][dataset]["MET_phi"] += processor.column_accumulator(
+                            ak.to_numpy(flatten(met[cut].pt))
+                        )
+                        output["array"][dataset]["l1l2_dr"] += processor.column_accumulator(
+                            ak.to_numpy(flatten(make_p4(lep1cut).delta_r(make_p4(lep2cut))))
+                        )
+                        output["array"][dataset][
+                            "l1met_dphi"
+                        ] += processor.column_accumulator(
+                            ak.to_numpy(flatten(lep1cut.delta_phi(met[cut])))
+                        )
+                        output["array"][dataset][
+                            "l2met_dphi"
+                        ] += processor.column_accumulator(
+                            ak.to_numpy(flatten(lep2cut.delta_phi(met[cut])))
+                        )
+                        output["array"][dataset][
+                            "llmet_dphi"
+                        ] += processor.column_accumulator(
+                            ak.to_numpy(flatten(llcut.delta_phi(met[cut])))
+                        )
+                        output["array"][dataset]["l1c_dr"] += processor.column_accumulator(
+                            ak.to_numpy(
+                                normalize(make_p4(lep1cut).delta_r(make_p4(sel_cjet_flav)))
+                            )
+                        )
+                        output["array"][dataset][
+                            "cmet_dphi"
+                        ] += processor.column_accumulator(
+                            ak.to_numpy(normalize(met[cut].delta_phi(sel_cjet_flav)))
+                        )
+                        output["array"][dataset]["l2c_dr"] += processor.column_accumulator(
+                            ak.to_numpy(
+                                normalize(make_p4(lep2cut).delta_r(make_p4(sel_cjet_flav)))
+                            )
+                        )
+                        output["array"][dataset][
+                            "l2W1_dphi"
+                        ] += processor.column_accumulator(
+                            ak.to_numpy(flatten(lep2cut.delta_phi((w1cut))))
+                        )
+                        output["array"][dataset][
+                            "metW1_dphi"
+                        ] += processor.column_accumulator(
+                            ak.to_numpy(flatten(met[cut].delta_phi((w1cut))))
+                        )
+                        output["array"][dataset][
+                            "cW1_dphi"
+                        ] += processor.column_accumulator(
+                            ak.to_numpy(normalize((w1cut).delta_phi(sel_cjet_flav)))
+                        )
+                        output["array"][dataset][
+                            "l1W2_dphi"
+                        ] += processor.column_accumulator(
+                            ak.to_numpy(flatten(lep1cut.delta_phi((w2cut))))
+                        )
+                        output["array"][dataset]["llc_dr"] += processor.column_accumulator(
+                            ak.to_numpy(
+                                normalize(make_p4(llcut).delta_r(make_p4(sel_cjet_flav)))
+                            )
+                        )
+                        output["array"][dataset][
+                            "llW1_dphi"
+                        ] += processor.column_accumulator(
+                            ak.to_numpy(flatten(w1cut.delta_phi((llcut))))
+                        )
+                        output["array"][dataset][
+                            "llW2_dphi"
+                        ] += processor.column_accumulator(
+                            ak.to_numpy(flatten(w2cut.delta_phi((llcut))))
+                        )
+                        output["array"][dataset][
+                            "llh_dphi"
+                        ] += processor.column_accumulator(
+                            ak.to_numpy(flatten(hcut.delta_phi((llcut))))
+                        )
+                        output["array"][dataset][
+                            "l2W2_dphi"
+                        ] += processor.column_accumulator(
+                            ak.to_numpy(flatten(lep2cut.delta_phi((w2cut))))
+                        )
+                        output["array"][dataset][
+                            "metW2_dphi"
+                        ] += processor.column_accumulator(
+                            ak.to_numpy(flatten(met[cut].delta_phi((w2cut))))
+                        )
+                        output["array"][dataset][
+                            "cW2_dphi"
+                        ] += processor.column_accumulator(
+                            ak.to_numpy(normalize((w2cut).delta_phi(sel_cjet_flav)))
+                        )
+                        output["array"][dataset][
+                            "l1h_dphi"
+                        ] += processor.column_accumulator(
+                            ak.to_numpy(flatten((lep1cut).delta_phi((hcut))))
+                        )
+                        output["array"][dataset][
+                            "meth_dphi"
+                        ] += processor.column_accumulator(
+                            ak.to_numpy(flatten((met[cut]).delta_phi((hcut))))
+                        )
+                        output["array"][dataset]["ch_dphi"] += processor.column_accumulator(
+                            ak.to_numpy(normalize(hcut.delta_phi(sel_cjet_flav)))
+                        )
+                        output["array"][dataset][
+                            "W1h_dphi"
+                        ] += processor.column_accumulator(
+                            ak.to_numpy(flatten((w1cut).delta_phi((hcut))))
+                        )
+                        output["array"][dataset][
+                            "W2h_dphi"
+                        ] += processor.column_accumulator(
+                            ak.to_numpy(flatten((w2cut).delta_phi((hcut))))
+                        )
+                        output["array"][dataset]["lll1_dr"] += processor.column_accumulator(
+                            ak.to_numpy(flatten(make_p4(lep1cut).delta_r(make_p4(llcut))))
+                        )
+                        output["array"][dataset]["lll2_dr"] += processor.column_accumulator(
+                            ak.to_numpy(flatten(make_p4(lep2cut).delta_r(make_p4(llcut))))
+                        )
+                        output["array"][dataset][
+                            "l1W1_dphi"
+                        ] += processor.column_accumulator(
+                            ak.to_numpy(flatten(lep1cut.delta_phi((w1cut))))
+                        )
+                        output["array"][dataset][
+                            "W1W2_dphi"
+                        ] += processor.column_accumulator(
+                            ak.to_numpy(flatten((w1cut).delta_phi((w2cut))))
+                        )
+                        output["array"][dataset][
+                            "l2h_dphi"
+                        ] += processor.column_accumulator(
+                            ak.to_numpy(flatten((lep2cut).delta_phi((hcut))))
+                        )
+                       
                 output["nj"].fill(
                     dataset=dataset,
                     lepflav=ch,
@@ -1221,6 +1325,128 @@ class NanoProcessor(processor.ProcessorABC):
                 )
 
                 if "SR" in r:
+                    output["npvs"].fill(
+                        dataset=dataset,
+                        lepflav=ch,
+                        region=r,
+                        flav=flavor,
+                        npvs=flatten(events[cut].PV.npvs),
+                        weight=weights.weight()[cut] * sf,
+                        )
+                    output["nsv"].fill(
+                        dataset=dataset,
+                        lepflav=ch,
+                        region=r,
+                        flav=flavor,
+                        nsv=flatten(ak.count(events[cut].SV.ntracks,axis=1)),
+                        weight=weights.weight()[cut] * sf,
+                        )
+                    # print(ak.type(utv),utv,flatten(utv),ak.type(weights.weight()[cut] * sf))
+                    output["u_par"].fill(
+                        dataset=dataset,
+                        lepflav=ch,
+                        region=r,
+                        flav=flavor,
+                        phi=flatten(utv_p*np.cos(utv.delta_phi(lep1cut+lep2cut))),
+                        weight=weights.weight()[cut] * sf,
+                        )
+                    output["u_per"].fill(
+                        dataset=dataset,
+                        lepflav=ch,
+                        region=r,
+                        flav=flavor,
+                        phi=flatten(utv_p*np.sin(utv.delta_phi(lep1cut+lep2cut))),
+                        weight=weights.weight()[cut] * sf,
+                        )
+                    
+                    output["TkMET_pt"].fill(
+                        dataset=dataset,
+                        lepflav=ch,
+                        region=r,
+                        flav=flavor,
+                        pt=flatten(tkmet[cut].pt),
+                        weight=weights.weight()[cut] * sf,
+                        )
+                    output["TkMET_phi"].fill(
+                        dataset=dataset,
+                        lepflav=ch,
+                        region=r,
+                        flav=flavor,
+                        phi=flatten(tkmet[cut].pt),
+                        weight=weights.weight()[cut] * sf,
+                        )
+                    output["MET_pt"].fill(
+                        dataset=dataset,
+                        lepflav=ch,
+                        region=r,
+                        flav=flavor,
+                        pt=flatten(met[cut].pt),
+                        weight=weights.weight()[cut] * sf,
+                        )
+                    output["MET_phi"].fill(
+                        dataset=dataset,
+                        lepflav=ch,
+                        region=r,
+                        flav=flavor,
+                        phi=flatten(met[cut].phi),
+                        weight=weights.weight()[cut] * sf,
+                        )
+                    output["PuppiMET_pt"].fill(
+                        dataset=dataset,
+                        lepflav=ch,
+                        region=r,
+                        flav=flavor,
+                        pt=flatten(events[cut].PuppiMET.pt),
+                        weight=weights.weight()[cut] * sf,
+                        )
+                    output["PuppiMET_phi"].fill(
+                        dataset=dataset,
+                        lepflav=ch,
+                        region=r,
+                        flav=flavor,
+                        phi=flatten(events[cut].PuppiMET.phi),
+                        weight=weights.weight()[cut] * sf,
+                        )
+                    output["MET_proj"].fill(
+                        dataset=dataset,
+                        lepflav=ch,
+                        region=r,
+                        flav=flavor,
+                        phi=flatten(np.where(dphilmet(lep1cut,lep2cut,met[cut]) < np.pi / 2.,np.sin(dphilmet(lep1cut,lep2cut,met[cut])) * met[cut].pt,met[cut].pt)),
+                        weight=weights.weight()[cut] * sf,
+                        )
+                    output["TkMET_proj"].fill(
+                        dataset=dataset,
+                        lepflav=ch,
+                        region=r,
+                        flav=flavor,
+                        phi=flatten(np.where(dphilmet(lep1cut,lep2cut,tkmet[cut]) < np.pi / 2.,np.sin(dphilmet(lep1cut,lep2cut,tkmet[cut])) * tkmet[cut].pt,tkmet[cut].pt)),
+                        weight=weights.weight()[cut] * sf,
+                        )
+                    output["minMET_proj"].fill(
+                        dataset=dataset,
+                        lepflav=ch,
+                        region=r,
+                        flav=flavor,
+                        phi=flatten(np.where(np.where(dphilmet(lep1cut,lep2cut,met[cut]) < np.pi / 2.,np.sin(dphilmet(lep1cut,lep2cut,met[cut])) * met[cut].pt,met[cut].pt)>np.where(dphilmet(lep1cut,lep2cut,tkmet[cut]) < np.pi / 2.,np.sin(dphilmet(lep1cut,lep2cut,tkmet[cut])) * tkmet[cut].pt,tkmet[cut].pt),np.where(dphilmet(lep1cut,lep2cut,met[cut]) < np.pi / 2.,np.sin(dphilmet(lep1cut,lep2cut,met[cut])) * met[cut].pt,met[cut].pt),np.where(dphilmet(lep1cut,lep2cut,tkmet[cut]) < np.pi / 2.,np.sin(dphilmet(lep1cut,lep2cut,tkmet[cut])) * tkmet[cut].pt,tkmet[cut].pt))),
+                        weight=weights.weight()[cut] * sf,
+                        )
+                    output["MET_ptdivet"].fill(
+                        dataset=dataset,
+                        lepflav=ch,
+                        region=r,
+                        flav=flavor,
+                        ratio =flatten(met[cut].pt/np.sqrt(met[cut].energy)),
+                        weight=weights.weight()[cut] * sf,
+                        )
+                    output["h_pt"].fill(
+                        dataset=dataset,
+                        lepflav=ch,
+                        region=r,
+                        flav=flavor,
+                        pt=flatten(hcut.pt),
+                        weight=weights.weight()[cut] * sf,
+                        )
                     output["l1l2_dr"].fill(
                         dataset=dataset,
                         lepflav=ch,

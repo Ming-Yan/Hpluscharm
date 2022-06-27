@@ -133,7 +133,7 @@ config2017 = {
                 "jetflav_btagDeepFlavCvL",
                 "jetflav_btagDeepFlavCvB",
             ],
-            "gamma2": [
+            "gamma": [
                 "ll_pt",
                 "lll1_dr",
                 "lll2_dr",
@@ -248,7 +248,7 @@ config2017 = {
                 "l2met_dphi",
                 "cW1_dphi",
             ],
-            "gamma2": [
+            "gamma": [
                 "ll_mass",
                 "MET_pt",
                 "jetflav_pt",
@@ -299,13 +299,12 @@ config2017 = {
     "input_json": {
         "ll": {
             "alpha":"xgb_output/SR_ll_scanalpha_2017_scan.json",
-            "gamma":"xgb_output/SR_ll_scangamma_2017_scan.json",
-            "gamma2":"SR_ll_scangammas_2017_scan_4f.json"
+            "gamma":"xgb_output/SR_ll_scangamma_2017_scan_4f.json",
+            
         },
         "emu":{
             "alpha": "xgb_output/SR_emu_scanalpha_2017_scan.json",
-            "gamma": "xgb_output/SR_emu_scangamma_2017_scan.json",
-           "gamma2":"SR_emu_scangammas_2017_scan_4f.json"
+            "gamma": "xgb_output/SR_emu_scangamma_2017_scan_4f.json",
         }
     }
     
