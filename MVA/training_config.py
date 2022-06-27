@@ -1,5 +1,15 @@
 config2017 = {
     "coffea": {
+        
+        "bkg": "hists_HWW2l2nu_mcbkg_UL17arrays.coffea",
+        "sig": "hists_HWW2l2nu_signal_UL17_4f_arrays.coffea",
+        "data": "hists_HWW2l2nu_data2017arrays.coffea",
+        "dy": "hists_HWW2l2nu_dyarrays.coffea",
+        "sigjet": "hists_HWW2l2nu_signal_UL17jetarr.coffea",
+    },
+
+    "coffea_old": {
+        
         "bkg": "hists_HWW2l2nu_mcbkg_UL17arrays.coffea",
         "sig": "hists_HWW2l2nu_signal_UL17newdata.coffea",
         "data": "hists_HWW2l2nu_data2017arrays.coffea",
@@ -105,7 +115,7 @@ config2017 = {
                 "jetflav_btagDeepFlavCvL",
                 "jetflav_btagDeepFlavCvB",
             ],
-            "v7_focal": [
+            "alpha": [
                 "ll_pt",
                 "lll1_dr",
                 "lll2_dr",
@@ -123,7 +133,7 @@ config2017 = {
                 "jetflav_btagDeepFlavCvL",
                 "jetflav_btagDeepFlavCvB",
             ],
-            "v7_focal_dy": [
+            "gamma": [
                 "ll_pt",
                 "lll1_dr",
                 "lll2_dr",
@@ -138,6 +148,37 @@ config2017 = {
                 "cW1_dphi",
                 "mT1",
                 "mT2",
+                "jetflav_btagDeepFlavCvL",
+                "jetflav_btagDeepFlavCvB",
+            ],
+            "alpha_morevar": [
+                
+                "ll_pt",
+                "lll1_dr",
+                "lll2_dr",
+                "llc_dr",
+                "lep1_pt",
+                "lep2_pt",
+                "ll_mass",
+                "MET_pt",
+                "jetflav_pt",
+                "l1met_dphi",
+                "l2met_dphi",
+                "llmet_dphi",
+                "cW1_dphi",
+                "npv",
+                "nsv",
+                "mT1",
+                "mT2",
+                "u_par",
+                "u_per",
+                "h_pt",
+                "TkMET_pt",
+                "PuppiMET_pt",
+                "MET_ptdivet",
+                "MET_proj",
+                "TkMET_proj",
+                "minMET_proj",
                 "jetflav_btagDeepFlavCvL",
                 "jetflav_btagDeepFlavCvB",
             ],
@@ -207,7 +248,25 @@ config2017 = {
                 "l2met_dphi",
                 "cW1_dphi",
             ],
-            "v7t": [
+            "gamma": [
+                "ll_mass",
+                "MET_pt",
+                "jetflav_pt",
+                "lep1_pt",
+                "lep2_pt",
+                "ll_pt",
+                "mT1",
+                "mT2",
+                "jetflav_btagDeepFlavCvL",
+                "jetflav_btagDeepFlavCvB",
+                "lll1_dr",
+                "lll2_dr",
+                "llc_dr",
+                "l1met_dphi",
+                "l2met_dphi",
+                "cW1_dphi",
+            ],
+            "alpha": [
                 "ll_mass",
                 "MET_pt",
                 "jetflav_pt",
@@ -238,13 +297,15 @@ config2017 = {
         },
     },
     "input_json": {
-        "v7t": {
-            "ll": "SR_ll_depth3_ntree1000_2017_v7t",
-            "emu": "SR_emu_depth3_ntree1000_2017_v7t",
+        "ll": {
+            "alpha":"xgb_output/SR_ll_scanalpha_2017_scan.json",
+            "gamma":"xgb_output/SR_ll_scangamma_2017_scan_4f.json",
+            
         },
-        "v7_focal_dy": {
-            "ll": "SR_ll_depth3_ntree500_2017_v7_focal",
-            "emu": "SR_emu_depth3_ntree500_2017_v7_focal",
-        },
-    },
+        "emu":{
+            "alpha": "xgb_output/SR_emu_scanalpha_2017_scan.json",
+            "gamma": "xgb_output/SR_emu_scangamma_2017_scan_4f.json",
+        }
+    }
+    
 }

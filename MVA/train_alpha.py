@@ -1,3 +1,4 @@
+import functools
 import argparse
 from coffea.util import load
 import numpy as np
@@ -5,12 +6,12 @@ import matplotlib.pyplot as plt
 
 from sklearn.model_selection import KFold, GridSearchCV
 
-from utils.xs_scaler import scale_xs_arr
+from  BTVNanoCommissioning.utils.xs_scaler import scale_xs_arr
 import pandas as pd
 import xgboost as xgb
 from sklearn.model_selection import train_test_split
 from imxgboost.imbalance_xgb import imbalance_xgboost as imb_xgb
-
+from sklearn.metrics import make_scorer,accuracy_score
 # from joblib import parallel_backend
 # with parallel_backend('threading', n_jobs=2):
 
@@ -23,7 +24,7 @@ def load_data(fname, varlist, isSignal=True, channel="emu", lumi=41500):
 
     # data_arrays=data_arrays[(data_arrays['region']=='SR')|(data_arrays['region']=='SR2')]
     # put gen weight
-    genwei = scale_xs_arr(events, lumi)
+    genwei = scale_xs_arr(events, lumi,"../../../metadata/xsection.json")
     if channel == "emu":
         w = np.hstack(
             [
@@ -130,10 +131,10 @@ if __name__ == "__main__":
         "jetflav_btagDeepFlavCvB",
     ]
     bkgx, bkgy, bkgw = load_data(
-        "hists_HWW2l2nu_mcbkg_UL17arrays.coffea", varlist, False, args.channel
+        "../../../coffea_output/hists_HWW2l2nu_mcbkg_UL17arrays.coffea", varlist, False, args.channel
     )
     sigx, sigy, sigw = load_data(
-        "hists_HWW2l2nu_signal_UL17newdata.coffea", varlist, True, args.channel
+        "../../../coffea_output/hists_HWW2l2nu_signal_UL17_4f_arrays.coffea", varlist, True, args.channel
     )
     fig, ax = plt.subplots()
 
@@ -143,14 +144,23 @@ if __name__ == "__main__":
 
     # Get columns list for categorical and numerical
 
-    focal_params = {"imbalance_alpha": [1.5, 2.0, 2.5, 3.0, 4.0]}
+    focal_params = {"imbalance_alpha": [0.0001, 0.01, 0.1, 1.0,10.,100.]}
 
     fix_params = {
         "eval_metric": ["logloss", "auc"],
         "max_depth": 3,
+        "eta" : 0.05,
+        "colsample_bytree":0.5,
+        "subsample":0.5
     }
-    clf = imb_xgb(fix_params, special_objective="weighted", num_round=500)
-    bdt = GridSearchCV(clf, param_grid=focal_params, n_jobs=1)
+
+
+    clf = imb_xgb(fix_params, special_objective="weighted", num_round=500)#,early_stopping_rounds=100)
+    score_eval_func = functools.partial(clf.score_eval_func, mode='accuracy')
+    #accscore= accuracy_score(y, clf.predict_determine(x))
+    #accuracy = accuracy_score(y_test, best_model.predict_determine(X_test))
+    #scoring = {"Accuracy": make_scorer(accscore)}
+    bdt = GridSearchCV(clf, param_grid=focal_params, n_jobs=5,cv=5,scoring=make_scorer(score_eval_func))
     model = bdt.fit(x, y, sample_weight=np.abs(w))
     best_model = model.best_estimator_
 
@@ -165,7 +175,7 @@ if __name__ == "__main__":
     ylab = [item.get_text() for item in ax.get_yticklabels()]
     ax.set_yticklabels([label[y] for y in ylab])
     plt.xlabel("Feature Importance")
-    plt.savefig(f"importance_plot_balance{args.channel}_{args.year}_{args.version}.pdf")
+    plt.savefig(f"importance_plot_balance{args.channel}_{args.year}_{args.version}alpha.pdf")
     plt.cla()
     X_train, X_test, y_train, y_test, w_train, w_test = train_test_split(
         x, y, w, test_size=0.5, random_state=42
@@ -221,12 +231,12 @@ if __name__ == "__main__":
         color="red",
         label="background:test",
     )
-    plt.savefig(f"discri_balance{args.channel}_{args.year}_{args.version}.pdf")
+    plt.savefig(f"discri_balance{args.channel}_{args.year}_{args.version}alpha.pdf")
     plt.semilogy()
     plt.legend()
     accuracy = accuracy_score(y_test, best_model.predict_determine(X_test))
     plt.title(f"Accuracy: {accuracy * 100.0} %")
-    plt.savefig(f"discri_balance{args.channel}_{args.year}_{args.version}_log.pdf")
+    plt.savefig(f"discri_balance{args.channel}_{args.year}_{args.version}_logalpha.pdf")
     plt.cla()
     y_pred_test = best_model.predict_sigmoid(X_test)
     y_pred_train = best_model.predict_sigmoid(X_train)
@@ -258,7 +268,7 @@ if __name__ == "__main__":
     plt.ylabel("TP (relative signal efficiency)")
     plt.title(f"ROC{args.channel}")
     plt.legend(loc="lower right")
-    plt.savefig(f"ROC{args.channel}_{args.year}_{args.version}.pdf")
+    plt.savefig(f"ROC{args.channel}_{args.year}_{args.version}alpha.pdf")
     print(type(best_model))
     results = best_model.evals_result
     print(results)
@@ -272,7 +282,7 @@ if __name__ == "__main__":
     ax.legend()
     plt.ylabel("Log Loss")
     plt.title("XGBoost Log Loss")
-    plt.savefig(f"log_loss_{args.channel}_{args.year}_{args.version}.pdf")
+    plt.savefig(f"log_loss_{args.channel}_{args.year}_{args.version}alpha.pdf")
 
     # plot classification error
     epochs = len(results["valid"]["error"])
@@ -283,7 +293,7 @@ if __name__ == "__main__":
     ax.legend()
     plt.ylabel("Classification Error")
     plt.title("XGBoost Classification Error")
-    plt.savefig(f"xgb_err_{args.channel}_{args.year}_{args.version}.pdf")
+    plt.savefig(f"xgb_err_{args.channel}_{args.year}_{args.version}alpha.pdf")
 
     print("Best parameters:", bdt.best_params_)
     print("Best AUC Score: {}".format(model.best_score_))

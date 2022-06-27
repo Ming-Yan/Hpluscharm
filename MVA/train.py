@@ -3,13 +3,15 @@ from coffea.util import load
 import numpy as np
 import matplotlib.pyplot as plt
 
-from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import GridSearchCV,LeaveOneOut
 
-from utils.xs_scaler import scale_xs_arr
+from BTVNanoCommissioning.utils.xs_scaler import scale_xs_arr
 import pandas as pd
 import xgboost as xgb
+import functools
 from sklearn.model_selection import train_test_split
 from imxgboost.imbalance_xgb import imbalance_xgboost as imb_xgb
+from sklearn.metrics import make_scorer
 
 # from joblib import parallel_backend
 # with parallel_backend('threading', n_jobs=2):
@@ -21,9 +23,8 @@ def load_data(fname, varlist, isSignal=True, channel="emu", lumi=41500):
     events = data["sumw"]
     data_arrays = data["array"]
 
-    # data_arrays=data_arrays[(data_arrays['region']=='SR')|(data_arrays['region']=='SR2')]
     # put gen weight
-    genwei = scale_xs_arr(events, lumi)
+    genwei = scale_xs_arr(events, lumi,"../../../metadata/xsection.json")
     if channel == "emu":
         w = np.hstack(
             [
@@ -130,10 +131,10 @@ if __name__ == "__main__":
         "jetflav_btagDeepFlavCvB",
     ]
     bkgx, bkgy, bkgw = load_data(
-        "hists_HWW2l2nu_mcbkg_UL17arrays.coffea", varlist, False, args.channel
+        "../../../coffea_output/hists_HWW2l2nu_mcbkg_UL17arrays.coffea", varlist, False, args.channel
     )
     sigx, sigy, sigw = load_data(
-        "hists_HWW2l2nu_signal_UL17newdata.coffea", varlist, True, args.channel
+        "../../../coffea_output/hists_HWW2l2nu_signal_UL17_4f_arrays.coffea", varlist, True, args.channel
     )
     fig, ax = plt.subplots()
 
@@ -147,13 +148,18 @@ if __name__ == "__main__":
     #        'n_estimators': [100, 500, 1000],
     #        'colsample_bytree': [0.3, 0.7]}
     # kfold = StratifiedKFold(n_splits=5, shuffle=True)
-    focal_params = {"focal_gamma": [0.5, 1.0, 1.5, 2.0]}
+    focal_params = {"focal_gamma": [ 1.0,1.1, 1.2, 1.3,1.4]}
     fix_params = {
         "eval_metric": ["logloss", "auc"],
         "max_depth": 3,
+        "colsample_bytree":0.5,
+        "eta":0.05,
+        "subsample":0.5
     }
-    clf = imb_xgb(fix_params, special_objective="focal", num_round=50)
-    bdt = GridSearchCV(clf, param_grid=focal_params, n_jobs=1)
+    
+    clf = imb_xgb(fix_params, special_objective="focal", num_round=1000)
+    score_eval_func = functools.partial(clf.score_eval_func, mode='accuracy')
+    bdt = GridSearchCV(clf, param_grid=focal_params, n_jobs=5,cv=5,scoring=make_scorer(score_eval_func))
     model = bdt.fit(x, y, sample_weight=np.abs(w))
     best_model = model.best_estimator_
 

@@ -4,7 +4,7 @@ from this import d
 from coffea.util import load
 import numpy as np
 import matplotlib.pyplot as plt
-from utils.xs_scaler import scale_xs_arr
+from BTVNanoCommissioning.utils.xs_scaler import scale_xs_arr
 import mplhep as hep
 import xgboost as xgb
 from coffea import hist
@@ -50,33 +50,6 @@ colors = [
 
 mpl.rcParams["axes.prop_cycle"] = cycler("color", colors)
 
-with open("metadata/mergemap.json") as json_file:
-    merge_map = json.load(json_file)
-
-data_err_opts = {
-    "linestyle": "none",
-    "marker": ".",
-    "markersize": 10.0,
-    "color": "k",
-    "elinewidth": 1,
-}
-colors = [
-    "#666666",
-    "#1D6996",
-    "#38A6A5",
-    "#0F8554",
-    "#73AF48",
-    "#EDAD08",
-    "#E17C05",
-    "#CC503E",
-    "#554e99",
-    "#6f4e99",
-    "#854e99",
-    "#994e85",
-    "#666666",
-]
-mpl.rcParams["axes.prop_cycle"] = cycler("color", colors)
-
 plt.style.use(hep.style.ROOT)
 fig, ((ax), (rax)) = plt.subplots(
     2, 1, figsize=(12, 12), gridspec_kw={"height_ratios": (3, 1)}, sharex=True
@@ -84,7 +57,7 @@ fig, ((ax), (rax)) = plt.subplots(
 hep.cms.label("Work in progress", data=True, lumi=41.5, year=2017, ax=ax)
 plt.style.use(hep.style.ROOT)
 
-with open("metadata/mergemap.json") as json_file:
+with open("../metadata/mergemap.json") as json_file:
     merge_map = json.load(json_file)
 
 
@@ -95,7 +68,7 @@ def load_dataplot(data, varlist, region, channel, isData=False, lumi=41500):
     data_arrays = data["array"]
 
     # put gen weight
-    genwei = scale_xs_arr(events, lumi)
+    genwei = scale_xs_arr(events, lumi, "../../../metadata/xsection.json")
 
     # Convert inputs to format readable by machine learning tools
     x = np.vstack(
@@ -159,9 +132,8 @@ if __name__ == "__main__":
         "-r", "--region", required=True, choices=["SR", "SR2"], help="regions"
     )
     parser.add_argument("--year", default=2017, help="year")
-    parser.add_argument("-o", "--dirname", default="HWW2l2nu_0521", help="outputdir")
     parser.add_argument("--bin", type=int, default=50, help="bin size")
-    parser.add_argument("--blind", type=float, required=True, help="blind bins")
+    parser.add_argument("--blind", type=float, default=1.2, help="blind bins")
     parser.add_argument("-v", "--version", type=str, required=True, help="version")
     args = parser.parse_args()
 
@@ -173,10 +145,10 @@ if __name__ == "__main__":
         chs = "ll"
     varlist = config2017["varlist"][chs][args.version]
 
-    bkgoutput = load(config2017["coffea"]["bkg"])
-    sigoutput = load(config2017["coffea"]["sig"])
-    dataoutput = load(config2017["coffea"]["data"])
-    dyoutput = load(config2017["coffea"]["dy"])
+    bkgoutput = load(f'../../../coffea_output/{config2017["coffea"]["bkg"]}')
+    sigoutput = load(f'../../../coffea_output/{config2017["coffea_old"]["sig"]}')
+    dataoutput = load(f'../../../coffea_output/{config2017["coffea"]["data"]}')
+    dyoutput = load(f'../../../coffea_output/{config2017["coffea"]["dy"]}')
     bkgx, bkgw, bkgdataset, bkgjetflav = load_dataplot(
         bkgoutput, varlist, args.region, args.channel, False, 41500
     )
@@ -189,7 +161,6 @@ if __name__ == "__main__":
     dyx, dyw, dydataset, dyjetflav = load_dataplot(
         dyoutput, varlist, args.region, args.channel, False, 41500
     )
-    # print(np.shape(bkgx),np.shape(bkgw))
     # bkgall= np.vstack([bkgx.T,bkgw,np.full_like(bkgw,"bkgMC",dtype='U64')])
     # sigall= np.vstack([sigx.T,sigw,np.full_like(sigw,"sigMC",dtype='U64')])
     # dataall= np.vstack([datax.T,dataw,np.full_like(dataw,"data",dtype='U64')])
@@ -202,16 +173,13 @@ if __name__ == "__main__":
     # print(colname,len(colname))
     # df.set_axis(colname, axis='columns')
     # df.columns = colname
-    # print(df)
     # df.to_csv(f"{args.channel}_{args.year}.csv")
     # print(np.shape(bkgall))
-    # dyx, dyw,dydataset,dyflav = load_dataplot(dyoutput,varlist,args.region,args.channel,False,41500)
-
-    if "focal" in args.version:
+    if "gamma" in args.version or "alpha" in  args.version:
         xgb_model = xgb.Booster()
     else:
         xgb_model = xgb.XGBClassifier()
-    xgb_model.load_model(f"{config2017['input_json'][args.version][chs]}.json")
+    xgb_model.load_model(f"{config2017['input_json'][chs][args.version]}")
 
     dataset_axis = hist.Cat("dataset", "Primary dataset")
     flav_axis = hist.Bin("flav", r"Genflavour", [0, 1, 4, 5, 6])
@@ -222,7 +190,7 @@ if __name__ == "__main__":
     dsig = xgb.DMatrix(sigx)
     dbkg = xgb.DMatrix(bkgx)
     ddata = xgb.DMatrix(datax)
-    if "focal" in args.version:
+    if "gamma" in args.version or "alpha" in args.version :
         maxi = np.around(
             max(
                 max(
@@ -250,7 +218,7 @@ if __name__ == "__main__":
     histo = hist.Hist("Counts", dataset_axis, lepflav_axis, flav_axis, bdt_axis)
     scales = 50000
     for dataset in bkgoutput["array"].keys():
-        if "focal" in args.version:
+        if "gamma" in args.version or "alpha" in  args.version:
             dbkg = xgb.DMatrix(bkgx[bkgdataset == dataset])
             if len(bkgjetflav[bkgdataset == dataset]) > 0:
                 histo.fill(
@@ -260,6 +228,8 @@ if __name__ == "__main__":
                     bdt=1.0 / (1 + np.exp(-xgb_model.predict(dbkg))),
                     weight=bkgw[bkgdataset == dataset],
                 )
+                
+
             else:
                 histo.fill(
                     dataset=dataset, lepflav=args.channel, flav=0, bdt=-1, weight=0.0
@@ -277,9 +247,9 @@ if __name__ == "__main__":
                 histo.fill(
                     dataset=dataset, lepflav=args.channel, flav=0, bdt=-1, weight=0.0
                 )
+    
     for dataset in sigoutput["array"].keys():
-        if "focal" in args.version:
-
+        if "gamma" in args.version or "alpha" in  args.version:
             dsig = xgb.DMatrix(sigx[sigdataset == dataset])
             if len(sigjetflav[sigdataset == dataset]) > 0:
                 histo.fill(
@@ -307,7 +277,7 @@ if __name__ == "__main__":
                     dataset=dataset, lepflav=args.channel, flav=0, bdt=-1, weight=0.0
                 )
     for dataset in dyoutput["array"].keys():
-        if "focal" in args.version:
+        if "gamma" in args.version or "alpha" in  args.version:
 
             ddy = xgb.DMatrix(dyx[dydataset == dataset])
             if len(dyjetflav[dydataset == dataset]) > 0:
@@ -336,7 +306,7 @@ if __name__ == "__main__":
                     dataset=dataset, lepflav=args.channel, flav=0, bdt=-1, weight=0.0
                 )
     for dataset in dataoutput["array"].keys():
-        if "focal" in args.version:
+        if "gamma" in args.version or "alpha" in  args.version:
             ddata = xgb.DMatrix(datax[datadataset == dataset])
             if len(dataw[datadataset == dataset]) > 0:
                 histo.fill(
@@ -372,9 +342,8 @@ if __name__ == "__main__":
                 histo.fill(
                     dataset=dataset, lepflav=args.channel, flav=0, bdt=-1, weight=0.0
                 )
-    histo = histo.group("dataset", hist.Cat("plotgroup", "plotgroup"), merge_map["hww"])
+    histo = histo.group("dataset", hist.Cat("plotgroup", "plotgroup"), merge_map["HWW2l2nu"])
     # histo = histo.group("dataset",hist.Cat("plotgroup", "plotgroup"),merge_map["hww_tem_zptbin"])
-
     fig.subplots_adjust(hspace=0.07)
     ax = plot.plot1d(
         histo.sum("flav").integrate("lepflav", args.channel),
@@ -455,28 +424,27 @@ if __name__ == "__main__":
     )
     hep.mpl_magic(ax=ax)
     ax.set_xlabel("")
-    fig.savefig(
-        f"{args.dirname}_{args.region}_{args.channel}_BDT_split_{args.version}_dy.pdf"
+    if args.blind !=1.2 :fig.savefig(
+        f"xgb_plot/{args.region}_{args.channel}_BDT_split_{args.version}_dy.pdf"
     )
-    # fig.savefig(f"{args.dirname}_{args.region}_{args.channel}_BDT_split_{args.version}.png" )
+    else:
+        template_file = f"../../../../card_maker/shape/templates_{args.region}_{args.channel}_srbdt_{args.year}_{args.version}.root"
+        if os.path.exists(template_file):
+            os.remove(template_file)
+        print(f"Will save templates to {template_file}")
+        fout = uproot3.create(template_file)
+        name = "hc"
+        histo.scale({"signal":1./scales},axis="plotgroup")
 
-    # template_file = f"../stat_analysis/shape/templates_{args.region}_{args.channel}_srbdt_{args.year}_{args.version}.root"
-    # if os.path.exists(template_file):
-    #     os.remove(template_file)
-    # print(f"Will save templates to {template_file}")
-    # fout = uproot3.create(template_file)
-    # name = "hc"
-    # histo.scale({"signal":1./scales},axis="plotgroup")
-
-    # fout[name] = hist.export1d(histo.sum("flav").integrate("lepflav",args.channel).integrate("plotgroup","signal"))
-    # name = "data_obs"
-    # fout[name] = hist.export1d(histo.integrate("lepflav",args.channel).integrate("plotgroup","data_%s"%(args.channel)).sum("flav"))
-    # name = "vjets"
-    # fout[name] = hist.export1d(histo.sum("flav").integrate("lepflav",args.channel).integrate("plotgroup",["Z+jets","W+jets"]))
-    # name = "ttbar"
-    # fout[name] = hist.export1d(histo.sum("flav").integrate("lepflav",args.channel).integrate("plotgroup",["tt-dilep","tt-semilep"]))
-    # name = "vv"
-    # fout[name] = hist.export1d(histo.sum("flav").integrate("lepflav",args.channel).integrate("plotgroup",["WW","WZ","ZZ"]))
-    # name = "st"
-    # fout[name] = hist.export1d(histo.sum("flav").integrate("lepflav",args.channel).integrate("plotgroup","ST"))
-    # fout.close()
+        fout[name] = hist.export1d(histo.sum("flav").integrate("lepflav",args.channel).integrate("plotgroup","signal"))
+        name = "data_obs"
+        fout[name] = hist.export1d(histo.integrate("lepflav",args.channel).integrate("plotgroup","data_%s"%(args.channel)).sum("flav"))
+        name = "vjets"
+        fout[name] = hist.export1d(histo.sum("flav").integrate("lepflav",args.channel).integrate("plotgroup",["Z+jets","W+jets"]))
+        name = "ttbar"
+        fout[name] = hist.export1d(histo.sum("flav").integrate("lepflav",args.channel).integrate("plotgroup",["tt-dilep","tt-semilep"]))
+        name = "vv"
+        fout[name] = hist.export1d(histo.sum("flav").integrate("lepflav",args.channel).integrate("plotgroup",["WW","WZ","ZZ"]))
+        name = "st"
+        fout[name] = hist.export1d(histo.sum("flav").integrate("lepflav",args.channel).integrate("plotgroup","ST"))
+        fout.close()
