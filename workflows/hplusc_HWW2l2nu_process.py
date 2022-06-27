@@ -1080,180 +1080,179 @@ class NanoProcessor(processor.ProcessorABC):
                     output["array"][dataset]["mTh"] += processor.column_accumulator(
                         ak.to_numpy(flatten(mT(llcut, met[cut])))
                     )
-                    if 'SR' in r:
-                        output["array"][dataset]["npvs"] += processor.column_accumulator(
+                    output["array"][dataset]["npvs"] += processor.column_accumulator(
                             ak.to_numpy(flatten(events[cut].PV.npvs))
                         )
                         
-                        output["array"][dataset]["nsv"] += processor.column_accumulator(
+                    output["array"][dataset]["nsv"] += processor.column_accumulator(
                             ak.to_numpy(flatten(ak.count(events[cut].SV.ntracks,axis=1)))
                         )
                         
-                        output["array"][dataset]["u_par"] += processor.column_accumulator(
+                    output["array"][dataset]["u_par"] += processor.column_accumulator(
                             ak.to_numpy(flatten(utv_p*np.cos(utv.delta_phi(lep1cut+lep2cut))))
                         )
-                        output["array"][dataset]["u_per"] += processor.column_accumulator(
+                    output["array"][dataset]["u_per"] += processor.column_accumulator(
                             ak.to_numpy(flatten(utv_p*np.sin(utv.delta_phi(lep1cut+lep2cut))))
                         )
-                        output["array"][dataset]["tkMET_pt"] += processor.column_accumulator(
+                    output["array"][dataset]["tkMET_pt"] += processor.column_accumulator(
                             ak.to_numpy(flatten(tkmet[cut].pt))
                         )
-                        output["array"][dataset]["PuppiMET_pt"] += processor.column_accumulator(
+                    output["array"][dataset]["PuppiMET_pt"] += processor.column_accumulator(
                             ak.to_numpy(flatten(events[cut].PuppiMET.pt))
                         )
-                        output["array"][dataset]["MET_proj"] += processor.column_accumulator(
+                    output["array"][dataset]["MET_proj"] += processor.column_accumulator(
                             ak.to_numpy(flatten(np.where(dphilmet(lep1cut,lep2cut,met[cut]) < np.pi / 2.,np.sin(dphilmet(lep1cut,lep2cut,met[cut])) * met[cut].pt,met[cut].pt)))
                         )
-                        output["array"][dataset]["TkMET_proj"] += processor.column_accumulator(
-                            ak.to_numpy(flatten(np.where(dphilmet(lep1cut,lep2cut,tkmet[cut]) < np.pi / 2.,np.sin(dphilmet(lep1cut,lep2cut,tkmet[cut])) * tkmet[cut].pt,tkmet[cut].pt)))
+                    output["array"][dataset]["TkMET_proj"] += processor.column_accumulator(
+                        ak.to_numpy(flatten(np.where(dphilmet(lep1cut,lep2cut,tkmet[cut]) < np.pi / 2.,np.sin(dphilmet(lep1cut,lep2cut,tkmet[cut])) * tkmet[cut].pt,tkmet[cut].pt)))
+                    )
+                    output["array"][dataset]["minMET_proj"] += processor.column_accumulator(
+                        ak.to_numpy(flatten(np.where(np.where(dphilmet(lep1cut,lep2cut,met[cut]) < np.pi / 2.,np.sin(dphilmet(lep1cut,lep2cut,met[cut])) * met[cut].pt,met[cut].pt)>np.where(dphilmet(lep1cut,lep2cut,tkmet[cut]) < np.pi / 2.,np.sin(dphilmet(lep1cut,lep2cut,tkmet[cut])) * tkmet[cut].pt,tkmet[cut].pt),np.where(dphilmet(lep1cut,lep2cut,met[cut]) < np.pi / 2.,np.sin(dphilmet(lep1cut,lep2cut,met[cut])) * met[cut].pt,met[cut].pt),np.where(dphilmet(lep1cut,lep2cut,tkmet[cut]) < np.pi / 2.,np.sin(dphilmet(lep1cut,lep2cut,tkmet[cut])) * tkmet[cut].pt,tkmet[cut].pt))))
+                    )
+                    output["array"][dataset]["MET_ptdivet"] += processor.column_accumulator(
+                        ak.to_numpy(flatten(met[cut].pt/np.sqrt(met[cut].energy)))
+                    )
+                    output["array"][dataset]["h_pt"] += processor.column_accumulator(
+                        ak.to_numpy(flatten(hcut.pt))
+                    )
+                    output["array"][dataset]["MET_pt"] += processor.column_accumulator(
+                        ak.to_numpy(flatten(met[cut].pt))
+                    )
+                    output["array"][dataset]["MET_phi"] += processor.column_accumulator(
+                        ak.to_numpy(flatten(met[cut].pt))
+                    )
+                    output["array"][dataset]["l1l2_dr"] += processor.column_accumulator(
+                        ak.to_numpy(flatten(make_p4(lep1cut).delta_r(make_p4(lep2cut))))
+                    )
+                    output["array"][dataset][
+                        "l1met_dphi"
+                    ] += processor.column_accumulator(
+                        ak.to_numpy(flatten(lep1cut.delta_phi(met[cut])))
+                    )
+                    output["array"][dataset][
+                        "l2met_dphi"
+                    ] += processor.column_accumulator(
+                        ak.to_numpy(flatten(lep2cut.delta_phi(met[cut])))
+                    )
+                    output["array"][dataset][
+                        "llmet_dphi"
+                    ] += processor.column_accumulator(
+                        ak.to_numpy(flatten(llcut.delta_phi(met[cut])))
+                    )
+                    output["array"][dataset]["l1c_dr"] += processor.column_accumulator(
+                        ak.to_numpy(
+                            normalize(make_p4(lep1cut).delta_r(make_p4(sel_cjet_flav)))
                         )
-                        output["array"][dataset]["minMET_proj"] += processor.column_accumulator(
-                            ak.to_numpy(flatten(np.where(np.where(dphilmet(lep1cut,lep2cut,met[cut]) < np.pi / 2.,np.sin(dphilmet(lep1cut,lep2cut,met[cut])) * met[cut].pt,met[cut].pt)>np.where(dphilmet(lep1cut,lep2cut,tkmet[cut]) < np.pi / 2.,np.sin(dphilmet(lep1cut,lep2cut,tkmet[cut])) * tkmet[cut].pt,tkmet[cut].pt),np.where(dphilmet(lep1cut,lep2cut,met[cut]) < np.pi / 2.,np.sin(dphilmet(lep1cut,lep2cut,met[cut])) * met[cut].pt,met[cut].pt),np.where(dphilmet(lep1cut,lep2cut,tkmet[cut]) < np.pi / 2.,np.sin(dphilmet(lep1cut,lep2cut,tkmet[cut])) * tkmet[cut].pt,tkmet[cut].pt))))
+                    )
+                    output["array"][dataset][
+                        "cmet_dphi"
+                    ] += processor.column_accumulator(
+                        ak.to_numpy(normalize(met[cut].delta_phi(sel_cjet_flav)))
+                    )
+                    output["array"][dataset]["l2c_dr"] += processor.column_accumulator(
+                        ak.to_numpy(
+                            normalize(make_p4(lep2cut).delta_r(make_p4(sel_cjet_flav)))
                         )
-                        output["array"][dataset]["MET_ptdivet"] += processor.column_accumulator(
-                            ak.to_numpy(flatten(met[cut].pt/np.sqrt(met[cut].energy)))
+                    )
+                    output["array"][dataset][
+                        "l2W1_dphi"
+                    ] += processor.column_accumulator(
+                        ak.to_numpy(flatten(lep2cut.delta_phi((w1cut))))
+                    )
+                    output["array"][dataset][
+                        "metW1_dphi"
+                    ] += processor.column_accumulator(
+                        ak.to_numpy(flatten(met[cut].delta_phi((w1cut))))
+                    )
+                    output["array"][dataset][
+                        "cW1_dphi"
+                    ] += processor.column_accumulator(
+                        ak.to_numpy(normalize((w1cut).delta_phi(sel_cjet_flav)))
+                    )
+                    output["array"][dataset][
+                        "l1W2_dphi"
+                    ] += processor.column_accumulator(
+                        ak.to_numpy(flatten(lep1cut.delta_phi((w2cut))))
+                    )
+                    output["array"][dataset]["llc_dr"] += processor.column_accumulator(
+                        ak.to_numpy(
+                            normalize(make_p4(llcut).delta_r(make_p4(sel_cjet_flav)))
                         )
-                        output["array"][dataset]["h_pt"] += processor.column_accumulator(
-                            ak.to_numpy(flatten(hcut.pt))
-                        )
-                        output["array"][dataset]["MET_pt"] += processor.column_accumulator(
-                            ak.to_numpy(flatten(met[cut].pt))
-                        )
-                        output["array"][dataset]["MET_phi"] += processor.column_accumulator(
-                            ak.to_numpy(flatten(met[cut].pt))
-                        )
-                        output["array"][dataset]["l1l2_dr"] += processor.column_accumulator(
-                            ak.to_numpy(flatten(make_p4(lep1cut).delta_r(make_p4(lep2cut))))
-                        )
-                        output["array"][dataset][
-                            "l1met_dphi"
-                        ] += processor.column_accumulator(
-                            ak.to_numpy(flatten(lep1cut.delta_phi(met[cut])))
-                        )
-                        output["array"][dataset][
-                            "l2met_dphi"
-                        ] += processor.column_accumulator(
-                            ak.to_numpy(flatten(lep2cut.delta_phi(met[cut])))
-                        )
-                        output["array"][dataset][
-                            "llmet_dphi"
-                        ] += processor.column_accumulator(
-                            ak.to_numpy(flatten(llcut.delta_phi(met[cut])))
-                        )
-                        output["array"][dataset]["l1c_dr"] += processor.column_accumulator(
-                            ak.to_numpy(
-                                normalize(make_p4(lep1cut).delta_r(make_p4(sel_cjet_flav)))
-                            )
-                        )
-                        output["array"][dataset][
-                            "cmet_dphi"
-                        ] += processor.column_accumulator(
-                            ak.to_numpy(normalize(met[cut].delta_phi(sel_cjet_flav)))
-                        )
-                        output["array"][dataset]["l2c_dr"] += processor.column_accumulator(
-                            ak.to_numpy(
-                                normalize(make_p4(lep2cut).delta_r(make_p4(sel_cjet_flav)))
-                            )
-                        )
-                        output["array"][dataset][
-                            "l2W1_dphi"
-                        ] += processor.column_accumulator(
-                            ak.to_numpy(flatten(lep2cut.delta_phi((w1cut))))
-                        )
-                        output["array"][dataset][
-                            "metW1_dphi"
-                        ] += processor.column_accumulator(
-                            ak.to_numpy(flatten(met[cut].delta_phi((w1cut))))
-                        )
-                        output["array"][dataset][
-                            "cW1_dphi"
-                        ] += processor.column_accumulator(
-                            ak.to_numpy(normalize((w1cut).delta_phi(sel_cjet_flav)))
-                        )
-                        output["array"][dataset][
-                            "l1W2_dphi"
-                        ] += processor.column_accumulator(
-                            ak.to_numpy(flatten(lep1cut.delta_phi((w2cut))))
-                        )
-                        output["array"][dataset]["llc_dr"] += processor.column_accumulator(
-                            ak.to_numpy(
-                                normalize(make_p4(llcut).delta_r(make_p4(sel_cjet_flav)))
-                            )
-                        )
-                        output["array"][dataset][
-                            "llW1_dphi"
-                        ] += processor.column_accumulator(
-                            ak.to_numpy(flatten(w1cut.delta_phi((llcut))))
-                        )
-                        output["array"][dataset][
-                            "llW2_dphi"
-                        ] += processor.column_accumulator(
-                            ak.to_numpy(flatten(w2cut.delta_phi((llcut))))
-                        )
-                        output["array"][dataset][
-                            "llh_dphi"
-                        ] += processor.column_accumulator(
-                            ak.to_numpy(flatten(hcut.delta_phi((llcut))))
-                        )
-                        output["array"][dataset][
-                            "l2W2_dphi"
-                        ] += processor.column_accumulator(
-                            ak.to_numpy(flatten(lep2cut.delta_phi((w2cut))))
-                        )
-                        output["array"][dataset][
-                            "metW2_dphi"
-                        ] += processor.column_accumulator(
-                            ak.to_numpy(flatten(met[cut].delta_phi((w2cut))))
-                        )
-                        output["array"][dataset][
-                            "cW2_dphi"
-                        ] += processor.column_accumulator(
-                            ak.to_numpy(normalize((w2cut).delta_phi(sel_cjet_flav)))
-                        )
-                        output["array"][dataset][
-                            "l1h_dphi"
-                        ] += processor.column_accumulator(
-                            ak.to_numpy(flatten((lep1cut).delta_phi((hcut))))
-                        )
-                        output["array"][dataset][
-                            "meth_dphi"
-                        ] += processor.column_accumulator(
-                            ak.to_numpy(flatten((met[cut]).delta_phi((hcut))))
-                        )
-                        output["array"][dataset]["ch_dphi"] += processor.column_accumulator(
-                            ak.to_numpy(normalize(hcut.delta_phi(sel_cjet_flav)))
-                        )
-                        output["array"][dataset][
-                            "W1h_dphi"
-                        ] += processor.column_accumulator(
-                            ak.to_numpy(flatten((w1cut).delta_phi((hcut))))
-                        )
-                        output["array"][dataset][
-                            "W2h_dphi"
-                        ] += processor.column_accumulator(
-                            ak.to_numpy(flatten((w2cut).delta_phi((hcut))))
-                        )
-                        output["array"][dataset]["lll1_dr"] += processor.column_accumulator(
-                            ak.to_numpy(flatten(make_p4(lep1cut).delta_r(make_p4(llcut))))
-                        )
-                        output["array"][dataset]["lll2_dr"] += processor.column_accumulator(
-                            ak.to_numpy(flatten(make_p4(lep2cut).delta_r(make_p4(llcut))))
-                        )
-                        output["array"][dataset][
-                            "l1W1_dphi"
-                        ] += processor.column_accumulator(
-                            ak.to_numpy(flatten(lep1cut.delta_phi((w1cut))))
-                        )
-                        output["array"][dataset][
-                            "W1W2_dphi"
-                        ] += processor.column_accumulator(
-                            ak.to_numpy(flatten((w1cut).delta_phi((w2cut))))
-                        )
-                        output["array"][dataset][
-                            "l2h_dphi"
-                        ] += processor.column_accumulator(
-                            ak.to_numpy(flatten((lep2cut).delta_phi((hcut))))
-                        )
+                    )
+                    output["array"][dataset][
+                        "llW1_dphi"
+                    ] += processor.column_accumulator(
+                        ak.to_numpy(flatten(w1cut.delta_phi((llcut))))
+                    )
+                    output["array"][dataset][
+                        "llW2_dphi"
+                    ] += processor.column_accumulator(
+                        ak.to_numpy(flatten(w2cut.delta_phi((llcut))))
+                    )
+                    output["array"][dataset][
+                        "llh_dphi"
+                    ] += processor.column_accumulator(
+                        ak.to_numpy(flatten(hcut.delta_phi((llcut))))
+                    )
+                    output["array"][dataset][
+                        "l2W2_dphi"
+                    ] += processor.column_accumulator(
+                        ak.to_numpy(flatten(lep2cut.delta_phi((w2cut))))
+                    )
+                    output["array"][dataset][
+                        "metW2_dphi"
+                    ] += processor.column_accumulator(
+                        ak.to_numpy(flatten(met[cut].delta_phi((w2cut))))
+                    )
+                    output["array"][dataset][
+                        "cW2_dphi"
+                    ] += processor.column_accumulator(
+                        ak.to_numpy(normalize((w2cut).delta_phi(sel_cjet_flav)))
+                    )
+                    output["array"][dataset][
+                        "l1h_dphi"
+                    ] += processor.column_accumulator(
+                        ak.to_numpy(flatten((lep1cut).delta_phi((hcut))))
+                    )
+                    output["array"][dataset][
+                        "meth_dphi"
+                    ] += processor.column_accumulator(
+                        ak.to_numpy(flatten((met[cut]).delta_phi((hcut))))
+                    )
+                    output["array"][dataset]["ch_dphi"] += processor.column_accumulator(
+                        ak.to_numpy(normalize(hcut.delta_phi(sel_cjet_flav)))
+                    )
+                    output["array"][dataset][
+                        "W1h_dphi"
+                    ] += processor.column_accumulator(
+                        ak.to_numpy(flatten((w1cut).delta_phi((hcut))))
+                    )
+                    output["array"][dataset][
+                        "W2h_dphi"
+                    ] += processor.column_accumulator(
+                        ak.to_numpy(flatten((w2cut).delta_phi((hcut))))
+                    )
+                    output["array"][dataset]["lll1_dr"] += processor.column_accumulator(
+                        ak.to_numpy(flatten(make_p4(lep1cut).delta_r(make_p4(llcut))))
+                    )
+                    output["array"][dataset]["lll2_dr"] += processor.column_accumulator(
+                        ak.to_numpy(flatten(make_p4(lep2cut).delta_r(make_p4(llcut))))
+                    )
+                    output["array"][dataset][
+                        "l1W1_dphi"
+                    ] += processor.column_accumulator(
+                        ak.to_numpy(flatten(lep1cut.delta_phi((w1cut))))
+                    )
+                    output["array"][dataset][
+                        "W1W2_dphi"
+                    ] += processor.column_accumulator(
+                        ak.to_numpy(flatten((w1cut).delta_phi((w2cut))))
+                    )
+                    output["array"][dataset][
+                        "l2h_dphi"
+                    ] += processor.column_accumulator(
+                        ak.to_numpy(flatten((lep2cut).delta_phi((hcut))))
+                    )
                        
                 output["nj"].fill(
                     dataset=dataset,
