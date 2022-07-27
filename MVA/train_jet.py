@@ -130,7 +130,9 @@ if __name__ == "__main__":
     varlist = config2017["varlist"][args.channel][args.version]
     # bkgx, bkgy, bkgw = load_data_jet(config2017['coffea']['sigjet'],varlist,False,args.channel)
     varlist.append("event")
-    x, y, w = load_data_jet(config2017["coffea"]["sigjet"], varlist, True, args.channel)
+    x, y, w = load_data_jet(
+        config2017["coffea_new"]["sigjet"], varlist, True, args.channel
+    )
     # print(x,np.shape(x))
     # print('x-2',x[:,:-1],np.shape(x[:,:-1]))
 

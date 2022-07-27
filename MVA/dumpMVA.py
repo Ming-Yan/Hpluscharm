@@ -1,6 +1,5 @@
 from collections import defaultdict
 import os, sys, json, argparse
-from this import d
 from coffea.util import load
 import numpy as np
 import matplotlib.pyplot as plt
@@ -41,11 +40,11 @@ colors = [
     "#EDAD08",
     "#E17C05",
     "#CC503E",
+    "#666666",
     "#554e99",
     "#6f4e99",
     "#854e99",
     "#994e85",
-    "#666666",
 ]
 
 mpl.rcParams["axes.prop_cycle"] = cycler("color", colors)
@@ -54,7 +53,7 @@ plt.style.use(hep.style.ROOT)
 fig, ((ax), (rax)) = plt.subplots(
     2, 1, figsize=(12, 12), gridspec_kw={"height_ratios": (3, 1)}, sharex=True
 )
-hep.cms.label("Work in progress", data=True, lumi=41.5, year=2017, ax=ax)
+# hep.cms.label("Work in progress", data=True, lumi=41.5, year=2017, ax=ax)
 plt.style.use(hep.style.ROOT)
 
 with open("../metadata/mergemap.json") as json_file:
@@ -131,58 +130,124 @@ if __name__ == "__main__":
     parser.add_argument(
         "-r", "--region", required=True, choices=["SR", "SR2"], help="regions"
     )
-    parser.add_argument("--year", default=2017, help="year")
+    parser.add_argument("--year", default=2017, type=int, help="year")
     parser.add_argument("--bin", type=int, default=50, help="bin size")
     parser.add_argument("--blind", type=float, default=1.2, help="blind bins")
     parser.add_argument("-v", "--version", type=str, required=True, help="version")
+    # parser.add_argument("--prefix", type=str,help="prefix")
     args = parser.parse_args()
 
-    from training_config import config2017
+    if args.year == 2016:
+        lumis = 35900
+        from training_config import config2016 as config
+    if args.year == 2017:
+        lumis = 41500
+        from training_config import config2017 as config
+    if args.year == 2018:
+        from training_config import config2018 as config
+
+        lumis = 59800
 
     if args.channel == "emu":
         chs = "emu"
     else:
         chs = "ll"
-    varlist = config2017["varlist"][chs][args.version]
 
-    bkgoutput = load(f'../../../coffea_output/{config2017["coffea"]["bkg"]}')
-    sigoutput = load(f'../../../coffea_output/{config2017["coffea_old"]["sig"]}')
-    dataoutput = load(f'../../../coffea_output/{config2017["coffea"]["data"]}')
-    dyoutput = load(f'../../../coffea_output/{config2017["coffea"]["dy"]}')
+    varlist = config["varlist"][chs][args.version]
+    order = [
+        "Z+jets",
+        "W+jets",
+        "ST",
+        "tt-dilep",
+        "tt-semilep",
+        "WW",
+        "WZ",
+        "ZZ",
+        "Higgs",
+        "signal",
+    ]
+    color_map = [
+        "#554e99",
+        "#6f4e99",
+        "#994e85",
+        "#1D6996",
+        "#38A6A5",
+        "#0F8554",
+        "#73AF48",
+        "#EDAD08",
+        "#E17C05",
+        "#CC503E",
+        "#c2a482",
+        "#a6a1a1",
+    ]
+    bkgoutput = load(f'{config["coffea_new"]["bkg"]}')
+    sigoutput = load(f'{config["coffea_new"]["sig"]}')
+    dataoutput = load(f'{config["coffea_new"]["data"]}')
+    dyoutput = load(f'{config["coffea_new"]["dy"]}')
+    higgsoutput = load(f'{config["coffea_new"]["higgs"]}')
+    dyjet = [
+        "DYJetsToLL_M-10to50_TuneCP5_13TeV-madgraphMLM-pythia8",
+        "DYJetsToLL_M-50_TuneCP5_13TeV-amcatnloFXFX-pythia8",
+        "DY1JetsToLL_M-10to50_MatchEWPDG20_TuneCP5_13TeV-madgraphMLM-pythia8",
+        "DY2JetsToLL_M-10to50_MatchEWPDG20_TuneCP5_13TeV-madgraphMLM-pythia8",
+        "DY3JetsToLL_M-10to50_MatchEWPDG20_TuneCP5_13TeV-madgraphMLM-pythia8",
+        "DY4JetsToLL_M-10to50_MatchEWPDG20_TuneCP5_13TeV-madgraphMLM-pythia8",
+        "DY1JetsToLL_M-50_MatchEWPDG20_TuneCP5_13TeV-madgraphMLM-pythia8",
+        "DY2JetsToLL_M-50_MatchEWPDG20_TuneCP5_13TeV-madgraphMLM-pythia8",
+        "DY3JetsToLL_M-50_MatchEWPDG20_TuneCP5_13TeV-madgraphMLM-pythia8",
+        "DY4JetsToLL_M-50_MatchEWPDG20_TuneCP5_13TeV-madgraphMLM-pythia8",
+        "DYJetsToLL_0J_TuneCP5_13TeV-amcatnloFXFX-pythia8",
+        "DYJetsToLL_1J_TuneCP5_13TeV-amcatnloFXFX-pythia8",
+        "DYJetsToLL_2J_TuneCP5_13TeV-amcatnloFXFX-pythia8",
+        "DYJetsToLL_LHEFilterPtZ-650ToInf_MatchEWPDG20_TuneCP5_13TeV-amcatnloFXFX-pythia8",
+        "DYJetsToLL_LHEFilterPtZ-400To650_MatchEWPDG20_TuneCP5_13TeV-amcatnloFXFX-pythia8",
+        "DYJetsToLL_LHEFilterPtZ-250To400_MatchEWPDG20_TuneCP5_13TeV-amcatnloFXFX-pythia8",
+        "DYJetsToLL_LHEFilterPtZ-100To250_MatchEWPDG20_TuneCP5_13TeV-amcatnloFXFX-pythia8",
+        "DYJetsToLL_LHEFilterPtZ-50To100_MatchEWPDG20_TuneCP5_13TeV-amcatnloFXFX-pythia8",
+        "DYJetsToLL_LHEFilterPtZ-0To50_MatchEWPDG20_TuneCP5_13TeV-amcatnloFXFX-pythia8",
+        "DYJetsToLL_M-50_HT-70to100_TuneCP5_PSweights_13TeV-madgraphMLM-pythia8",
+        "DYJetsToLL_M-50_HT-100to200_TuneCP5_PSweights_13TeV-madgraphMLM-pythia8",
+        "DYJetsToLL_M-50_HT-200to400_TuneCP5_PSweights_13TeV-madgraphMLM-pythia8",
+        "DYJetsToLL_M-50_HT-400to600_TuneCP5_PSweights_13TeV-madgraphMLM-pythia8",
+        "DYJetsToLL_M-50_HT-600to800_TuneCP5_PSweights_13TeV-madgraphMLM-pythia8",
+        "DYJetsToLL_M-50_HT-800to1200_TuneCP5_PSweights_13TeV-madgraphMLM-pythia8",
+        "DYJetsToLL_M-50_HT-1200to2500_TuneCP5_PSweights_13TeV-madgraphMLM-pythia8",
+        "DYJetsToLL_M-50_HT-2500toInf_TuneCP5_PSweights_13TeV-madgraphMLM-pythia8",
+        "DYJetsToLL_Pt-50To100_MatchEWPDG20_TuneCP5_13TeV-amcatnloFXFX-pythia8",
+        "DYJetsToLL_Pt-100To250_MatchEWPDG20_TuneCP5_13TeV-amcatnloFXFX-pythia8",
+        "DYJetsToLL_Pt-250To400_MatchEWPDG20_TuneCP5_13TeV-amcatnloFXFX-pythia8",
+        "DYJetsToLL_Pt-400To650_MatchEWPDG20_TuneCP5_13TeV-amcatnloFXFX-pythia8",
+        "DYJetsToLL_Pt-650ToInf_MatchEWPDG20_TuneCP5_13TeV-amcatnloFXFX-pythia8",
+    ]
+    dyscaler = {}
+    for dy in dyjet:
+        if "M-10to50" in dy:
+            dyscaler[dy] = 1.0 / 2.0
+        else:
+            dyscaler[dy] = 1.0 / 3.0
     bkgx, bkgw, bkgdataset, bkgjetflav = load_dataplot(
-        bkgoutput, varlist, args.region, args.channel, False, 41500
+        bkgoutput, varlist, args.region, args.channel, False, lumis
     )
     sigx, sigw, sigdataset, sigjetflav = load_dataplot(
-        sigoutput, varlist, args.region, args.channel, False, 41500
+        sigoutput, varlist, args.region, args.channel, False, lumis
     )
     datax, dataw, datadataset, dataflav = load_dataplot(
-        dataoutput, varlist, args.region, args.channel, True, 41500
+        dataoutput, varlist, args.region, args.channel, True, lumis
     )
     dyx, dyw, dydataset, dyjetflav = load_dataplot(
-        dyoutput, varlist, args.region, args.channel, False, 41500
+        dyoutput, varlist, args.region, args.channel, False, lumis
     )
-    # bkgall= np.vstack([bkgx.T,bkgw,np.full_like(bkgw,"bkgMC",dtype='U64')])
-    # sigall= np.vstack([sigx.T,sigw,np.full_like(sigw,"sigMC",dtype='U64')])
-    # dataall= np.vstack([datax.T,dataw,np.full_like(dataw,"data",dtype='U64')])
-    # print(np.shape(np.hstack([bkgall,sigall,dataall])))
-    # df = pd.DataFrame(np.hstack([bkgall,sigall]).T)
-    # colname= varlist
-    # colname.append('weight')
-    # colname.append('type')
-    # df.columns= colname
-    # print(colname,len(colname))
-    # df.set_axis(colname, axis='columns')
-    # df.columns = colname
-    # df.to_csv(f"{args.channel}_{args.year}.csv")
-    # print(np.shape(bkgall))
-    if "gamma" in args.version or "alpha" in  args.version:
-        xgb_model = xgb.Booster()
-    else:
-        xgb_model = xgb.XGBClassifier()
-    xgb_model.load_model(f"{config2017['input_json'][chs][args.version]}")
+    higgsx, higgsw, higgsdataset, higgsjetflav = load_dataplot(
+        higgsoutput, varlist, args.region, args.channel, False, lumis
+    )
+    # if "gamma" in args.version or "alpha" in  args.version:
+    xgb_model = xgb.Booster()
+    # else:
+    #     xgb_model = xgb.XGBClassifier()
+    xgb_model.load_model(f"{config['input_json'][chs][args.version]}")
 
     dataset_axis = hist.Cat("dataset", "Primary dataset")
-    flav_axis = hist.Bin("flav", r"Genflavour", [0, 1, 4, 5, 6])
+    flav_axis = hist.Bin("flav", r"Genflavour", [0, 4, 5, 6])
     lepflav_axis = hist.Cat("lepflav", ["ee", "mumu", "emu"])
 
     # maxi = xgb_model.predict_proba(datax)[:,1].
@@ -190,7 +255,7 @@ if __name__ == "__main__":
     dsig = xgb.DMatrix(sigx)
     dbkg = xgb.DMatrix(bkgx)
     ddata = xgb.DMatrix(datax)
-    if "gamma" in args.version or "alpha" in args.version :
+    """if "gamma" in args.version or "alpha" in args.version :
         maxi = np.around(
             max(
                 max(
@@ -211,170 +276,268 @@ if __name__ == "__main__":
                 np.max(xgb_model.predict_proba(bkgx)[:, 1]),
             ),
             1,
-        )
+        )"""
 
-    bdt_axis = hist.Bin("bdt", r"SR BDT", args.bin, 0, maxi)
+    bdt_axis = hist.Bin("bdt", r"SR BDT", args.bin, 0, 1.0)
     # llmass_axis = hist.Bin("ll_mass",r"m_{\ell\ell}",)
     histo = hist.Hist("Counts", dataset_axis, lepflav_axis, flav_axis, bdt_axis)
     scales = 50000
     for dataset in bkgoutput["array"].keys():
-        if "gamma" in args.version or "alpha" in  args.version:
-            dbkg = xgb.DMatrix(bkgx[bkgdataset == dataset])
-            if len(bkgjetflav[bkgdataset == dataset]) > 0:
-                histo.fill(
-                    dataset=dataset,
-                    lepflav=args.channel,
-                    flav=bkgjetflav[bkgdataset == dataset],
-                    bdt=1.0 / (1 + np.exp(-xgb_model.predict(dbkg))),
-                    weight=bkgw[bkgdataset == dataset],
-                )
-                
+        # if "gamma" in args.version or "alpha" in  args.version:
+        dbkg = xgb.DMatrix(bkgx[bkgdataset == dataset])
+        if len(bkgjetflav[bkgdataset == dataset]) > 0:
+            histo.fill(
+                dataset=dataset,
+                lepflav=args.channel,
+                flav=bkgjetflav[bkgdataset == dataset],
+                bdt=1.0 / (1 + np.exp(-xgb_model.predict(dbkg))),
+                weight=bkgw[bkgdataset == dataset],
+            )
 
-            else:
-                histo.fill(
-                    dataset=dataset, lepflav=args.channel, flav=0, bdt=-1, weight=0.0
-                )
         else:
-            if len(bkgjetflav[bkgdataset == dataset]) > 0:
-                histo.fill(
-                    dataset=dataset,
-                    lepflav=args.channel,
-                    flav=bkgjetflav[bkgdataset == dataset],
-                    bdt=xgb_model.predict_proba(bkgx[bkgdataset == dataset])[:, 1],
-                    weight=bkgw[bkgdataset == dataset],
-                )
-            else:
-                histo.fill(
-                    dataset=dataset, lepflav=args.channel, flav=0, bdt=-1, weight=0.0
-                )
-    
+            histo.fill(
+                dataset=dataset, lepflav=args.channel, flav=0, bdt=-1, weight=0.0
+            )
+        # else:
+        #     if len(bkgjetflav[bkgdataset == dataset]) > 0:
+        #         histo.fill(
+        #             dataset=dataset,
+        #             lepflav=args.channel,
+        #             flav=bkgjetflav[bkgdataset == dataset],
+        #             bdt=xgb_model.predict_proba(bkgx[bkgdataset == dataset])[:, 1],
+        #             weight=bkgw[bkgdataset == dataset],
+        #         )
+        #     else:
+        #         histo.fill(
+        #             dataset=dataset, lepflav=args.channel, flav=0, bdt=-1, weight=0.0
+        #         )
+
     for dataset in sigoutput["array"].keys():
-        if "gamma" in args.version or "alpha" in  args.version:
-            dsig = xgb.DMatrix(sigx[sigdataset == dataset])
-            if len(sigjetflav[sigdataset == dataset]) > 0:
-                histo.fill(
-                    dataset=dataset,
-                    lepflav=args.channel,
-                    flav=sigjetflav[sigdataset == dataset],
-                    bdt=1.0 / (1 + np.exp(-xgb_model.predict(dsig))),
-                    weight=scales * sigw[sigdataset == dataset],
-                )
-            else:
-                histo.fill(
-                    dataset=dataset, lepflav=args.channel, flav=0, bdt=-1, weight=0.0
-                )
+        # if "gamma" in args.version or "alpha" in  args.version:
+        dsig = xgb.DMatrix(sigx[sigdataset == dataset])
+        if len(sigjetflav[sigdataset == dataset]) > 0:
+            histo.fill(
+                dataset=dataset,
+                lepflav=args.channel,
+                flav=sigjetflav[sigdataset == dataset],
+                bdt=1.0 / (1 + np.exp(-xgb_model.predict(dsig))),
+                weight=sigw[sigdataset == dataset],
+            )
         else:
-            if len(sigjetflav[sigdataset == dataset]) > 0:
-                histo.fill(
-                    dataset=dataset,
-                    lepflav=args.channel,
-                    flav=sigjetflav[sigdataset == dataset],
-                    bdt=xgb_model.predict_proba(sigx[sigdataset == dataset])[:, 1],
-                    weight=scales * sigw[sigdataset == dataset],
-                )
-            else:
-                histo.fill(
-                    dataset=dataset, lepflav=args.channel, flav=0, bdt=-1, weight=0.0
-                )
+            histo.fill(
+                dataset=dataset, lepflav=args.channel, flav=0, bdt=-1, weight=0.0
+            )
+        # else:
+        #     if len(sigjetflav[sigdataset == dataset]) > 0:
+        #         histo.fill(
+        #             dataset=dataset,
+        #             lepflav=args.channel,
+        #             flav=sigjetflav[sigdataset == dataset],
+        #             bdt=xgb_model.predict_proba(sigx[sigdataset == dataset])[:, 1],
+        #             weight=sigw[sigdataset == dataset],
+        #         )
+        #     else:
+        #         histo.fill(
+        #             dataset=dataset, lepflav=args.channel, flav=0, bdt=-1, weight=0.0
+        #         )
     for dataset in dyoutput["array"].keys():
-        if "gamma" in args.version or "alpha" in  args.version:
-
-            ddy = xgb.DMatrix(dyx[dydataset == dataset])
-            if len(dyjetflav[dydataset == dataset]) > 0:
-                histo.fill(
-                    dataset=dataset,
-                    lepflav=args.channel,
-                    flav=dyjetflav[dydataset == dataset],
-                    bdt=1.0 / (1 + np.exp(-xgb_model.predict(ddy))),
-                    weight=dyw[dydataset == dataset],
-                )
-            else:
-                histo.fill(
-                    dataset=dataset, lepflav=args.channel, flav=0, bdt=-1, weight=0.0
-                )
+        # if "gamma" in args.version or "alpha" in  args.version:
+        ddy = xgb.DMatrix(dyx[dydataset == dataset])
+        if len(dyjetflav[dydataset == dataset]) > 0:
+            histo.fill(
+                dataset=dataset,
+                lepflav=args.channel,
+                flav=dyjetflav[dydataset == dataset],
+                bdt=1.0 / (1 + np.exp(-xgb_model.predict(ddy))),
+                weight=dyw[dydataset == dataset],
+            )
         else:
-            if len(dyjetflav[dydataset == dataset]) > 0:
-                histo.fill(
-                    dataset=dataset,
-                    lepflav=args.channel,
-                    flav=dyjetflav[dydataset == dataset],
-                    bdt=xgb_model.predict_proba(dyx[dydataset == dataset])[:, 1],
-                    weight=dyw[dydataset == dataset],
-                )
-            else:
-                histo.fill(
-                    dataset=dataset, lepflav=args.channel, flav=0, bdt=-1, weight=0.0
-                )
+            histo.fill(
+                dataset=dataset, lepflav=args.channel, flav=0, bdt=-1, weight=0.0
+            )
+        # else:
+        #     if len(dyjetflav[dydataset == dataset]) > 0:
+        #         histo.fill(
+        #             dataset=dataset,
+        #             lepflav=args.channel,
+        #             flav=dyjetflav[dydataset == dataset],
+        #             bdt=xgb_model.predict_proba(dyx[dydataset == dataset])[:, 1],
+        #             weight=dyw[dydataset == dataset],
+        #         )
+        #     else:
+        #         histo.fill(
+        #             dataset=dataset, lepflav=args.channel, flav=0, bdt=-1, weight=0.0
+        #         )
+    for dataset in higgsoutput["array"].keys():
+        # if "gamma" in args.version or "alpha" in  args.version:
+        dhiggs = xgb.DMatrix(higgsx[higgsdataset == dataset])
+        if len(higgsjetflav[higgsdataset == dataset]) > 0:
+            histo.fill(
+                dataset=dataset,
+                lepflav=args.channel,
+                flav=higgsjetflav[higgsdataset == dataset],
+                bdt=1.0 / (1 + np.exp(-xgb_model.predict(dhiggs))),
+                weight=higgsw[higgsdataset == dataset],
+            )
+        else:
+            histo.fill(
+                dataset=dataset, lepflav=args.channel, flav=0, bdt=-1, weight=0.0
+            )
+        # else:
+        #     if len(higgsjetflav[higgsdataset == dataset]) > 0:
+        #         histo.fill(
+        #             dataset=dataset,
+        #             lepflav=args.channel,
+        #             flav=higgsjetflav[higgsdataset == dataset],
+        #             bdt=xgb_model.predict_proba(higgsx[higgsdataset == dataset])[:, 1],
+        #             weight=higgsw[higgsdataset == dataset],
+        #         )
+        #     else:
+        #         histo.fill(
+        #             dataset=dataset, lepflav=args.channel, flav=0, bdt=-1, weight=0.0
+        #         )
     for dataset in dataoutput["array"].keys():
-        if "gamma" in args.version or "alpha" in  args.version:
-            ddata = xgb.DMatrix(datax[datadataset == dataset])
-            if len(dataw[datadataset == dataset]) > 0:
-                histo.fill(
-                    dataset=dataset,
-                    lepflav=args.channel,
-                    flav=5,
-                    bdt=np.where(
-                        1.0 / (1 + np.exp(-xgb_model.predict(ddata))) < args.blind,
-                        1.0 / (1 + np.exp(-xgb_model.predict(ddata))),
-                        0,
-                    ),
-                )
-                # histo.fill(dataset=dataset,lepflav=args.channel,flav=5,bdt=xgb_model.predict_proba(datax[datadataset==dataset])[:,1])
-            else:
-                histo.fill(
-                    dataset=dataset, lepflav=args.channel, flav=0, bdt=-1, weight=0.0
-                )
+        # if "gamma" in args.version or "alpha" in  args.version:
+        ddata = xgb.DMatrix(datax[datadataset == dataset])
+        if len(dataw[datadataset == dataset]) > 0:
+            histo.fill(
+                dataset=dataset,
+                lepflav=args.channel,
+                flav=5,
+                bdt=np.where(
+                    1.0 / (1 + np.exp(-xgb_model.predict(ddata))) < args.blind,
+                    1.0 / (1 + np.exp(-xgb_model.predict(ddata))),
+                    0,
+                ),
+            )
+            # histo.fill(dataset=dataset,lepflav=args.channel,flav=5,bdt=xgb_model.predict_proba(datax[datadataset==dataset])[:,1])
         else:
-            if len(dataw[datadataset == dataset]) > 0:
-                histo.fill(
-                    dataset=dataset,
-                    lepflav=args.channel,
-                    flav=5,
-                    bdt=np.where(
-                        xgb_model.predict_proba(datax[datadataset == dataset])[:, 1]
-                        < args.blind,
-                        xgb_model.predict_proba(datax[datadataset == dataset])[:, 1],
-                        0,
-                    ),
-                )
-                # histo.fill(dataset=dataset,lepflav=args.channel,flav=5,bdt=xgb_model.predict_proba(datax[datadataset==dataset])[:,1])
-            else:
-                histo.fill(
-                    dataset=dataset, lepflav=args.channel, flav=0, bdt=-1, weight=0.0
-                )
-    histo = histo.group("dataset", hist.Cat("plotgroup", "plotgroup"), merge_map["HWW2l2nu"])
-    # histo = histo.group("dataset",hist.Cat("plotgroup", "plotgroup"),merge_map["hww_tem_zptbin"])
+            histo.fill(
+                dataset=dataset, lepflav=args.channel, flav=0, bdt=-1, weight=0.0
+            )
+        # else:
+        #     if len(dataw[datadataset == dataset]) > 0:
+        #         histo.fill(
+        #             dataset=dataset,
+        #             lepflav=args.channel,
+        #             flav=5,
+        #             bdt=np.where(
+        #                 xgb_model.predict_proba(datax[datadataset == dataset])[:, 1]
+        #                 < args.blind,
+        #                 xgb_model.predict_proba(datax[datadataset == dataset])[:, 1],
+        #                 0,
+        #             ),
+        #         )
+        #         # histo.fill(dataset=dataset,lepflav=args.channel,flav=5,bdt=xgb_model.predict_proba(datax[datadataset==dataset])[:,1])
+        #     else:
+        #         histo.fill(
+        #             dataset=dataset, lepflav=args.channel, flav=0, bdt=-1, weight=0.0
+        #         )
+    histo.scale(dyscaler, axis="dataset")
+    histo = histo.group(
+        "dataset",
+        hist.Cat("plotgroup", "plotgroup"),
+        merge_map["HWW2l2nu_newvar_moredy"],
+    )
     fig.subplots_adjust(hspace=0.07)
-    ax = plot.plot1d(
-        histo.sum("flav").integrate("lepflav", args.channel),
-        overlay="plotgroup",
-        stack=True,
-        order=["Z+jets", "W+jets", "tt-dilep", "tt-semilep", "ST", "WW", "WZ", "ZZ"],
-        ax=ax,
+    hep.cms.label(
+        "Work in progress", data=True, lumi=lumis / 1000.0, year=args.year, loc=0, ax=ax
     )
-    plot.plot1d(
-        histo.integrate("plotgroup", "Z+jets").integrate("lepflav", args.channel),
-        overlay="flav",
+    hbkglist = []
+    labels = []
+    for sample in [
+        "Z+jets",
+        "W+jets",
+        "tt-dilep",
+        "tt-semilep",
+        "ST",
+        "WW",
+        "WZ",
+        "ZZ",
+        "Higgs",
+    ]:
+        if sample == "signal":
+            continue
+        if sample == "Z+jets":
+            hbkglist.append(
+                histo.integrate("lepflav", args.channel)
+                .integrate("plotgroup", sample)
+                .integrate("flav", slice(0, 4))
+                .values()[()]
+            )
+            hbkglist.append(
+                histo.integrate("lepflav", args.channel)
+                .integrate("plotgroup", sample)
+                .integrate("flav", slice(4, 5))
+                .values()[()]
+            )
+            hbkglist.append(
+                histo.integrate("lepflav", args.channel)
+                .integrate("plotgroup", sample)
+                .integrate("flav", slice(5, 6))
+                .values()[()]
+            )
+            labels.append("Z+l")
+            labels.append("Z+c")
+            labels.append("Z+b")
+        else:
+            hbkglist.append(
+                histo.integrate("lepflav", args.channel)
+                .sum("flav")
+                .integrate("plotgroup", sample)
+                .values()[()]
+            )
+            labels.append(sample)
+
+    hep.histplot(
+        hbkglist,
+        histo.axes()[-1].edges(),
         stack=True,
+        histtype="fill",
         ax=ax,
-        clear=False,
+        label=labels,
+        color=color_map[:-1],
     )
-    plot.plot1d(
+    hep.histplot(
         histo.sum("flav")
         .integrate("lepflav", args.channel)
-        .integrate("plotgroup", "signal"),
-        clear=False,
+        .integrate("plotgroup", "Higgs")
+        .values()[()]
+        * scales
+        / 100,
+        histo.axes()[-1].edges(),
+        color=color_map[-2],
+        linewidth=2,
+        label=f"Higgsx{int(scales/100)}",
+        yerr=True,
         ax=ax,
     )
-    plot.plot1d(
-        histo.integrate("lepflav", args.channel)
-        .integrate("plotgroup", "data_%s" % (args.channel))
-        .sum("flav"),
-        clear=False,
-        error_opts=data_err_opts,
+    hep.histplot(
+        histo.sum("flav")
+        .integrate("lepflav", args.channel)
+        .integrate("plotgroup", "signal")
+        .values()[()]
+        * scales,
+        histo.axes()[-1].edges(),
+        color=color_map[-1],
+        linewidth=2,
+        label=f"signalx{scales}",
+        yerr=True,
         ax=ax,
     )
 
+    hep.histplot(
+        histo.sum("flav")
+        .integrate("lepflav", args.channel)
+        .integrate("plotgroup", "data_%s" % (args.channel))
+        .values()[()],
+        histo.axes()[-1].edges(),
+        histtype="errorbar",
+        color="black",
+        label=f"Data",
+        yerr=True,
+        ax=ax,
+    )
     ax.set_ylim(bottom=0.1)
     ax.semilogy()
     rax = plot.plotratio(
@@ -385,7 +548,17 @@ if __name__ == "__main__":
         .integrate("lepflav", args.channel)
         .integrate(
             "plotgroup",
-            ["Z+jets", "W+jets", "tt-dilep", "tt-semilep", "ST", "WW", "WZ", "ZZ"],
+            [
+                "Z+jets",
+                "W+jets",
+                "tt-dilep",
+                "tt-semilep",
+                "ST",
+                "WW",
+                "WZ",
+                "ZZ",
+                "Higgs",
+            ],
         ),
         ax=rax,
         error_opts=data_err_opts,
@@ -409,42 +582,66 @@ if __name__ == "__main__":
         frameon=False,
     )
     ax.add_artist(at)
-    leg_label = ax.get_legend_handles_labels()[1][1:]
-    leg_label[-6] = "Z+l"
-    leg_label[-5] = "Z+pu"
-    leg_label[-4] = "Z+c"
-    leg_label[-3] = "Z+b"
-    leg_label[-1] = "data"
-    leg_label[-2] = f"Signalx{scales}"
+
     ax.legend(
         loc="upper right",
-        handles=ax.get_legend_handles_labels()[0][1:],
+        # handles=ax.get_legend_handles_labels()[0][1:],
         ncol=2,
-        labels=leg_label,
+        # labels=leg_label,
     )
     hep.mpl_magic(ax=ax)
     ax.set_xlabel("")
-    if args.blind !=1.2 :fig.savefig(
-        f"xgb_plot/{args.region}_{args.channel}_BDT_split_{args.version}_dy.pdf"
-    )
+    if args.blind != 1.2:
+        fig.savefig(
+            f"xgb_plot/{args.region}_{args.channel}_BDT_split_{args.version}.pdf"
+        )
     else:
         template_file = f"../../../../card_maker/shape/templates_{args.region}_{args.channel}_srbdt_{args.year}_{args.version}.root"
         if os.path.exists(template_file):
             os.remove(template_file)
-        print(f"Will save templates to {template_file}")
+
         fout = uproot3.create(template_file)
         name = "hc"
-        histo.scale({"signal":1./scales},axis="plotgroup")
 
-        fout[name] = hist.export1d(histo.sum("flav").integrate("lepflav",args.channel).integrate("plotgroup","signal"))
+        fout[name] = hist.export1d(
+            histo.sum("flav")
+            .integrate("lepflav", args.channel)
+            .integrate("plotgroup", "signal")
+        )
         name = "data_obs"
-        fout[name] = hist.export1d(histo.integrate("lepflav",args.channel).integrate("plotgroup","data_%s"%(args.channel)).sum("flav"))
+        fout[name] = hist.export1d(
+            histo.integrate("lepflav", args.channel)
+            .integrate("plotgroup", "data_%s" % (args.channel))
+            .sum("flav")
+        )
         name = "vjets"
-        fout[name] = hist.export1d(histo.sum("flav").integrate("lepflav",args.channel).integrate("plotgroup",["Z+jets","W+jets"]))
+        fout[name] = hist.export1d(
+            histo.sum("flav")
+            .integrate("lepflav", args.channel)
+            .integrate("plotgroup", ["Z+jets", "W+jets"])
+        )
         name = "ttbar"
-        fout[name] = hist.export1d(histo.sum("flav").integrate("lepflav",args.channel).integrate("plotgroup",["tt-dilep","tt-semilep"]))
+        fout[name] = hist.export1d(
+            histo.sum("flav")
+            .integrate("lepflav", args.channel)
+            .integrate("plotgroup", ["tt-dilep", "tt-semilep"])
+        )
         name = "vv"
-        fout[name] = hist.export1d(histo.sum("flav").integrate("lepflav",args.channel).integrate("plotgroup",["WW","WZ","ZZ"]))
+        fout[name] = hist.export1d(
+            histo.sum("flav")
+            .integrate("lepflav", args.channel)
+            .integrate("plotgroup", ["WW", "WZ", "ZZ"])
+        )
         name = "st"
-        fout[name] = hist.export1d(histo.sum("flav").integrate("lepflav",args.channel).integrate("plotgroup","ST"))
+        fout[name] = hist.export1d(
+            histo.sum("flav")
+            .integrate("lepflav", args.channel)
+            .integrate("plotgroup", "ST")
+        )
+        name = "higgs"
+        fout[name] = hist.export1d(
+            histo.sum("flav")
+            .integrate("lepflav", args.channel)
+            .integrate("plotgroup", "Higgs")
+        )
         fout.close()

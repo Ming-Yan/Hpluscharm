@@ -6,6 +6,16 @@
     "background2":"../coffea_output/hists_HWW2l2nu_dy_nlCR_all.coffea",
     "background3":"../coffea_output/hists_HWW2l2nu_dym10CR_all.coffea"
 },
+
+
+    "HWW2l2nu_newvar":{
+    "signal":"../coffea_output/hists_HWW2l2nu_signal_UL17_newvar.coffea",
+    "background1":"../coffea_output/hists_HWW2l2nu_mcbkg_UL17_newvar.coffea",
+    "data": "../coffea_output/hists_HWW2l2nu_data2017_newvar.coffea",
+    "background2":"../coffea_output/hists_HWW2l2nu_dymore_newvar.coffea",
+    "background3":"../coffea_output/hists_HWW2l2nu_higgs_newvar.coffea"
+	
+},
 "HWW2l2nutest":{
     "signal":"../coffea_output/hists_HWW2l2nu_higgs_arrays.coffea",
     "background":"../coffea_output/hists_HWW2l2nu_higgs_arrays.coffea",

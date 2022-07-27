@@ -13,6 +13,15 @@ from coffea import processor
 
 logger = logging.getLogger(__name__)
 
+
+def update(events, collections):
+    """Return a shallow copy of events array with some collections swapped out"""
+    out = events
+    for name, value in collections.items():
+        out = ak.with_field(out, value, name)
+    return out
+
+
 def parametrized(dec):
     def layer(*args, **kwargs):
         def repl(f):
@@ -21,6 +30,7 @@ def parametrized(dec):
         return repl
 
     return layer
+
 
 def df_object_overlap(toclean, cleanagainst, dr=0.4):
     particle_pair = toclean["p4"].cross(cleanagainst["p4"], nested=True)
@@ -127,7 +137,7 @@ def m_bb(jets):
 
 
 def get_ht(jets):
-    return ak.sum(jets.pt, axis=-1) 
+    return ak.sum(jets.pt, axis=-1)
 
 
 def min_dr_part1_part2(part1, part2, getn=0, fill=np.nan):
@@ -199,6 +209,7 @@ def get_cone_pt(part, n=1):
     padded_part = ak.pad_none(part, n)
     return [ak.fill_none(padded_part[..., i].cone_pt, np.nan) for i in range(n)]
 
+
 def make_p4(obj, candidate=False):
     params = ["pt", "eta", "phi", "mass"]
     with_name = "PtEtaPhiMLorentzVector"
@@ -234,9 +245,6 @@ def lead_diobj(objs):
     return diobj
 
 
-
-
-
 class chunked:
     def __init__(self, func, chunksize=10000):
         self.func = func
@@ -252,8 +260,6 @@ class chunked:
                 for off in range(0, max(lens), self.chunksize)
             ]
         )
-
-
 
 
 def linear_fit(x, y, eigen_decomp=False):
@@ -277,6 +283,7 @@ def linear_func(coeff, cov, eigen_decomp=False):
     else:
         return nom
 
+
 import awkward as ak
 
 
@@ -296,11 +303,10 @@ def normalize(val, cut=None):
         ar = ak.to_numpy(ak.fill_none(val[cut], np.nan))
         return ar
 
+
 def empty_column_accumulator():
     return processor.column_accumulator(np.array([], dtype=np.float64))
 
 
 def defaultdict_accumulator():
     return processor.defaultdict_accumulator(empty_column_accumulator)
-
-

@@ -3,7 +3,7 @@ from coffea.util import load
 import numpy as np
 import matplotlib.pyplot as plt
 
-from sklearn.model_selection import GridSearchCV,LeaveOneOut
+from sklearn.model_selection import GridSearchCV, LeaveOneOut
 
 from BTVNanoCommissioning.utils.xs_scaler import scale_xs_arr
 import pandas as pd
@@ -24,7 +24,7 @@ def load_data(fname, varlist, isSignal=True, channel="emu", lumi=41500):
     data_arrays = data["array"]
 
     # put gen weight
-    genwei = scale_xs_arr(events, lumi,"../../../metadata/xsection.json")
+    genwei = scale_xs_arr(events, lumi, "../../../metadata/xsection.json")
     if channel == "emu":
         w = np.hstack(
             [
@@ -73,6 +73,7 @@ def load_data(fname, varlist, isSignal=True, channel="emu", lumi=41500):
             ]
         ).T
     else:
+
         x = np.vstack(
             [
                 np.hstack(
@@ -112,30 +113,19 @@ if __name__ == "__main__":
     parser.add_argument("-v", "--version", type=str, required=True, help="version")
     args = parser.parse_args()
     # Load data
-    varlist = [
-        "ll_pt",
-        "lll1_dr",
-        "lll2_dr",
-        "llc_dr",
-        "lep1_pt",
-        "lep2_pt",
-        "ll_mass",
-        "MET_pt",
-        "jetflav_pt",
-        "l1met_dphi",
-        "l2met_dphi",
-        "cW1_dphi",
-        "mT1",
-        "mT2",
-        "jetflav_btagDeepFlavCvL",
-        "jetflav_btagDeepFlavCvB",
-    ]
-    bkgx, bkgy, bkgw = load_data(
-        "../../../coffea_output/hists_HWW2l2nu_mcbkg_UL17arrays.coffea", varlist, False, args.channel
-    )
+    from training_config import config2017
+
+    varlist = config2017["varlist"][args.channel][args.version]
     sigx, sigy, sigw = load_data(
-        "../../../coffea_output/hists_HWW2l2nu_signal_UL17_4f_arrays.coffea", varlist, True, args.channel
+        config2017["coffea_new"]["sig"], varlist, True, args.channel
     )
+    bkgx, bkgy, bkgw = load_data(
+        config2017["coffea_new"]["bkg"], varlist, False, args.channel
+    )
+    higgsx, higgsy, higgsw = load_data(
+        config2017["coffea_new"]["higgs"], varlist, False, args.channel
+    )
+
     fig, ax = plt.subplots()
 
     x = np.vstack([bkgx, sigx])
@@ -148,27 +138,31 @@ if __name__ == "__main__":
     #        'n_estimators': [100, 500, 1000],
     #        'colsample_bytree': [0.3, 0.7]}
     # kfold = StratifiedKFold(n_splits=5, shuffle=True)
-    focal_params = {"focal_gamma": [ 1.0,1.1, 1.2, 1.3,1.4]}
+    focal_params = {"focal_gamma": [1.2]}
     fix_params = {
         "eval_metric": ["logloss", "auc"],
         "max_depth": 3,
-        "colsample_bytree":0.5,
-        "eta":0.05,
-        "subsample":0.5
+        "colsample_bytree": 0.5,
+        "eta": 0.05,
+        # "subsample":0.5
     }
-    
-    clf = imb_xgb(fix_params, special_objective="focal", num_round=1000)
-    score_eval_func = functools.partial(clf.score_eval_func, mode='accuracy')
-    bdt = GridSearchCV(clf, param_grid=focal_params, n_jobs=5,cv=5,scoring=make_scorer(score_eval_func))
+
+    clf = imb_xgb(fix_params, special_objective="focal", num_round=500)
+    score_eval_func = functools.partial(clf.score_eval_func, mode="accuracy")
+    bdt = GridSearchCV(
+        clf, param_grid=focal_params, n_jobs=4, scoring=make_scorer(score_eval_func)
+    )
     model = bdt.fit(x, y, sample_weight=np.abs(w))
     best_model = model.best_estimator_
 
     best_model.boosting_model.save_model(
         f"SR_{args.channel}_scangamma_{args.year}_{args.version}.json"
     )
+    # best_model = xgb.Booster()
+    # best_model.load_model("SR_ll_scangamma_2017_gamma2.json")
     ### Save plots
     fig, ax = plt.subplots()
-    ax = xgb.plot_importance(best_model.boosting_model)
+    ax = xgb.plot_importance(best_model)
     flab = [f"f{i}" for i in range(len(varlist))]
     label = dict(zip(flab, varlist))
     ylab = [item.get_text() for item in ax.get_yticklabels()]
@@ -294,10 +288,10 @@ if __name__ == "__main__":
     plt.title("XGBoost Classification Error")
     plt.savefig(f"xgb_err_{args.channel}_{args.year}_{args.version}.pdf")
 
-    print("Best parameters:", bdt.best_params_)
+    """print("Best parameters:", bdt.best_params_)
     print("Best AUC Score: {}".format(model.best_score_))
     means = model.cv_results_["mean_test_score"]
     stds = model.cv_results_["std_test_score"]
     params = model.cv_results_["params"]
     for mean, stdev, param in zip(means, stds, params):
-        print("%f (%f) with: %r" % (mean, stdev, param))
+        print("%f (%f) with: %r" % (mean, stdev, param))"""
