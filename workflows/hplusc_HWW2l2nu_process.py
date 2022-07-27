@@ -306,7 +306,7 @@ class NanoProcessor(processor.ProcessorABC):
             metfilter &= np.array(events.Flag[flag])
         selection.add("metfilter", metfilter)
         del metfilter
-
+        
         ## Muon cuts
         # muon twiki: https://twiki.cern.ch/twiki/bin/view/CMS/SWGuideMuonIdRun2
         event_mu = events.Muon
@@ -465,9 +465,8 @@ class NanoProcessor(processor.ProcessorABC):
             & (ll_cand.lep1.charge + ll_cand.lep2.charge == 0)
             & (events.MET.pt > 20)
             & (make_p4(ll_cand.lep1).delta_r(make_p4(ll_cand.lep2)) > 0.4)
-            & (abs(met.delta_phi(tkmet)) < 0.5)
+            & (abs(met.delta_phi(tkmet)) < 0.5)   
         )
-
         sr_cut = (
             (mT(ll_cand.lep2, met) > 30)
             & (mT(ll_cand, met) > 60)
