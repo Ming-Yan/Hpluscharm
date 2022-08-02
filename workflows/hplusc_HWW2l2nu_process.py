@@ -6,7 +6,7 @@ from coffea.analysis_tools import Weights
 from functools import partial
 import xgboost as xgb
 import gc
-
+import tracemalloc
 xgb.set_config(verbosity=0)
 from BTVNanoCommissioning.utils.correction import (
     lumiMasks,
@@ -55,7 +55,7 @@ def BDTreader(dmatrix, xgb_model):
 class NanoProcessor(processor.ProcessorABC):
     # Define histograms
     def __init__(
-        self, year="2017", campaign="UL17", BDTversion="dymore", export_array=False, systematics= True
+        self, year="2017", campaign="UL17", BDTversion="dymore", export_array=False, systematics= True,isData=True
     ):
         self._year = year
         self._export_array = export_array
@@ -68,16 +68,17 @@ class NanoProcessor(processor.ProcessorABC):
         self._met_filters = met_filters[campaign]
         self._lumiMasks = lumiMasks[campaign]
         self._campaign = campaign
-        self._deepjetc_sf = load_BTV(
-            self._campaign, correction_config[self._campaign]["BTV"], "DeepJetC"
-        )
-        self._pu = load_pu(self._campaign, correction_config[self._campaign]["PU"])
-        self._jet_factory = load_jetfactory(
-            self._campaign, correction_config[self._campaign]["JME"]
-        )
-        self._met_factory = load_metfactory(
-            self._campaign, correction_config[self._campaign]["JME"]
-         )
+        if not isData:
+            self._deepjetc_sf = load_BTV(
+                self._campaign, correction_config[self._campaign]["BTV"], "DeepJetC"
+            )
+            self._pu = load_pu(self._campaign, correction_config[self._campaign]["PU"])
+            self._jet_factory = load_jetfactory(
+                self._campaign, correction_config[self._campaign]["JME"]
+            )
+            self._met_factory = load_metfactory(
+                self._campaign, correction_config[self._campaign]["JME"]
+            )
         if self._year == "2016":from Hpluscharm.MVA.training_config import config2016 as config
         if self._year == "2017":from Hpluscharm.MVA.training_config import config2017 as config
         if self._year == "2018":from Hpluscharm.MVA.training_config import config2018 as config
@@ -224,6 +225,9 @@ class NanoProcessor(processor.ProcessorABC):
                         ({"Jet": shift_jets, "MET": met}, "HEM18"),
                     ]
                 )
+
+        
+        
         return processor.accumulate(
             self.process_shift(update(events, collections), name)
             for collections, name in shifts
@@ -231,7 +235,7 @@ class NanoProcessor(processor.ProcessorABC):
 
     def process_shift(self, events,shift_name):
         print(shift_name)
-        # shift_name=None
+        tracemalloc.start()
         output = self.make_output()
         dataset = events.metadata["dataset"]
         isRealData = not hasattr(events, "genWeight")
@@ -359,10 +363,12 @@ class NanoProcessor(processor.ProcessorABC):
             ak.concatenate([event_e, event_mu], axis=1),
             "PtEtaPhiMCandidate",
         )
-        del event_e, event_mu
+        #del event_e, event_mu
+        print(ak.type(good_leptons.pt),ak.type(good_leptons))
         good_leptons = good_leptons[
             ak.argsort(good_leptons.pt, axis=1, ascending=False)
         ]
+        
         leppair = ak.combinations(
             good_leptons,
             n=2,
@@ -370,7 +376,7 @@ class NanoProcessor(processor.ProcessorABC):
             axis=-1,
             fields=["lep1", "lep2"],
         )
-        del good_leptons
+        # del good_leptons
         ll_cand = ak.zip(
             {
                 "lep1": leppair.lep1,
@@ -389,7 +395,7 @@ class NanoProcessor(processor.ProcessorABC):
         selection.add("ee", ak.to_numpy(nele == 2))
         selection.add("mumu", ak.to_numpy(nmu == 2))
         selection.add("emu", ak.to_numpy((nele == 1) & (nmu == 1)))
-
+        
         # ###########
 
         met = ak.zip(
@@ -433,7 +439,7 @@ class NanoProcessor(processor.ProcessorABC):
             & (abs(eventflav_jet.eta) <= 2.4)
             & ((eventflav_jet.puId > 6) | (eventflav_jet.pt > 50))
             & (eventflav_jet.jetId > 5)
-            & (eventflav_jet.btagDeepFlavB > 0.0532)
+            & (eventflav_jet.btagDeepFlavB > 0.3040)
         )
 
         cvbcutll = eventflav_jet.btagDeepFlavCvB >= 0.42
@@ -595,7 +601,6 @@ class NanoProcessor(processor.ProcessorABC):
                 & (ak.sum(jetsel & cvbcutem & cvlcutem, axis=1) >= 1)
             ),
         )
-
         # selection.add('DY_CRb',ak.to_numpy(ak.any(dy_cr2_cut&global_cut,axis=-1)&(ak.sum(seljet&cvlcut&~cvbcut,axis=1)==1)))
         # selection.add('DY_CRl',ak.to_numpy(ak.any(dy_cr2_cut&global_cut,axis=-1)&(ak.sum(seljet&~cvlcut&cvbcut,axis=1)>=1)))
         # selection.add('DY_CRc',ak.to_numpy(ak.any(dy_cr2_cut&global_cut,axis=-1)&(ak.sum(seljet&cvlcut&cvbcut,axis=1)==1)))
@@ -796,20 +801,25 @@ class NanoProcessor(processor.ProcessorABC):
                 # topjet1 = topjet1[]
                 topjet1cut = topjet1[cut]
                 topjet2cut = topjet2[cut]
-                # ttbarcut= ak.zip(
-                #     {
-                #         "pt": topjet1cut.pt+topjet2cut.pt+lep1cut.pt+lep2cut.pt+met[cut].pt,
-                #         "eta": topjet1cut.eta+topjet2cut.eta+lep1cut.eta+lep2cut.eta,
-                #         "phi": topjet1cut.phi+topjet2cut.phi+lep1cut.phi+lep2cut.phi+met[cut].phi,
-                #         "energy": topjet1cut.energy+topjet2cut.energy+lep1cut.energy+lep2cut.energy+met[cut].energy,
-                #     },
-                #     with_name="PtEtaPhiELorentzVector",
-                # )
-                ttbarcut=topjet1cut+topjet2cut+lep1cut+lep2cut+met[cut]
+                ttbarcut= ak.zip(
+                    {
+                        "x": (topjet1cut.px+topjet2cut.px+lep1cut.px+lep2cut.px+met[cut].px)/np.sqrt(met[cut].pt**2+topjet1cut.pt**2+topjet1cut.pz**2+topjet2cut.pt**2+topjet2cut.pz**2+lep1cut.pt**2+lep1cut.pz**2+lep2cut.pt**2+lep2cut.pz**2),
+                        "y": (topjet1cut.py+topjet2cut.py+lep1cut.py+lep2cut.py+met[cut].py)/np.sqrt(met[cut].pt**2+topjet1cut.pt**2+topjet1cut.pz**2+topjet2cut.pt**2+topjet2cut.pz**2+lep1cut.pt**2+lep1cut.pz**2+lep2cut.pt**2+lep2cut.pz**2),
+                        "z": (topjet1cut.pz+topjet2cut.pz+lep1cut.pz+lep2cut.pz)/np.sqrt(met[cut].pt**2+topjet1cut.pt**2+topjet1cut.pz**2+topjet2cut.pt**2+topjet2cut.pz**2+lep1cut.pt**2+lep1cut.pz**2+lep2cut.pt**2+lep2cut.pz**2),
+                        "t": np.sqrt(met[cut].pt**2+topjet1cut.pt**2+topjet1cut.pz**2+topjet2cut.pt**2+topjet2cut.pz**2+lep1cut.pt**2+lep1cut.pz**2+lep2cut.pt**2+lep2cut.pz**2),
+                    },
+                    with_name="LorentzVector",
+                )
+                # ttbarcut=topjet1cut+topjet2cut+lep1cut+lep2cut+met[cut]
+                llbbcut = topjet1cut+topjet2cut+lep1cut+lep2cut
+                llbbcut = llbbcut[(ak.count(topjets[cut].pt,axis=1) > 1)]
                 ttbarcut = ttbarcut[(ak.count(topjets[cut].pt,axis=1) > 1)]
+                top1cut = topjet1cut+met[cut]
+                top2cut = topjet2cut+met[cut]
                 topjet1cut = topjet1cut[(ak.count(topjets[cut].pt,axis=1) > 1)]
                 topjet2cut = topjet2cut[(ak.count(topjets[cut].pt,axis=1) > 1)]
-                # ttbarcut = topjet1cut+topjet2cut+lep1cut+lep2cut+met[cut]
+                top1cut = top1cut[(ak.count(topjets[cut].pt,axis=1) > 1)]
+                top2cut = top2cut[(ak.count(topjets[cut].pt,axis=1) > 1)]
 
                 # neu1 = get_nu4vec(lep1cut,met[cut])
                 # neu2 = get_nu4vec(lep2cut,met[cut])
@@ -987,15 +997,16 @@ lepflav=ch,
                             # if ak.count(topjets[cut].pt) > 1:
                                 # print(ttbarcut.mass,weight,(ak.count(topjets[cut].pt) > 1))
                             #tweight = weight[ak.count(topjets[cut].pt,axis=1) > 1]
+                            output['template_top1_mass'].fill(syst=sys,lepflav=ch,region=r,flav=flavor[(ak.count(topjets[cut].pt,axis=1) > 1)],mass=normalize(flatten(top1cut.mass)),weight=weight[ak.count(topjets[cut].pt,axis=1) > 1])
+                            output['template_top2_mass'].fill(syst=sys,lepflav=ch,region=r,flav=flavor[(ak.count(topjets[cut].pt,axis=1) > 1)],mass=normalize(flatten(top2cut.mass)),weight=weight[ak.count(topjets[cut].pt,axis=1) > 1])
                             output['template_tt_mass'].fill(syst=sys,lepflav=ch,region=r,flav=flavor[(ak.count(topjets[cut].pt,axis=1) > 1)],mass=normalize(flatten(ttbarcut.mass)),weight=weight[ak.count(topjets[cut].pt,axis=1) > 1])
+                            output['template_llbb_mass'].fill(syst=sys,lepflav=ch,region=r,flav=flavor[(ak.count(topjets[cut].pt,axis=1) > 1)],mass=normalize(flatten(llbbcut.mass)),weight=weight[ak.count(topjets[cut].pt,axis=1) > 1])
                                 
 
                             output['template_mTh'].fill(syst=sys,
 lepflav=ch,region=r,flav=flavor,mt=normalize(flatten(mT(llcut, met[cut]))),weight=weight)
                             output['template_mT1'].fill(syst=sys,
 lepflav=ch,region=r,flav=flavor,mt=normalize(flatten(mT(lep1cut, met[cut]))),weight=weight)
-                        #output['template_top1_mass'].fill(syst=sys,lepflav=ch,region=r,flav=flavor,mass=normalize(flatten(top1cut.mass)),weight=weight)
-                        #output['template_top2_mass'].fill(syst=sys,lepflav=ch,region=r,flav=flavor,mass=normalize(flatten(top2cut.mass)),weight=weight)
                         if "SR" in r:
                             if r == "emu":
                                 x = np.vstack(
@@ -1763,11 +1774,11 @@ lepflav=ch,
                     ] += processor.column_accumulator(
                         ak.to_numpy(flatten((lep2cut).delta_phi((hcut))))
                     )
-
-        del leppair, ll_cand, sel_cjet_flav, met, tkmet,cut,ll_cands,lep1cut,lep2cut,llcut,hcut,w1cut,w2cut,ttbarcut,naele,namu,topjet1,topjet2,utv,utv_p,sr_cut,top_cr2_cut,dy_cr2_cut,cvbcutll,cvbcutem,cvlcutem,cvlcutll
+        
+        del leppair, ll_cand, sel_cjet_flav, met, tkmet,cut,ll_cands,lep1cut,lep2cut,llcut,hcut,w1cut,w2cut,ttbarcut,naele,namu,topjet1,topjet2,utv,utv_p,sr_cut,top_cr2_cut,dy_cr2_cut,cvbcutll,cvbcutem,cvlcutem,cvlcutll,eventflav_jet
         if not isRealData:del jetsf,jetsf_dn,jetsf_up,weight
         gc.collect()
-        
+
         return {dataset:output}
 
     def postprocess(self, accumulator):

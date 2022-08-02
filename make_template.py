@@ -181,15 +181,16 @@ if __name__ == "__main__":
             for syst in ['nominal', 'aS_weightUp', 'UEPS_ISRDown', 'cjetSFsUp', 'L1prefireweightDown', 'PDF_weightDown', 'scalevar_7ptUp', 'PDFaS_weightDown', 'UEPS_FSRUp', 'scalevar_7ptDown', 'scalevar_3ptDown', 'eleSFsDown', 'L1prefireweightUp', 'aS_weightDown', 'scalevar_3ptUp', 'muSFsUp', 'UEPS_FSRDown', 'PDF_weightUp', 'cjetSFsDown', 'muSFsDown', 'puweightDown', 'eleSFsUp', 'puweightUp', 'UEPS_ISRUp', 'PDFaS_weightUp', 'JESUp', 'JESDown', 'UESUp', 'UESDown', 'JERUp', 'JERDown']:
                 if syst=='nominal':s=''
                 else : 
-                    s='_'+syst
+                    s=syst+'_'
                     if not args.systs:break
-                name = "hc"+s
+                name = s+"hc"
                 fout[name] = output['signal'][var][{'lepflav':flav,'region':region,'flav':sum,'syst':syst}].project(output['signal'][var].axes[-1])
-                name = "data_obs"+s
-                fout[name] =  output[f'data_{flav}'][var][{'lepflav':flav,'region':region,'flav':sum,'syst':syst}].project(output[f'data_{flav}'][var].axes[-1])
+                if syst == 'nominal:'
+                    name = "data_obs"
+                    fout[name] =  output[f'data_{flav}'][var][{'lepflav':flav,'region':region,'flav':sum,'syst':syst}].project(output[f'data_{flav}'][var].axes[-1])
                 
                 for proc in output.keys():
-                    name = str(proc)+s
+                    name = s+str(proc)
                     fout[name] = output[proc][var][{'lepflav':flav,'region':region,'flav':sum}].project(output[proc][var].axes[-1])
             
                 

@@ -1,6 +1,5 @@
 {
-   
-    "DYJetsToLL_LHEFilterPtZ-0To50_MatchEWPDG20_TuneCP5_13TeV-amcatnloFXFX-pythia8": [
+   "DYJetsToLL_LHEFilterPtZ-0To50_MatchEWPDG20_TuneCP5_13TeV-amcatnloFXFX-pythia8": [
         "root://xrootd-cms.infn.it///store/mc/RunIISummer20UL17NanoAODv9/DYJetsToLL_LHEFilterPtZ-0To50_MatchEWPDG20_TuneCP5_13TeV-amcatnloFXFX-pythia8/NANOAODSIM/106X_mc2017_realistic_v9-v1/50000/42EBE15B-C2CB-054F-B1C7-D461349DA769.root", 
         "root://xrootd-cms.infn.it///store/mc/RunIISummer20UL17NanoAODv9/DYJetsToLL_LHEFilterPtZ-0To50_MatchEWPDG20_TuneCP5_13TeV-amcatnloFXFX-pythia8/NANOAODSIM/106X_mc2017_realistic_v9-v1/40000/F5E2B9DF-8E23-794A-A332-C3A0CBFBD073.root", 
         "root://xrootd-cms.infn.it///store/mc/RunIISummer20UL17NanoAODv9/DYJetsToLL_LHEFilterPtZ-0To50_MatchEWPDG20_TuneCP5_13TeV-amcatnloFXFX-pythia8/NANOAODSIM/106X_mc2017_realistic_v9-v1/40000/BEAF0A2E-D60B-6045-9343-78A5209CDD34.root", 

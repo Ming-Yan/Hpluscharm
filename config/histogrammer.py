@@ -190,7 +190,7 @@ lepflav_axis,
         )
 
         if i == "ll":
-            _hist_event_dict["%s_mass" % (i)] = Hist.Hist(
+            _hist_event_dict["%s_c" % (i)] = Hist.Hist(
                 
                 
                 
@@ -297,6 +297,15 @@ lepflav_axis,
             Hist.storage.Weight(),
         )
     _hist_event_dict['template_tt_mass'] = Hist.Hist(
+            
+           syst_axis,
+            lepflav_axis,
+            region_axis,
+            flav_axis,
+            Hist.axis.Regular(50,0,500, name="mass", label="$m$ [GeV]"),
+            Hist.storage.Weight(),
+        )
+    _hist_event_dict['template_llbb_mass'] = Hist.Hist(
             
            syst_axis,
             lepflav_axis,
