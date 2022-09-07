@@ -21,8 +21,8 @@
     "data1": "../coffea_output/hists_HWW2l2nu_new_muegdata.coffea",
     "data2": "../coffea_output/hists_HWW2l2nu_new_doubleeg.coffea",
     "data3": "../coffea_output/hists_HWW2l2nu_new_singe.coffea",
-    "data4": "../coffea_output/hists_HWW2l2nu_new_muegdata.coffea",
-    "data5": "../coffea_output/hists_HWW2l2nu_new_muegdata.coffea",
+    "data4": "../coffea_output/hists_HWW2l2nu_new_doublemu.coffea",
+    "data5": "../coffea_output/hists_HWW2l2nu_new_singlemu.coffea",
     "background1":"../coffea_output/hists_HWW2l2nu_new_wjet.coffea",
     "background2":"../coffea_output/hists_HWW2l2nu_new_vv.coffea",
     "background3":"../coffea_output/hists_HWW2l2nu_new_dytt.coffea",
@@ -36,8 +36,23 @@
     "background11":"../coffea_output/hists_HWW2l2nu_new_dy250inf.coffea",
     "background12":"../coffea_output/hists_HWW2l2nu_new_dylhe50100.coffea",
     "background13":"../coffea_output/hists_HWW2l2nu_new_dy100250.coffea",
-	"background14":"../coffea_output/hists_HWW2l2nu_new_dym50.coffea",
+    "background14":"../coffea_output/hists_HWW2l2nu_new_dym50.coffea",
+    "background15":"../coffea_output/hists_HWW2l2nu_new_dylhe050.coffea"
+
 },
+"HWW2l2nu_newhist3":{
+    "signal":"../hists_HWW2l2nu_new_signal_UL17.coffea",
+    "data": "../hists_HWW2l2nu_new_data2017.coffea",
+    "background1":"../hists_HWW2l2nu_new_mcbkg_UL17.coffea",
+    "background2":"../hists_HWW2l2nu_new_higgs_UL17.coffea",
+    "background3":"../hists_HWW2l2nu_new_dy_2017.coffea"
+},
+    "HWW2l2nu_newhist2":{
+	"signal":"../hists_HWW2l2nu_new_signal_UL17.coffea",
+	"data": "../hists_HWW2l2nu_new_data2017.coffea",
+	"background1":"../bkg_test2.coffea",
+    "background2":"../hists_HWW2l2nu_new_higgs_UL17.coffea"
+    },
 
 "HWW2l2nutest":{
     "signal":"../coffea_output/hists_HWW2l2nu_higgs_arrays.coffea",

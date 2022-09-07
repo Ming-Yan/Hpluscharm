@@ -1,4 +1,5 @@
-{"HWW2l2nu":
+{
+    "HWW2l2nu":
     {
     
     "var_map":{
@@ -160,8 +161,54 @@
 "#CC503E",
 "#666666"
 ]
-    }
-,
+    },
+    "HWW2l2nu_newhist3":
+    {
+    
+    "var_map":{
+    "nj": "# of jets", 
+    "mT1": "$m_T$($\\ell_1$,MET)",
+    "mTh": "$m_T$($\\ell\\ell$,MET)",     
+    "ll_mass":"$m_{\\ell\\ell}$[GeV]",
+    "jetflav_btagDeepFlavCvL":"DeepJet CvL",
+    "jetflav_btagDeepFlavCvB":"DeepJet CvB",
+    "jetflav_btagDeepCvL":"DeepCSV CvL",
+    "jetflav_btagDeepCvB":"DeepCSV CvB"
+    },
+    "region_map": {
+    "SR": "SR $N_j>$1",
+    "DY_CRb": "DY+b CR",
+    "DY_CRl": "DY+l CR",
+    "DY_CRc": "DY+c CR",
+    "top_CR": "top CR",
+    "DY_CR": "DY CR",
+    "SR2": "SR $N_j$==1"
+},
+"order":[
+    "Z+jets",
+    "W+jets",
+    "ST",
+    "tt-dilep",
+    "tt-semilep",
+    "WW",
+    "WZ",
+    "ZZ",
+    "signal"
+],
+"color_map":[
+"#554e99",
+"#6f4e99",
+"#994e85",
+"#1D6996",
+"#38A6A5",
+"#0F8554",
+"#73AF48",
+"#EDAD08",
+"#E17C05",
+"#CC503E",
+"#666666"
+]
+    },
 "HWW2l2nu_newvar":
     {
         

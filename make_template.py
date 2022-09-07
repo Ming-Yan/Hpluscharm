@@ -4,30 +4,23 @@ import warnings
 
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
-    import uproot3
+    import uproot
 import json
-# from coffea import hist
 import hist 
 from coffea.util import load
 import matplotlib.pyplot as plt
 import mplhep as hep
 from matplotlib.offsetbox import AnchoredText
-
+import numpy as np
 import importlib.resources
-
-from BTVNanoCommissioning.utils.xs_scaler import scale_xs
-
+from tqdm.auto import tqdm
+from BTVNanoCommissioning.utils.xs_scaler import getSumW,collate,scaleSumW
+plt.style.use(hep.style.ROOT)
 
 with open("metadata/mergemap.json") as json_file:
     merge_map = json.load(json_file)
 
-data_err_opts = {
-    "linestyle": "none",
-    "marker": ".",
-    "markersize": 10.0,
-    "color": "k",
-    "elinewidth": 1,
-}
+correlation_map = ["JERUp","JESUp","UESUp","eleSFsUp","muSFsUp","puweightUp","cjetSFsUp","JERDown","JESDown","UESDown","eleSFsDown","muSFsDown","puweightDown","cjetSFsDown"]
 region_map = {
     "SR": "SR $N_j>$1",
     "DY_CRb": "DY+b CR",
@@ -51,7 +44,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--year",
         default=2017,
-        type=int,
+        type=str,
         required=True,
         help="Scale by appropriate lumi",
     )
@@ -96,6 +89,7 @@ if __name__ == "__main__":
         type=str,
         help="version",
     )
+    parser.add_argument("--axis",type=str,help="axis name")
     parser.add_argument("--prefix", type=str, default="", help="prefix of output")
     # parser.add_argument("--xs_path",type=str,default="../../metadata/xsection.json",help="xsection json file path")
     args = parser.parse_args()
@@ -107,62 +101,21 @@ if __name__ == "__main__":
         i: load(f"../{input_map[args.version][i]}")
         for i in input_map[args.version].keys()
     }
-    if args.year == 2016:
+    if args.year == "2016":
         lumis = 36100
-    elif args.year == 2017:
+    elif args.year == "2017":
         lumis = 41500
-    elif args.year == 2018:
+    elif args.year == "2018":
         lumis = 59800
-    dyjet = [
-        "DYJetsToLL_M-10to50_TuneCP5_13TeV-madgraphMLM-pythia8",
-        "DYJetsToLL_M-50_TuneCP5_13TeV-amcatnloFXFX-pythia8",
-        "DY1JetsToLL_M-10to50_MatchEWPDG20_TuneCP5_13TeV-madgraphMLM-pythia8",
-        "DY2JetsToLL_M-10to50_MatchEWPDG20_TuneCP5_13TeV-madgraphMLM-pythia8",
-        "DY3JetsToLL_M-10to50_MatchEWPDG20_TuneCP5_13TeV-madgraphMLM-pythia8",
-        "DY4JetsToLL_M-10to50_MatchEWPDG20_TuneCP5_13TeV-madgraphMLM-pythia8",
-        "DY1JetsToLL_M-50_MatchEWPDG20_TuneCP5_13TeV-madgraphMLM-pythia8",
-        "DY2JetsToLL_M-50_MatchEWPDG20_TuneCP5_13TeV-madgraphMLM-pythia8",
-        "DY3JetsToLL_M-50_MatchEWPDG20_TuneCP5_13TeV-madgraphMLM-pythia8",
-        "DY4JetsToLL_M-50_MatchEWPDG20_TuneCP5_13TeV-madgraphMLM-pythia8",
-        "DYJetsToLL_0J_TuneCP5_13TeV-amcatnloFXFX-pythia8",
-        "DYJetsToLL_1J_TuneCP5_13TeV-amcatnloFXFX-pythia8",
-        "DYJetsToLL_2J_TuneCP5_13TeV-amcatnloFXFX-pythia8",
-        "DYJetsToLL_LHEFilterPtZ-650ToInf_MatchEWPDG20_TuneCP5_13TeV-amcatnloFXFX-pythia8",
-        "DYJetsToLL_LHEFilterPtZ-400To650_MatchEWPDG20_TuneCP5_13TeV-amcatnloFXFX-pythia8",
-        "DYJetsToLL_LHEFilterPtZ-250To400_MatchEWPDG20_TuneCP5_13TeV-amcatnloFXFX-pythia8",
-        "DYJetsToLL_LHEFilterPtZ-100To250_MatchEWPDG20_TuneCP5_13TeV-amcatnloFXFX-pythia8",
-        "DYJetsToLL_LHEFilterPtZ-50To100_MatchEWPDG20_TuneCP5_13TeV-amcatnloFXFX-pythia8",
-        "DYJetsToLL_LHEFilterPtZ-0To50_MatchEWPDG20_TuneCP5_13TeV-amcatnloFXFX-pythia8",
-        "DYJetsToLL_M-50_HT-70to100_TuneCP5_PSweights_13TeV-madgraphMLM-pythia8",
-        "DYJetsToLL_M-50_HT-100to200_TuneCP5_PSweights_13TeV-madgraphMLM-pythia8",
-        "DYJetsToLL_M-50_HT-200to400_TuneCP5_PSweights_13TeV-madgraphMLM-pythia8",
-        "DYJetsToLL_M-50_HT-400to600_TuneCP5_PSweights_13TeV-madgraphMLM-pythia8",
-        "DYJetsToLL_M-50_HT-600to800_TuneCP5_PSweights_13TeV-madgraphMLM-pythia8",
-        "DYJetsToLL_M-50_HT-800to1200_TuneCP5_PSweights_13TeV-madgraphMLM-pythia8",
-        "DYJetsToLL_M-50_HT-1200to2500_TuneCP5_PSweights_13TeV-madgraphMLM-pythia8",
-        "DYJetsToLL_M-50_HT-2500toInf_TuneCP5_PSweights_13TeV-madgraphMLM-pythia8",
-        "DYJetsToLL_Pt-50To100_MatchEWPDG20_TuneCP5_13TeV-amcatnloFXFX-pythia8",
-        "DYJetsToLL_Pt-100To250_MatchEWPDG20_TuneCP5_13TeV-amcatnloFXFX-pythia8",
-        "DYJetsToLL_Pt-250To400_MatchEWPDG20_TuneCP5_13TeV-amcatnloFXFX-pythia8",
-        "DYJetsToLL_Pt-400To650_MatchEWPDG20_TuneCP5_13TeV-amcatnloFXFX-pythia8",
-        "DYJetsToLL_Pt-650ToInf_MatchEWPDG20_TuneCP5_13TeV-amcatnloFXFX-pythia8",
-    ]
-    dyscaler = {}
-    for dy in dyjet:
-        if "M-10to50" in dy:
-            dyscaler[dy] = 1.0 / 2.0
-        else:
-            dyscaler[dy] = 1.0 / 3.0
-    # print(dyscaler)
-    for out in output.keys():
-        ## Scale XS
-        if out == "data":
-                output[out] = collate(output[out],merge_map["data"])
-        else:
-                output[out] = scaleSumW(output[out],lumis,getSumw(output[out]),"../metadata/xsection.json")
-                output[out] = collate(output[out],merge_map["HWW_template_moredy"])
+    
+    
+    
+    for out in output.keys():output[out] = scaleSumW(output[out],lumis,getSumW(output[out]),0.5,"../../metadata/xsection.json")
+    
+    # for out in output.keys():output[out] = scaleSumW(output[out],lumis,sumw,1.,"../../metadata/xsection.json")
+    collated = collate(output,merge_map["HWW_template_moredy"],True)
+    # print(collated['hc']['template_BDT'])
         
-
     regions = ["SR", "SR2", "top_CR", "DY_CR"]
     flavs = ["ee", "mumu", "emu"]
     for region in regions:
@@ -177,76 +130,192 @@ if __name__ == "__main__":
                 os.remove(template_file)
             print(f"Will save templates to {template_file}")
 
-            fout = uproot3.create(template_file)
-            for syst in ['nominal', 'aS_weightUp', 'UEPS_ISRDown', 'cjetSFsUp', 'L1prefireweightDown', 'PDF_weightDown', 'scalevar_7ptUp', 'PDFaS_weightDown', 'UEPS_FSRUp', 'scalevar_7ptDown', 'scalevar_3ptDown', 'eleSFsDown', 'L1prefireweightUp', 'aS_weightDown', 'scalevar_3ptUp', 'muSFsUp', 'UEPS_FSRDown', 'PDF_weightUp', 'cjetSFsDown', 'muSFsDown', 'puweightDown', 'eleSFsUp', 'puweightUp', 'UEPS_ISRUp', 'PDFaS_weightUp', 'JESUp', 'JESDown', 'UESUp', 'UESDown', 'JERUp', 'JERDown']:
-                if syst=='nominal':s=''
-                else : 
-                    s=syst+'_'
-                    if not args.systs:break
-                name = s+"hc"
-                fout[name] = output['signal'][var][{'lepflav':flav,'region':region,'flav':sum,'syst':syst}].project(output['signal'][var].axes[-1])
-                if syst == 'nominal:'
+            # fout = uproot.create(template_file)
+            for syst in  tqdm(collated['hc'][args.observable].axes['syst'], desc='syst', leave=False):
+            # for syst in ["nominal"]:
+                if not args.systs :break
+                if 'syst' in collated[f'data_{flav}'][args.observable].axes.name:hist_axes = {'lepflav':flav,'region':region,'flav':sum,'syst':syst}
+                else :hist_axes = {'lepflav':flav,'region':region}
+                if syst == 'nominal':
                     name = "data_obs"
-                    fout[name] =  output[f'data_{flav}'][var][{'lepflav':flav,'region':region,'flav':sum,'syst':syst}].project(output[f'data_{flav}'][var].axes[-1])
+                    # fout[name] =  collated[f'data_{flav}'][args.observable][hist_axes]
                 
-                for proc in output.keys():
-                    name = s+str(proc)
-                    fout[name] = output[proc][var][{'lepflav':flav,'region':region,'flav':sum}].project(output[proc][var].axes[-1])
+                for proc in collated.keys():
+                    if 'data' not in proc:
+                        if syst != 'nominal' :
+                            if syst in correlation_map: 
+                                if 'Up' in syst:name = proc+"_CMS_"+syst[:-2]+"_13TeV_" + args.year+"Up"
+                                else:name = proc+"_CMS_"+syst[:-4]+"_13TeV_" + args.year+"Down"
+                            else: name = proc+"_CMS_"+syst
+                        else : name = proc
+                        # fout[name] = collated[proc][args.observable][hist_axes]
+                        if proc == 'vv' and syst not in ['JESDown', 'UESDown', 'JERDown'] and (args.observable=='template_tt_mass' or args.observable=='template_llbb_mass') :
+                            binning=collated['data_ee'][args.observable][{'lepflav':flav,'region':region,'flav':sum,'syst':'nominal'}].to_numpy()[1]
+                            # fout[name] = np.histogram([],binning)
+                
+                
             
-                
-            fig, ((ax), (rax)) = plt.subplots(
+            if args.valid:
+                fig, ((ax), (rax)) = plt.subplots(
                 2,1,
                 figsize=(12, 12),
                 gridspec_kw={"height_ratios": (3, 1)},
-                sharex=True,
-            )
-            if args.valid:
-                fig.subplots_adjust(hspace=0.07)
+                    #sharex=True,
+             )
+                # fig, ax = plt.subplots(figsize=(8, 8))
+
+                fig.subplots_adjust(hspace=0.05)
+                hep.cms.label(
+                    "Work in progress",
+                    data=True,
+                    # lumi=lumis / 1000.0,
+                    year=args.year,
+                    loc=0,
+                    ax=ax,
+                )
+
+                # import boost_histogram as bh
+                # if 'syst' in collated[f'data_{flav}'][args.observable].axes.name: vhist_axes = {'lepflav':flav,'region':region,'flav':sum,'syst':'nominal'}
+                # else: vhist_axes = {'lepflav':flav,'flav':sum,'region':region}
+                vhist_axes = {'lepflav':flav,'flav':sum,'region':region,'syst':'puweight'}
                 hbkglist = [
-                        output[sample][var][{'lepflav':flav,'region':region,'flav':sum}].project(output[sample][var].axes[-1])
-                        for sample in output.keys()
+                    collated[sample][args.observable][vhist_axes]
+                        for sample in collated.keys() if 'data' not in sample
                     ]
+                # print(collated['data_emu'][args.observable].values())
+                # hbkglist = [
+                #     values[flav][sample]
                 
-                ax = hep.histplot(
+                #         for sample in collated.keys() if 'data' not in sample
+                #     ]
+
+                label = [sample for  sample in collated.keys() if 'data' not in sample]
+                
+                i=0
+                for sample in collated.keys():
+                    if 'data' in sample: continue
+                    if i==0: hmc = collated[sample][args.observable][vhist_axes]
+                    else: hmc = collated[sample][args.observable][vhist_axes] + hmc
+                    i = i+1
+                # print(hmc)
+                from hist.intervals import ratio_uncertainty
+                
+                hdata = collated[f'data_{flav}'][args.observable][{'lepflav':flav,'flav':sum,'region':region}]
+                rax.errorbar(
+                x= hdata.axes[0].centers,
+                y= hdata.values() / hmc.values(),
+                yerr=ratio_uncertainty(hdata.values(), hmc.values()),
+                color="k",
+                linestyle="none",
+                marker="o",
+                elinewidth=1,
+                )   
+                #ax.set_xticks(ax.get_xticks()[::2])
+                
+                rax.axhline(y=1.0, linestyle="dashed", color="gray")
+
+                
+                # print(sublot_ax_arists)
+                rax.set_ylim(0.5, 1.5)
+
+                hep.histplot(
                     hbkglist,
-                    stack=True,
-                    histtype="fill",
+                     stack=True,
+                     histtype="fill",
+                    label=["V+jets","ttbar","Single Top", "Diboson","Higgs x500","H+c x50000"],
+                    color=["#554e99","#38A6A5","#73AF48","#EDAD08","#CC503E","#666666"],
+                    # density=True,
+                    # yerr=False,
                     ax=ax,
                 )
                 hep.histplot(
-                    output[f'data_{flav}'][var][{'lepflav':flav,'region':region,'flav':sum}].project(output[f'data_{flav}'][var].axes[-1]),
-                    histtype="errorbar",
-                    color="black",
-                    label=f"Data",
-                    yerr=True,
+                    collated["higgs"][args.observable][vhist_axes]*500,
+                    label=[""],
+                    # yerr=False,
+                    color="#CC503E",
                     ax=ax,
                 )
+                hep.histplot(
+                    collated["hc"][args.observable][vhist_axes]*50000,
+                    label=[""],
+                    # yerr=False,
+                    color="#666666",
+                    ax=ax,
+                )
+                # hep.histplot(
+                #     hbkglist,
+                #     rebins[flav],
+                #      stack=True,
+                #      histtype="fill",
+                #     label=["V+jets","ttbar","Single Top", "Diboson","Higgs x500","H+c x50000"],
+                #     color=["#554e99","#38A6A5","#73AF48","#EDAD08","#CC503E","#999999"],
+                #     #density=True,
+                #     ax=ax,
+                # )
+                # hep.histplot(
+                #     np.array(values[flav]["higgs"])*500,
+                #     rebins[flav],
+                #     label=[""],
+                #     # yerr=False,
+                #     color="#CC503E",
+                #     ax=ax,
+                # )
+                # hep.histplot(
+                #     np.array(values[flav]["hc"])*50000,
+                #     rebins[flav],
+                #     label=[""],
+                #     # yerr=False,
+                #     color="#999999",
+                #     ax=ax,
+                # )
+                # data_value=np.array(values[flav]["data"])
+                # data_value[-15:]=0
                 
+                # hep.histplot(
+                #    data_value,
+                #    rebins[flav],
+                #    histtype="errorbar",
+                #    color="black",
+                #    label=f"Data",
+                #    yerr=True,
+                #    ax=ax,
+                # )
+                print(collated[f'data_{flav}'][args.observable][{'lepflav':flav,'flav':sum,'region':region}].axes['npvs'])
+                hep.histplot(
+                   
+                   collated[f'data_{flav}'][args.observable][{'lepflav':flav,'flav':sum,'region':region}],
+                   histtype="errorbar",
+                   color="black",
+                   label=f"Data",
+                   yerr=True,
+                   ax=ax,
+                )
                 
+                flavs = flav.replace("mu","$\mu$")
                 at = AnchoredText(
-                    flav
+                    flavs
                     + "  "
                     + region_map[region]
                     + "\n"
                     + r"HWW$\rightarrow 2\ell 2\nu$",
                     loc="upper left",
                     frameon=False,
+                    # prop=dict(size=20),
+                    
                 )
                 ax.add_artist(at)
-                # ax.set_ylim(bottom=0.0001)
-                # ax.semilogy()
-                for sample in output.keys():
-                    if 'data' not in sample: hmc=output[sample][var][{'lepflav':chs,'region':region,'flav':sum}].project(output[sample][var].axes[-1]) +hmc 
-                rax = hist.plotratio(
-                    num=output[f'data_{flav}'][var][{'lepflav':flav,'region':region,'flav':sum}].project(output[f'data_{flav}'][var].axes[-1]),
-                    denom=hmc,
-                    ax=rax,
-                    error_opts=data_err_opts,
-                    denom_fill_opts={},
-                    #
-                    unc="num",
+                # ax.set_ylim(0.01,1e8)
+                #ax.semilogy()
+                
+                ax.set_xlabel(args.axis)
+                ax.set_ylabel("Counts")
+                ax.legend(
+                    loc="upper right",
+                    # ncol=2,
+                    # fontsize=20
                 )
-                rax.set_ylim(0.5, 1.5)
-                hep.mpl_magic(ax=ax)
+                # ax.set_ylim(0.,3500)
+                ax.set_ylim(bottom=0.)
+                #hep.mpl_magic(ax=ax)
                 fig.savefig(f"validate_{region}_{flav}_{args.observable}{args.prefix}.pdf")
-    fout.close()
+    # fout.close()
