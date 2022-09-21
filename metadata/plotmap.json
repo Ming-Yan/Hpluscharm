@@ -1,7 +1,6 @@
 {
     "HWW2l2nu":
-    {
-    
+    { 
     "var_map":{
     "nj": "# of jets", 
     "nele": "# of additional e",
@@ -166,14 +165,10 @@
     {
     
     "var_map":{
-    "nj": "# of jets", 
+	"MET_pt":"MET $p_T$",
     "mT1": "$m_T$($\\ell_1$,MET)",
     "mTh": "$m_T$($\\ell\\ell$,MET)",     
-    "ll_mass":"$m_{\\ell\\ell}$[GeV]",
-    "jetflav_btagDeepFlavCvL":"DeepJet CvL",
-    "jetflav_btagDeepFlavCvB":"DeepJet CvB",
-    "jetflav_btagDeepCvL":"DeepCSV CvL",
-    "jetflav_btagDeepCvB":"DeepCSV CvB"
+    "ll_mass":"$m_{\\ell\\ell}$[GeV]"
     },
     "region_map": {
     "SR": "SR $N_j>$1",
@@ -185,28 +180,10 @@
     "SR2": "SR $N_j$==1"
 },
 "order":[
-    "Z+jets",
-    "W+jets",
-    "ST",
-    "tt-dilep",
-    "tt-semilep",
-    "WW",
-    "WZ",
-    "ZZ",
-    "signal"
+"vjets","ttbar","st", "vv","higgs","hc"
 ],
 "color_map":[
-"#554e99",
-"#6f4e99",
-"#994e85",
-"#1D6996",
-"#38A6A5",
-"#0F8554",
-"#73AF48",
-"#EDAD08",
-"#E17C05",
-"#CC503E",
-"#666666"
+"#554e99","#38A6A5","#73AF48","#EDAD08","#CC503E","#666666"
 ]
     },
 "HWW2l2nu_newvar":

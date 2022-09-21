@@ -48,10 +48,10 @@
     "background3":"../hists_HWW2l2nu_new_dy_2017.coffea"
 },
     "HWW2l2nu_newhist2":{
-	"signal":"../hists_HWW2l2nu_new_signal_UL17.coffea",
-	"data": "../hists_HWW2l2nu_new_data2017.coffea",
-	"background1":"../bkg_test2.coffea",
-    "background2":"../hists_HWW2l2nu_new_higgs_UL17.coffea"
+	"signal":"../hists_HWW2l2nu2_signal_UL17.coffea",
+	"data": "../hists_HWW2l2nu2_data2017.coffea",
+	"background1":"../hists_HWW2l2nu2_mcbkg_UL17.coffea",
+	"background2":"../hists_HWW2l2nu2_higgs_UL17.coffea"
     },
 
 "HWW2l2nutest":{

@@ -136,9 +136,9 @@ class NanoProcessor(processor.ProcessorABC):
         isRealData = not hasattr(events, "genWeight")
         selection = processor.PackedSelection()
         if isRealData:
-            output["sumw"][dataset] += 1.0
+            output["sumw"] += 1.0
         else:
-            output["sumw"][dataset] += ak.sum(events.genWeight / abs(events.genWeight))
+            output["sumw"] += ak.sum(events.genWeight / abs(events.genWeight))
         weights = Weights(len(events), storeIndividual=True)
         if isRealData:
             weights.add("genweight", np.ones(len(events)))

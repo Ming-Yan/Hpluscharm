@@ -113,8 +113,7 @@ correction_config = {
         },
     },
     "UL17": {
-        "PU": "newpu2017.histo.root",  
-        "PU2": "newpu-higher-2017.histo.root",
+        "PU": "puweight_UL17.histo.root",
         "JME": "mc_compile_jec.pkl.gz",
         "BTV": {
             "DeepJetC": "DeepJet_ctagSF_Summer20UL17_interp.root",

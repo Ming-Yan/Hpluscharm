@@ -14,9 +14,9 @@ from matplotlib.offsetbox import AnchoredText
 import numpy as np
 import importlib.resources
 from tqdm.auto import tqdm
-from BTVNanoCommissioning.utils.xs_scaler import getSumW,collate,scaleSumW
+from BTVNanoCommissioning.utils.xs_scaler import getSumW,collate,scaleSumW,additional_scale
 plt.style.use(hep.style.ROOT)
-
+from dylist import dylist
 with open("metadata/mergemap.json") as json_file:
     merge_map = json.load(json_file)
 
@@ -110,11 +110,13 @@ if __name__ == "__main__":
     
     
     
-    for out in output.keys():output[out] = scaleSumW(output[out],lumis,getSumW(output[out]),0.5,"../../metadata/xsection.json")
+    for out in output.keys():
+        output[out] = scaleSumW(output[out],lumis,getSumW(output[out]))
+        output[out] = additional_scale(output[out],0.5,dylist)
     
-    # for out in output.keys():output[out] = scaleSumW(output[out],lumis,sumw,1.,"../../metadata/xsection.json")
-    collated = collate(output,merge_map["HWW_template_moredy"],True)
-    # print(collated['hc']['template_BDT'])
+    
+    
+    collated = collate(output,merge_map["HWW_template_moredy"])    
         
     regions = ["SR", "SR2", "top_CR", "DY_CR"]
     flavs = ["ee", "mumu", "emu"]
@@ -130,7 +132,7 @@ if __name__ == "__main__":
                 os.remove(template_file)
             print(f"Will save templates to {template_file}")
 
-            # fout = uproot.create(template_file)
+            #fout = uproot.create(template_file)
             for syst in  tqdm(collated['hc'][args.observable].axes['syst'], desc='syst', leave=False):
             # for syst in ["nominal"]:
                 if not args.systs :break
@@ -138,7 +140,7 @@ if __name__ == "__main__":
                 else :hist_axes = {'lepflav':flav,'region':region}
                 if syst == 'nominal':
                     name = "data_obs"
-                    # fout[name] =  collated[f'data_{flav}'][args.observable][hist_axes]
+                    #fout[name] =  collated[f'data_{flav}'][args.observable][hist_axes]
                 
                 for proc in collated.keys():
                     if 'data' not in proc:
@@ -148,10 +150,14 @@ if __name__ == "__main__":
                                 else:name = proc+"_CMS_"+syst[:-4]+"_13TeV_" + args.year+"Down"
                             else: name = proc+"_CMS_"+syst
                         else : name = proc
-                        # fout[name] = collated[proc][args.observable][hist_axes]
-                        if proc == 'vv' and syst not in ['JESDown', 'UESDown', 'JERDown'] and (args.observable=='template_tt_mass' or args.observable=='template_llbb_mass') :
+                        if proc == "higgs" and args.observable=='template_mT1'  :
                             binning=collated['data_ee'][args.observable][{'lepflav':flav,'region':region,'flav':sum,'syst':'nominal'}].to_numpy()[1]
-                            # fout[name] = np.histogram([],binning)
+                            #fout[name] = np.histogram([],binning)
+                        
+                        # else:#fout[name] = collated[proc][args.observable][hist_axes]
+                        print(proc, syst)
+                        # if proc == 'vv' and syst not in ['JESDown', 'UESDown', 'JERDown'] and (args.observable=='template_tt_mass' or args.observable=='template_llbb_mass') :
+                        
                 
                 
             
@@ -174,15 +180,16 @@ if __name__ == "__main__":
                     ax=ax,
                 )
 
-                # import boost_histogram as bh
-                # if 'syst' in collated[f'data_{flav}'][args.observable].axes.name: vhist_axes = {'lepflav':flav,'region':region,'flav':sum,'syst':'nominal'}
-                # else: vhist_axes = {'lepflav':flav,'flav':sum,'region':region}
-                vhist_axes = {'lepflav':flav,'flav':sum,'region':region,'syst':'puweight'}
+                import boost_histogram as bh
+                if 'syst' in collated[f'data_{flav}'][args.observable].axes.name: vhist_axes = {'lepflav':flav,'region':region,'flav':sum,'syst':'nominal'}
+                # elif 'npv' in 
+                else:  vhist_axes = {'lepflav':flav,'flav':sum,'region':region,'syst':args.prefix} #vhist_axes = {'lepflav':flav,'flav':sum,'region':region}
+                # print(collated[f'data_{flav}'])
+                # vhist_axes = {'lepflav':flav,'flav':sum,'region':region,'syst':args.prefix}
                 hbkglist = [
                     collated[sample][args.observable][vhist_axes]
                         for sample in collated.keys() if 'data' not in sample
                     ]
-                # print(collated['data_emu'][args.observable].values())
                 # hbkglist = [
                 #     values[flav][sample]
                 
@@ -197,7 +204,6 @@ if __name__ == "__main__":
                     if i==0: hmc = collated[sample][args.observable][vhist_axes]
                     else: hmc = collated[sample][args.observable][vhist_axes] + hmc
                     i = i+1
-                # print(hmc)
                 from hist.intervals import ratio_uncertainty
                 
                 hdata = collated[f'data_{flav}'][args.observable][{'lepflav':flav,'flav':sum,'region':region}]
@@ -210,12 +216,10 @@ if __name__ == "__main__":
                 marker="o",
                 elinewidth=1,
                 )   
-                #ax.set_xticks(ax.get_xticks()[::2])
                 
                 rax.axhline(y=1.0, linestyle="dashed", color="gray")
 
                 
-                # print(sublot_ax_arists)
                 rax.set_ylim(0.5, 1.5)
 
                 hep.histplot(
@@ -228,62 +232,25 @@ if __name__ == "__main__":
                     # yerr=False,
                     ax=ax,
                 )
+                #print(args.prefix,np.sum(collated["ttbar"][args.observable][vhist_axes].values()))
+                # print(np.sum(collated["ttbar"][args.observable][{'lepflav':flav,'flav':sum,'region':region,'syst':"nominal"}].values()),np.sum(collated["ttbar"][args.observable][{'lepflav':flav,'flav':sum,'region':region,'syst':"puweightUp"}].values()),np.sum(collated["ttbar"][args.observable][{'lepflav':flav,'flav':sum,'region':region,'syst':"puweightDown"}].values()))
                 hep.histplot(
                     collated["higgs"][args.observable][vhist_axes]*500,
                     label=[""],
-                    # yerr=False,
+                    yerr=False,
                     color="#CC503E",
                     ax=ax,
                 )
                 hep.histplot(
                     collated["hc"][args.observable][vhist_axes]*50000,
                     label=[""],
-                    # yerr=False,
+                    yerr=False,
                     color="#666666",
                     ax=ax,
                 )
-                # hep.histplot(
-                #     hbkglist,
-                #     rebins[flav],
-                #      stack=True,
-                #      histtype="fill",
-                #     label=["V+jets","ttbar","Single Top", "Diboson","Higgs x500","H+c x50000"],
-                #     color=["#554e99","#38A6A5","#73AF48","#EDAD08","#CC503E","#999999"],
-                #     #density=True,
-                #     ax=ax,
-                # )
-                # hep.histplot(
-                #     np.array(values[flav]["higgs"])*500,
-                #     rebins[flav],
-                #     label=[""],
-                #     # yerr=False,
-                #     color="#CC503E",
-                #     ax=ax,
-                # )
-                # hep.histplot(
-                #     np.array(values[flav]["hc"])*50000,
-                #     rebins[flav],
-                #     label=[""],
-                #     # yerr=False,
-                #     color="#999999",
-                #     ax=ax,
-                # )
-                # data_value=np.array(values[flav]["data"])
-                # data_value[-15:]=0
-                
-                # hep.histplot(
-                #    data_value,
-                #    rebins[flav],
-                #    histtype="errorbar",
-                #    color="black",
-                #    label=f"Data",
-                #    yerr=True,
-                #    ax=ax,
-                # )
-                print(collated[f'data_{flav}'][args.observable][{'lepflav':flav,'flav':sum,'region':region}].axes['npvs'])
                 hep.histplot(
                    
-                   collated[f'data_{flav}'][args.observable][{'lepflav':flav,'flav':sum,'region':region}],
+                   hdata,
                    histtype="errorbar",
                    color="black",
                    label=f"Data",
@@ -304,9 +271,9 @@ if __name__ == "__main__":
                     
                 )
                 ax.add_artist(at)
-                # ax.set_ylim(0.01,1e8)
+                ax.set_ylim(0.,3000)
                 #ax.semilogy()
-                
+                rax.set_ylabel("data/MC")
                 ax.set_xlabel(args.axis)
                 ax.set_ylabel("Counts")
                 ax.legend(
@@ -314,8 +281,8 @@ if __name__ == "__main__":
                     # ncol=2,
                     # fontsize=20
                 )
-                # ax.set_ylim(0.,3500)
+                # ax.set_ylim(0.,3000)
                 ax.set_ylim(bottom=0.)
                 #hep.mpl_magic(ax=ax)
                 fig.savefig(f"validate_{region}_{flav}_{args.observable}{args.prefix}.pdf")
-    # fout.close()
+    # #fout.close()

@@ -329,9 +329,9 @@ class NanoProcessor(processor.ProcessorABC):
         isRealData = not hasattr(events, "genWeight")
         selection = processor.PackedSelection()
         if isRealData:
-            output["sumw"][dataset] += 1.0
+            output["sumw"] += 1.0
         else:
-            output["sumw"][dataset] += ak.sum(events.genWeight / abs(events.genWeight))
+            output["sumw"] += ak.sum(events.genWeight / abs(events.genWeight))
         req_lumi = np.ones(len(events), dtype="bool")
         if isRealData:
             req_lumi = self._lumiMasks[self._year](events.run, events.luminosityBlock)
