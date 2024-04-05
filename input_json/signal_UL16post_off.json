@@ -1,0 +1,36 @@
+{
+    "HPlusBottom_4FS_MuRFScaleDynX0p50_HToWWTo2L2Nu_M125_TuneCP5_13TeV-amcatnlo-pythia8": [
+        "root://cmsxrootd-kit.gridka.de:1094///store/mc/RunIISummer20UL16NanoAODv9/HPlusBottom_4FS_MuRFScaleDynX0p50_HToWWTo2L2Nu_M125_TuneCP5_13TeV-amcatnlo-pythia8/NANOAODSIM/106X_mcRun2_asymptotic_v17-v1/80000/611A99F2-94C7-7840-9B00-F3171F993786.root",
+        "root://cmsxrootd-kit.gridka.de:1094///store/mc/RunIISummer20UL16NanoAODv9/HPlusBottom_4FS_MuRFScaleDynX0p50_HToWWTo2L2Nu_M125_TuneCP5_13TeV-amcatnlo-pythia8/NANOAODSIM/106X_mcRun2_asymptotic_v17-v1/80000/0F0C3CF7-5EA8-FE4C-81AE-FD04532A6E9A.root",
+        "root://cmsxrootd-kit.gridka.de:1094///store/mc/RunIISummer20UL16NanoAODv9/HPlusBottom_4FS_MuRFScaleDynX0p50_HToWWTo2L2Nu_M125_TuneCP5_13TeV-amcatnlo-pythia8/NANOAODSIM/106X_mcRun2_asymptotic_v17-v1/80000/8F287510-A1A2-BC46-8413-CFA10D6C136A.root"
+    ],
+    "HPlusBottom_5FS_MuRFScaleDynX0p50_HToWWTo2L2Nu_M125_TuneCP5_13TeV-amcatnlo-pythia8": [
+        "root://xrootd-cms.infn.it///store/mc/RunIISummer20UL16NanoAODv9/HPlusBottom_5FS_MuRFScaleDynX0p50_HToWWTo2L2Nu_M125_TuneCP5_13TeV-amcatnlo-pythia8/NANOAODSIM/106X_mcRun2_asymptotic_v17-v1/70000/24432CFF-7534-F744-B641-13242ADE9E24.root",
+        "root://xrootd-cms.infn.it///store/mc/RunIISummer20UL16NanoAODv9/HPlusBottom_5FS_MuRFScaleDynX0p50_HToWWTo2L2Nu_M125_TuneCP5_13TeV-amcatnlo-pythia8/NANOAODSIM/106X_mcRun2_asymptotic_v17-v1/70000/37CFF30C-5420-8A43-807E-8A22677B1A94.root",
+        "root://xrootd-cms.infn.it///store/mc/RunIISummer20UL16NanoAODv9/HPlusBottom_5FS_MuRFScaleDynX0p50_HToWWTo2L2Nu_M125_TuneCP5_13TeV-amcatnlo-pythia8/NANOAODSIM/106X_mcRun2_asymptotic_v17-v1/70000/633BAF8E-933D-9F48-889C-66C102CCB631.root"
+    ],
+    "HPlusBottom_5FS_MuRFScaleDynX0p50_HToWWTo2L2Nu_M125_TuneCP5_13TeV-amcatnloFXFX-pythia8": [
+        "root://eos.grif.fr:1094//eos/grif/cms/grif//store/mc/RunIISummer20UL16NanoAODv9/HPlusBottom_5FS_MuRFScaleDynX0p50_HToWWTo2L2Nu_M125_TuneCP5_13TeV-amcatnloFXFX-pythia8/NANOAODSIM/106X_mcRun2_asymptotic_v17-v1/70000/E9EF23E6-3CAE-A04F-96F3-8CDB9DF1D44F.root",
+        "root://eos.grif.fr:1094//eos/grif/cms/grif//store/mc/RunIISummer20UL16NanoAODv9/HPlusBottom_5FS_MuRFScaleDynX0p50_HToWWTo2L2Nu_M125_TuneCP5_13TeV-amcatnloFXFX-pythia8/NANOAODSIM/106X_mcRun2_asymptotic_v17-v1/70000/6FCF4BC0-E7FD-2D40-B36D-E9E20323EB24.root",
+        "root://eos.grif.fr:1094//eos/grif/cms/grif//store/mc/RunIISummer20UL16NanoAODv9/HPlusBottom_5FS_MuRFScaleDynX0p50_HToWWTo2L2Nu_M125_TuneCP5_13TeV-amcatnloFXFX-pythia8/NANOAODSIM/106X_mcRun2_asymptotic_v17-v1/70000/E81FB5BB-FD22-2246-AE53-F89E3D95F22D.root",
+        "root://eos.grif.fr:1094//eos/grif/cms/grif//store/mc/RunIISummer20UL16NanoAODv9/HPlusBottom_5FS_MuRFScaleDynX0p50_HToWWTo2L2Nu_M125_TuneCP5_13TeV-amcatnloFXFX-pythia8/NANOAODSIM/106X_mcRun2_asymptotic_v17-v1/70000/DF837C84-4DA4-A349-805C-339365C86AC9.root",
+        "root://eos.grif.fr:1094//eos/grif/cms/grif//store/mc/RunIISummer20UL16NanoAODv9/HPlusBottom_5FS_MuRFScaleDynX0p50_HToWWTo2L2Nu_M125_TuneCP5_13TeV-amcatnloFXFX-pythia8/NANOAODSIM/106X_mcRun2_asymptotic_v17-v1/70000/D3729911-9463-304E-8845-391F4F501033.root"
+    ],
+    "HPlusCharm_4FS_MuRFScaleDynX0p50_HToWWTo2L2Nu_M125_TuneCP5_13TeV-amcatnlo-pythia8": [
+        "root://xrootd-cms.infn.it///store/mc/RunIISummer20UL16NanoAODv9/HPlusCharm_4FS_MuRFScaleDynX0p50_HToWWTo2L2Nu_M125_TuneCP5_13TeV-amcatnlo-pythia8/NANOAODSIM/106X_mcRun2_asymptotic_v17-v1/80000/722C74A5-D345-8344-834C-2A4627F218FA.root",
+        "root://xrootd-cms.infn.it///store/mc/RunIISummer20UL16NanoAODv9/HPlusCharm_4FS_MuRFScaleDynX0p50_HToWWTo2L2Nu_M125_TuneCP5_13TeV-amcatnlo-pythia8/NANOAODSIM/106X_mcRun2_asymptotic_v17-v1/80000/565DAEF4-3D61-9A40-8B4C-1686FA9556E3.root"
+    ],
+    "HPlusCharm_3FS_MuRFScaleDynX0p50_HToWWTo2L2Nu_M125_TuneCP5_13TeV-amcatnlo-pythia8": [
+        "root://xrootd-cms.infn.it///store/mc/RunIISummer20UL16NanoAODv9/HPlusCharm_3FS_MuRFScaleDynX0p50_HToWWTo2L2Nu_M125_TuneCP5_13TeV-amcatnlo-pythia8/NANOAODSIM/106X_mcRun2_asymptotic_v17-v1/80000/196E2AAA-CBE2-0141-9686-FB55A7CCC439.root",
+        "root://xrootd-cms.infn.it///store/mc/RunIISummer20UL16NanoAODv9/HPlusCharm_3FS_MuRFScaleDynX0p50_HToWWTo2L2Nu_M125_TuneCP5_13TeV-amcatnlo-pythia8/NANOAODSIM/106X_mcRun2_asymptotic_v17-v1/80000/4823AEE5-86DB-F24C-A5E7-B4C6346C8C7A.root",
+        "root://xrootd-cms.infn.it///store/mc/RunIISummer20UL16NanoAODv9/HPlusCharm_3FS_MuRFScaleDynX0p50_HToWWTo2L2Nu_M125_TuneCP5_13TeV-amcatnlo-pythia8/NANOAODSIM/106X_mcRun2_asymptotic_v17-v1/80000/85233053-68A6-6B4B-89E1-A8BF4C4A9340.root"
+    ],
+    "HPlusCharm_4FS_MuRFScaleDynX0p50_HToWWTo2L2Nu_M125_TuneCP5_13TeV-amcatnloFXFX-pythia8": [
+        "root://xrootd-cms.infn.it///store/mc/RunIISummer20UL16NanoAODv9/HPlusCharm_4FS_MuRFScaleDynX0p50_HToWWTo2L2Nu_M125_TuneCP5_13TeV-amcatnloFXFX-pythia8/NANOAODSIM/106X_mcRun2_asymptotic_v17-v1/80000/B92D92E7-CE9C-4A49-972B-8C96B44BEF9B.root",
+        "root://xrootd-cms.infn.it///store/mc/RunIISummer20UL16NanoAODv9/HPlusCharm_4FS_MuRFScaleDynX0p50_HToWWTo2L2Nu_M125_TuneCP5_13TeV-amcatnloFXFX-pythia8/NANOAODSIM/106X_mcRun2_asymptotic_v17-v1/80000/F2E0D63F-75F1-4341-9B08-E248EDBCCE0A.root",
+        "root://xrootd-cms.infn.it///store/mc/RunIISummer20UL16NanoAODv9/HPlusCharm_4FS_MuRFScaleDynX0p50_HToWWTo2L2Nu_M125_TuneCP5_13TeV-amcatnloFXFX-pythia8/NANOAODSIM/106X_mcRun2_asymptotic_v17-v1/80000/62042321-2054-8A47-8AAF-DACB72A08D63.root",
+        "root://xrootd-cms.infn.it///store/mc/RunIISummer20UL16NanoAODv9/HPlusCharm_4FS_MuRFScaleDynX0p50_HToWWTo2L2Nu_M125_TuneCP5_13TeV-amcatnloFXFX-pythia8/NANOAODSIM/106X_mcRun2_asymptotic_v17-v1/80000/5A0CFEB3-2977-534E-95B9-8B5AE8A51414.root",
+        "root://xrootd-cms.infn.it///store/mc/RunIISummer20UL16NanoAODv9/HPlusCharm_4FS_MuRFScaleDynX0p50_HToWWTo2L2Nu_M125_TuneCP5_13TeV-amcatnloFXFX-pythia8/NANOAODSIM/106X_mcRun2_asymptotic_v17-v1/80000/11FAE792-D316-9C46-B25A-F72CA8C4973F.root",
+        "root://xrootd-cms.infn.it///store/mc/RunIISummer20UL16NanoAODv9/HPlusCharm_4FS_MuRFScaleDynX0p50_HToWWTo2L2Nu_M125_TuneCP5_13TeV-amcatnloFXFX-pythia8/NANOAODSIM/106X_mcRun2_asymptotic_v17-v1/80000/AA7BEF20-415D-E24B-A9B3-CD1C03A7D8D6.root"
+    ]
+}

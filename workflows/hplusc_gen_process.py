@@ -136,15 +136,14 @@ class NanoProcessor(processor.ProcessorABC):
         isRealData = not hasattr(events, "genWeight")
         selection = processor.PackedSelection()
         if isRealData:
-            output["sumw"] += 1.0
+            output["sumw"] = len(events)
         else:
-            output["sumw"] += ak.sum(events.genWeight / abs(events.genWeight))
+            output["sumw"] = ak.sum(events.genWeight / abs(events.genWeight))
         weights = Weights(len(events), storeIndividual=True)
         if isRealData:
             weights.add("genweight", np.ones(len(events)))
         else:
             weights.add("genweight", events.genWeight / abs(events.genWeight))
-            # weights.add('puweight', compiled['2017_pileupweight'](events.Pileup.nPU))
         ##############
         if isRealData:
             output["cutflow"][dataset]["all"] += 1.0
@@ -159,7 +158,7 @@ class NanoProcessor(processor.ProcessorABC):
             & (events.GenPart.pt != 0)
             & (events.GenPart.hasFlags(["fromHardProcess"]) == True)
             & (events.GenPart.hasFlags(["isHardProcess"]) == True)
-            #& (events.GenPart.pt > 25)
+            & (events.GenPart.pt > 25)
         ]
     
         matchj = genc.nearest(events.Jet, threshold=0.1)
@@ -167,26 +166,52 @@ class NanoProcessor(processor.ProcessorABC):
         # print(ak.type(matchj))
         # if "WW" in dataset : momid=24
         # else :momid=23
-        genlep = events.GenPart[
+        if "Tau" in dataset:
+            genlep = events.GenPart[
             (
                 (abs(events.GenPart.pdgId) == 11)
                 | (abs(events.GenPart.pdgId) == 13)
-                | (abs(events.GenPart.pdgId) == 15)
+                # | (abs(events.GenPart.pdgId) == 15)
             )
-            & (events.GenPart.hasFlags(["fromHardProcess"]) == True)
-            & (events.GenPart.hasFlags(["isHardProcess"]) == True)
+            & (events.GenPart.hasFlags(["isDirectHardProcessTauDecayProduct"]) == True)
+            & (events.GenPart.hasFlags(["isHardProcessTauDecayProduct"]) == True)
+        ]
+        else:
+            genlep = events.GenPart[
+            (
+                (abs(events.GenPart.pdgId) == 11)
+                | (abs(events.GenPart.pdgId) == 13)
+                # | (abs(events.GenPart.pdgId) == 15)
+            )
+                & (events.GenPart.hasFlags(["fromHardProcess"]) == True)
+            #& (events.GenPart.hasFlags(["isHardProcess"]) == True)
         ]
 
+        # print(events.GenPart.hasFlags(["fromHardProcess"]) )
+        # print(genlep.hasFlags(["isHardProcessTauDecayProduct"]))
+        # print(genlep.hasFlags["fromHardProcess"],genlep.hasFlags["isHardProcess"],)
         if "2Nu" in dataset:
+            '''if "Tau" in dataset:
+                gennu = events.GenPart[
+                    (
+                        (abs(events.GenPart.pdgId) == 12)
+                        | (abs(events.GenPart.pdgId) == 14)
+                        # | (abs(events.GenPart.pdgId) == 16)
+                    )
+                    & (events.GenPart.hasFlags(["isHardProcessTauDecayProduct"]) == True)
+                    & (events.GenPart.hasFlags(["isDirectHardProcessTauDecayProduct"]) == True)
+                ]
+            else:'''
             gennu = events.GenPart[
                 (
                     (abs(events.GenPart.pdgId) == 12)
                     | (abs(events.GenPart.pdgId) == 14)
                     | (abs(events.GenPart.pdgId) == 16)
-                )
+                    )
                 & (events.GenPart.hasFlags(["fromHardProcess"]) == True)
                 & (events.GenPart.hasFlags(["isHardProcess"]) == True)
-            ]
+                ]
+
             gennunu = ak.zip(
                 {
                     "pt": (gennu[:, 0] + gennu[:, 1]).pt,
@@ -199,10 +224,12 @@ class NanoProcessor(processor.ProcessorABC):
                 {
                     "pt": events.GenMET.pt,
                     "phi": events.GenMET.phi,
+                    "eta":ak.zeros_like( events.GenMET.phi),
+                    "energy":ak.zeros_like(events.GenMET.phi),
                 },
                 with_name="PtEtaPhiMLorentzVector",
             )
-            genh =  genlep[:, 0] + genlep[:, 1] + gennu[:, 0] + gennu[:, 1]
+            genh =  genlep[:, 0] + genlep[:, 1] + genmet
         else:
             genjet = events.GenPart[
                 (abs(events.GenPart.pdgId) < 6)
@@ -337,5 +364,4 @@ class NanoProcessor(processor.ProcessorABC):
         return output
 
     def postprocess(self, accumulator):
-        print(accumulator)
         return accumulator

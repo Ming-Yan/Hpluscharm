@@ -1,0 +1,15 @@
+*.coffea
+*.pyc
+*.*~
+.ipynb_checkpoints/
+\#*
+*.png
+*.pdf
+
+__pycache__
+workflows/__pycache__/
+.vscode/
+runinfo/
+
+
+
