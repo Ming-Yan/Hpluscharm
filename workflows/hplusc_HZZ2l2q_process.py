@@ -908,7 +908,6 @@ class NanoProcessor(processor.ProcessorABC):
                         weight=weights.weight()[cut] * sf
                     )
                 else:
-
                     output["nj"].fill(
                         dataset=dataset,
                         lepflav=ch,

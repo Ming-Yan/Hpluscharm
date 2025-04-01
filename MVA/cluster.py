@@ -28,7 +28,7 @@ if __name__ == "__main__":
     parser.add_argument("-c","--campaign", default="UL17",choices=["UL17","UL18","UL16_preAPV","UL16_postAPV"], help="campaign")
     parser.add_argument("-v", "--version", type=str, required=True, help="version")
     parser.add_argument("-r","--region", default="SR2_LM",type=str,help="categories")
-    parser.add_argument("-n","--ncluster",type=str,default="20,25,30,40,45,50,55",help="nclusters")
+    parser.add_argument("-n","--ncluster",type=str,default="35",help="nclusters")
     args = parser.parse_args()
     n_clusters_list=args.ncluster.split(",")
     n_clusters_list=[int(i) for i in n_clusters_list]
@@ -87,6 +87,7 @@ if __name__ == "__main__":
         for m in mergemap:
             tmpml,tmpwei=[],[]
             for ml in mergemap[m]:
+
                 if args.campaign!="UL17":
                     if ml not in collect_var.keys():continue
                     if len(collect_var[ml][args.region].keys())==0 :continue
@@ -109,18 +110,24 @@ if __name__ == "__main__":
         
         MCvar[var]["H+c"]=collect_var['HPlusCharm_4FS_MuRFScaleDynX0p50_HToWWTo2L2Nu_M125_TuneCP5_13TeV-amcatnloFXFX-pythia8'][args.region][var]
         weivar["H+c"]=collect_var['HPlusCharm_4FS_MuRFScaleDynX0p50_HToWWTo2L2Nu_M125_TuneCP5_13TeV-amcatnloFXFX-pythia8'][args.region]["mcwei"]*collect_var['HPlusCharm_4FS_MuRFScaleDynX0p50_HToWWTo2L2Nu_M125_TuneCP5_13TeV-amcatnloFXFX-pythia8'][args.region]["weight"]
-        if args.campaign!="UL17":MCvar[var]["data"]=np.hstack([collect_var[s][args.region][var] for s in collect_var.keys() if len(collect_var[s][args.region])>0 and "MuonEG_Run" in s ])
-        else:
-            if "SR_LM"==args.region:
-                MCvar[var]["data"]=np.hstack([collect_var[s]["SR_LM"][var][collect_var[s]['SR_LM']['nselj']>1] for s in collect_var.keys() if len(collect_var[s]["SR_LM"])>0 and "MuonEG_Run" in s ])
-            elif "SR2_LM"==args.region:
-                MCvar[var]["data"]=np.hstack([collect_var[s]["SR_LM"][var][collect_var[s]['SR_LM']['nselj']==1] for s in collect_var.keys() if len(collect_var[s]["SR_LM"])>0 and "MuonEG_Run" in s ])
+        # if args.campaign!="UL17":
+        #     # print(collect_var.keys())
+        #     # for s in collect_var.keys():
+        #         # if len(collect_var[s][args.region].keys())==0:continue
+        #         # if "MuonEG_Run" in s:print(collect_var[s])
+                
+        #     MCvar[var]["data"]=np.hstack([collect_var[s][args.region][var] for s in collect_var.keys() if len(collect_var[s][args.region])>0 and "MuonEG_Run" in s ])
+    # else:
+        if "SR_LM"==args.region:
+            MCvar[var]["data"]=np.hstack([collect_var[s]["SR_LM"][var][collect_var[s]['SR_LM']['nselj']>1] for s in collect_var.keys() if len(collect_var[s]["SR_LM"])>0 and "MuonEG_Run" in s ])
+        elif "SR2_LM"==args.region:
+            MCvar[var]["data"]=np.hstack([collect_var[s]["SR_LM"][var][collect_var[s]['SR_LM']['nselj']==1] for s in collect_var.keys() if len(collect_var[s]["SR_LM"])>0 and "MuonEG_Run" in s ])
         
     xgb_model_bkg,xgb_model_higgs = xgb.Booster(),xgb.Booster()
-    xgb_model_bkg.load_model(f"None_{args.version}_bkg_{args.campaign}_nofocal.json")
+    xgb_model_bkg.load_model("None_binary_bkg_all_nofocal.json")
     # xgb_model_higgs.load_model(f"None_{args.version}_{args.campaign}_nofocal.json")
 
-    xgb_model_higgs.load_model(f"None_{args.version}_higgs_{args.campaign}_nofocal.json")
+    xgb_model_higgs.load_model("None_binary_higgs_all_nofocal.json")
     bdt_bkg,bdt_higgs={},{}
     hist_bkg_BDT, hist_higgs_BDT,hist_bkg_BDT_bin, hist_higgs_BDT_bin={},{},{},{}
     for w in weivar.keys():
@@ -175,8 +182,8 @@ if __name__ == "__main__":
     
     ax.legend(ncols=2)
     
-    
-    plotratio(data,hmc,ax=rax,data_is_np=True)
+    rax.errorbar(y=hist_bkg_BDT["data"].values()/hmc.values(),x=hmc.axes[0].centers,yerr=np.sqrt(hmc.variances()/hmc.values()**2+hist_bkg_BDT["data"].variances()/hist_bkg_BDT["data"].values()**2))
+    # plotratio(data,hmc,ax=rax,data_is_np=True)
     
     
     
@@ -193,7 +200,7 @@ if __name__ == "__main__":
     ax.add_artist(at)
     hep.mpl_magic(ax=ax)
     
-    fig.savefig(f"BDT_bkg_{args.version}_{args.region}_{args.campaign}.pdf")
+    fig.savefig(f"BDT_bkg_{args.version}_{args.region}_{args.campaign}_old.pdf")
     fig, ((ax), (rax)) = plt.subplots(
                 2, 1, gridspec_kw={"height_ratios": (3, 1)}, sharex=True
             )
@@ -217,7 +224,8 @@ if __name__ == "__main__":
     hmc = hist.Hist(hist.axis.Regular(40,0,1., name="discr", label="BDT"),hist.storage.Weight())
     for s in weivar.keys():hmc=hmc+hist_higgs_BDT[s]
     
-    plotratio(data,hmc,ax=rax,data_is_np=True)
+    # plotratio(data,hmc,ax=rax,data_is_np=True)
+    rax.errorbar(y=hist_higgs_BDT["data"].values()/hmc.values(),x=hmc.axes[0].centers,yerr=np.sqrt(hmc.variances()/hmc.values()**2+hist_bkg_BDT["data"].variances()/hist_bkg_BDT["data"].values()**2))
     rax.axhline(scale)
     rax.set_ylim(0.5,1.5)
     ax.set_xlabel(None)
@@ -229,7 +237,7 @@ if __name__ == "__main__":
     ax.add_artist(at)
     hep.mpl_magic(ax=ax)
     
-    fig.savefig(f"BDT_higgs_{args.region}_{args.campaign}.pdf")
+    fig.savefig(f"BDT_higgs_{args.region}_{args.campaign}_old.pdf")
     
    
     # x = np.vstack([np.hstack([bdt_bkg[s] for s in bdt_bkg.keys() if s!="data"]),np.hstack([bdt_higgs[s] for s in bdt_higgs.keys()if s!="data"])]).T
@@ -297,7 +305,7 @@ if __name__ == "__main__":
     #         if c=="H+c":weight_sig=np.array([np.sum(np.ones(len(clus_id["H+c"][clus_id["H+c"]==i]),dtype='float64')*weivar["H+c"][clus_id["H+c"]==i]) for i in range(n_clusters)])
     #         else:weight_bkg_sum=np.array([np.sum(np.ones(len(clus_id[c][clus_id[c]==i]),dtype='float64')*weivar[c][clus_id[c]==i]) for i in range(n_clusters)])+weight_bkg_sum
     #     index_map=list(np.argsort(weight_sig/np.sqrt(weight_bkg_sum)))
-    #     f = uproot.recreate(f"/nfs/dust/cms/user/milee/card_maker/shape/{args.campaign}_{args.region}_template_bin{n_clusters}_{args.region}.root")
+    #     f = uproot.recreate(f"/data/dust/user/milee/card_maker/shape/{args.campaign}_{args.region}_template_bin{n_clusters}_{args.region}.root")
     #     for s in clus_id.keys():
     #         weight_sum[s]=np.zeros(n_clusters)
             

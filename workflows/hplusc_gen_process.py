@@ -1,12 +1,13 @@
 import pickle, os, sys, mplhep as hep, numpy as np
 
-from matplotlib.pyplot import jet
+# from matplotlib.pyplot import jet
 
-from coffea import hist, processor
+from coffea import processor
 import awkward as ak
 from coffea.analysis_tools import Weights
 from functools import partial
 
+import hist
 
 
 def mT(obj1, obj2):
@@ -35,103 +36,111 @@ def normalize(val, cut):
 
 class NanoProcessor(processor.ProcessorABC):
     # Define histograms
-    def __init__(self, year="2017",campaign="UL17"):
-        self._year = year
+    def __init__(self, cfg):
+        self.cfg = cfg
 
         # Define axes
         # Should read axes from NanoAOD config
-        dataset_axis = hist.Cat("dataset", "Primary dataset")
-        mass_axis = hist.Bin("mass", r" $m_{\\ell\\ell}$ [GeV]", 60, 0, 150)
-        hmass_axis = hist.Bin("mass", r" $m_{\\ell\\ell}$ [GeV]", 60, 100, 150)
-        cmass_axis = hist.Bin("mass", r" $m_{\\ell\\ell}$ [GeV]", 50, 0, 200)
-        pt_axis = hist.Bin("pt", r" $p_T$ [GeV]", 60, 0, 150)
-        eta_axis = hist.Bin("eta", r" $\\eta$", 50, -2.5, 2.5)
-        phi_axis = hist.Bin("phi", r" $\\phi$", 60, -3, 3)
-        dr_axis = hist.Bin("dr", r" $\\Delta R$", 50, 0, 5)
+        # dataset_axis = hist.Cat("dataset", "Primary dataset")
+        # mass_axis = hist.Bin("mass", r" $m_{\\ell\\ell}$ [GeV]", 60, 0, 150)
+        # hmass_axis = hist.Bin("mass", r" $m_{\\ell\\ell}$ [GeV]", 60, 100, 150)
+        # cmass_axis = hist.Bin("mass", r" $m_{\\ell\\ell}$ [GeV]", 50, 0, 200)
+        # pt_axis = hist.Bin("pt", r" $p_T$ [GeV]", 60, 0, 150)
+        # eta_axis = hist.Bin("eta", r" $\\eta$", 50, -2.5, 2.5)
+        # phi_axis = hist.Bin("phi", r" $\\phi$", 60, -3, 3)
+        # dr_axis = hist.Bin("dr", r" $\\Delta R$", 50, 0, 5)
 
-        flav_axis = hist.Bin("flav", r"Genflavour", [0, 1, 4, 5, 6])
-        cvb_axis = hist.Bin("CvB", r" CvB", 50, 0, 1)
-        cvl_axis = hist.Bin("CvL", r" CvL", 50, 0, 1)
+        # flav_axis = hist.Bin("flav", r"Genflavour", [0, 1, 4, 5, 6])
+        # cvb_axis = hist.Bin("CvB", r" CvB", 50, 0, 1)
+        # cvl_axis = hist.Bin("CvL", r" CvL", 50, 0, 1)
 
-        _hist_event_dict = {
-            "genlep1_pt": hist.Hist("Counts", dataset_axis, pt_axis),
-            "genlep1_phi": hist.Hist("Counts", dataset_axis, phi_axis),
-            "genlep1_eta": hist.Hist("Counts", dataset_axis, eta_axis),
-            "genlep2_pt": hist.Hist("Counts", dataset_axis, pt_axis),
-            "genlep2_phi": hist.Hist("Counts", dataset_axis, phi_axis),
-            "genlep2_eta": hist.Hist("Counts", dataset_axis, eta_axis),
-            "genjet1_pt": hist.Hist("Counts", dataset_axis, pt_axis),
-            "genjet1_phi": hist.Hist("Counts", dataset_axis, phi_axis),
-            "genjet1_eta": hist.Hist("Counts", dataset_axis, eta_axis),
-            "genjet2_pt": hist.Hist("Counts", dataset_axis, pt_axis),
-            "genjet2_phi": hist.Hist("Counts", dataset_axis, phi_axis),
-            "genjet2_eta": hist.Hist("Counts", dataset_axis, eta_axis),
-            "gennu_pt": hist.Hist("Counts", dataset_axis, pt_axis),
-            "gennu_phi": hist.Hist("Counts", dataset_axis, phi_axis),
-            "genmet_pt": hist.Hist("Counts", dataset_axis, pt_axis),
-            "genmet_phi": hist.Hist("Counts", dataset_axis, phi_axis),
-            "genll_pt": hist.Hist("Counts", dataset_axis, pt_axis),
-            "genll_eta": hist.Hist("Counts", dataset_axis, eta_axis),
-            "genll_phi": hist.Hist("Counts", dataset_axis, phi_axis),
-            "genll_mass": hist.Hist("Counts", dataset_axis, mass_axis),
-            "genjj_pt": hist.Hist("Counts", dataset_axis, pt_axis),
-            "genjj_eta": hist.Hist("Counts", dataset_axis, eta_axis),
-            "genjj_phi": hist.Hist("Counts", dataset_axis, phi_axis),
-            "genjj_mass": hist.Hist("Counts", dataset_axis, cmass_axis),
-            "genc_pt": hist.Hist("Counts", dataset_axis, pt_axis),
-            "genc_phi": hist.Hist("Counts", dataset_axis, phi_axis),
-            "genc_eta": hist.Hist("Counts", dataset_axis, eta_axis),
-            "genc_mass": hist.Hist("Counts", dataset_axis, cmass_axis),
-            "genll_dr": hist.Hist("Counts", dataset_axis, dr_axis),
-            "genjj_dr": hist.Hist("Counts", dataset_axis, dr_axis),
-            "genllc_dr": hist.Hist("Counts", dataset_axis, dr_axis),
-            "genjjc_dr": hist.Hist("Counts", dataset_axis, dr_axis),
-            "genl1c_dr": hist.Hist("Counts", dataset_axis, dr_axis),
-            "genl2c_dr": hist.Hist("Counts", dataset_axis, dr_axis),
-            "genj1c_dr": hist.Hist("Counts", dataset_axis, dr_axis),
-            "genj2c_dr": hist.Hist("Counts", dataset_axis, dr_axis),
-            "gennuc_dphi": hist.Hist("Counts", dataset_axis, phi_axis),
-            "gennul_dphi": hist.Hist("Counts", dataset_axis, phi_axis),
-            "gennull_dphi": hist.Hist("Counts", dataset_axis, phi_axis),
-            "genmetc_dphi": hist.Hist("Counts", dataset_axis, phi_axis),
-            "genmetl_dphi": hist.Hist("Counts", dataset_axis, phi_axis),
-            "genmetll_dphi": hist.Hist("Counts", dataset_axis, phi_axis),
-            "genmet_mt": hist.Hist("Counts", dataset_axis, mass_axis),
-            "genmet_mt2": hist.Hist("Counts", dataset_axis, cmass_axis),
-            "genh_mass":  hist.Hist("Counts", dataset_axis, hmass_axis),
-            "genh_pt": hist.Hist("Counts", dataset_axis, pt_axis),
-            "genh_eta": hist.Hist("Counts", dataset_axis, eta_axis),
-            "genh_phi": hist.Hist("Counts", dataset_axis, phi_axis),
-            "genhc_dr": hist.Hist("Counts", dataset_axis, dr_axis),
-            "genhll_dr": hist.Hist("Counts", dataset_axis, dr_axis),
-            "genhmet_dphi": hist.Hist("Counts", dataset_axis, phi_axis),
-            "matched_deepJet": hist.Hist(
-                "Counts", dataset_axis, flav_axis, cvl_axis, cvb_axis
-            ),
-            "matched_deepCSV": hist.Hist(
-                "Counts", dataset_axis, flav_axis, cvl_axis, cvb_axis
-            ),
-        }
+        # _hist_event_dict = {
+        #     "genlep1_pt": hist.Hist("Counts", dataset_axis, pt_axis),
+        #     "genlep1_phi": hist.Hist("Counts", dataset_axis, phi_axis),
+        #     "genlep1_eta": hist.Hist("Counts", dataset_axis, eta_axis),
+        #     "genlep2_pt": hist.Hist("Counts", dataset_axis, pt_axis),
+        #     "genlep2_phi": hist.Hist("Counts", dataset_axis, phi_axis),
+        #     "genlep2_eta": hist.Hist("Counts", dataset_axis, eta_axis),
+        #     "genjet1_pt": hist.Hist("Counts", dataset_axis, pt_axis),
+        #     "genjet1_phi": hist.Hist("Counts", dataset_axis, phi_axis),
+        #     "genjet1_eta": hist.Hist("Counts", dataset_axis, eta_axis),
+        #     "genjet2_pt": hist.Hist("Counts", dataset_axis, pt_axis),
+        #     "genjet2_phi": hist.Hist("Counts", dataset_axis, phi_axis),
+        #     "genjet2_eta": hist.Hist("Counts", dataset_axis, eta_axis),
+        #     "gennu_pt": hist.Hist("Counts", dataset_axis, pt_axis),
+        #     "gennu_phi": hist.Hist("Counts", dataset_axis, phi_axis),
+        #     "genmet_pt": hist.Hist("Counts", dataset_axis, pt_axis),
+        #     "genmet_phi": hist.Hist("Counts", dataset_axis, phi_axis),
+        #     "genll_pt": hist.Hist("Counts", dataset_axis, pt_axis),
+        #     "genll_eta": hist.Hist("Counts", dataset_axis, eta_axis),
+        #     "genll_phi": hist.Hist("Counts", dataset_axis, phi_axis),
+        #     "genll_mass": hist.Hist("Counts", dataset_axis, mass_axis),
+        #     "genjj_pt": hist.Hist("Counts", dataset_axis, pt_axis),
+        #     "genjj_eta": hist.Hist("Counts", dataset_axis, eta_axis),
+        #     "genjj_phi": hist.Hist("Counts", dataset_axis, phi_axis),
+        #     "genjj_mass": hist.Hist("Counts", dataset_axis, cmass_axis),
+        #     "genc_pt": hist.Hist("Counts", dataset_axis, pt_axis),
+        #     "genc_phi": hist.Hist("Counts", dataset_axis, phi_axis),
+        #     "genc_eta": hist.Hist("Counts", dataset_axis, eta_axis),
+        #     "genc_mass": hist.Hist("Counts", dataset_axis, cmass_axis),
+        #     "genll_dr": hist.Hist("Counts", dataset_axis, dr_axis),
+        #     "genjj_dr": hist.Hist("Counts", dataset_axis, dr_axis),
+        #     "genllc_dr": hist.Hist("Counts", dataset_axis, dr_axis),
+        #     "genjjc_dr": hist.Hist("Counts", dataset_axis, dr_axis),
+        #     "genl1c_dr": hist.Hist("Counts", dataset_axis, dr_axis),
+        #     "genl2c_dr": hist.Hist("Counts", dataset_axis, dr_axis),
+        #     "genj1c_dr": hist.Hist("Counts", dataset_axis, dr_axis),
+        #     "genj2c_dr": hist.Hist("Counts", dataset_axis, dr_axis),
+        #     "gennuc_dphi": hist.Hist("Counts", dataset_axis, phi_axis),
+        #     "gennul_dphi": hist.Hist("Counts", dataset_axis, phi_axis),
+        #     "gennull_dphi": hist.Hist("Counts", dataset_axis, phi_axis),
+        #     "genmetc_dphi": hist.Hist("Counts", dataset_axis, phi_axis),
+        #     "genmetl_dphi": hist.Hist("Counts", dataset_axis, phi_axis),
+        #     "genmetll_dphi": hist.Hist("Counts", dataset_axis, phi_axis),
+        #     "genmet_mt": hist.Hist("Counts", dataset_axis, mass_axis),
+        #     "genmet_mt2": hist.Hist("Counts", dataset_axis, cmass_axis),
+        #     "genh_mass":  hist.Hist("Counts", dataset_axis, hmass_axis),
+        #     "genh_pt": hist.Hist("Counts", dataset_axis, pt_axis),
+        #     "genh_eta": hist.Hist("Counts", dataset_axis, eta_axis),
+        #     "genh_phi": hist.Hist("Counts", dataset_axis, phi_axis),
+        #     "genhc_dr": hist.Hist("Counts", dataset_axis, dr_axis),
+        #     "genhll_dr": hist.Hist("Counts", dataset_axis, dr_axis),
+        #     "genhmet_dphi": hist.Hist("Counts", dataset_axis, phi_axis),
+        #     "matched_deepJet": hist.Hist(
+        #         "Counts", dataset_axis, flav_axis, cvl_axis, cvb_axis
+        #     ),
+        #     "matched_deepCSV": hist.Hist(
+        #         "Counts", dataset_axis, flav_axis, cvl_axis, cvb_axis
+        #     ),
+        # }
 
-        self.event_hists = list(_hist_event_dict.keys())
+        # self.event_hists = list(_hist_event_dict.keys())
 
-        self._accumulator = processor.dict_accumulator(
-            {
-                **_hist_event_dict,
-                "cutflow": processor.defaultdict_accumulator(
-                    # we don't use a lambda function to avoid pickle issues
-                    partial(processor.defaultdict_accumulator, int)
-                ),
-            }
-        )
-        self._accumulator["sumw"] = processor.defaultdict_accumulator(float)
+        # self._accumulator = processor.dict_accumulator(
+        #     {
+        #         **_hist_event_dict,
+        #         "cutflow": processor.defaultdict_accumulator(
+        #             # we don't use a lambda function to avoid pickle issues
+        #             partial(processor.defaultdict_accumulator, int)
+        #         ),
+        #     }
+        # )
 
     @property
     def accumulator(self):
-        return self._accumulator
+        return self.accumulator
 
     def process(self, events):
-        output = self.accumulator.identity()
+        output = {
+            "LHE_Vpt": hist.Hist(
+                hist.axis.Regular(20, 0, 1000, name="pt", label="LHE V$p_{T}$ [GeV]"),
+                hist.storage.Weight(),
+            ),
+            "LHE_HT": hist.Hist(
+                hist.axis.Regular(50, 0, 2500, name="pt", label="LHE $H_{T}$ [GeV]"),
+                hist.storage.Weight(),
+            ),
+        }
         dataset = events.metadata["dataset"]
         isRealData = not hasattr(events, "genWeight")
         selection = processor.PackedSelection()
@@ -139,229 +148,244 @@ class NanoProcessor(processor.ProcessorABC):
             output["sumw"] = len(events)
         else:
             output["sumw"] = ak.sum(events.genWeight / abs(events.genWeight))
-        weights = Weights(len(events), storeIndividual=True)
-        if isRealData:
-            weights.add("genweight", np.ones(len(events)))
-        else:
-            weights.add("genweight", events.genWeight / abs(events.genWeight))
-        ##############
-        if isRealData:
-            output["cutflow"][dataset]["all"] += 1.0
-        else:
-            output["cutflow"][dataset]["all"] += ak.sum(
-                events.genWeight / abs(events.genWeight)
+        if (
+            "WJetsToLNu_2J_TuneCP5_13TeV-amcatnloFXFX-pythia8" == dataset
+            or "WJetsToLNu_0J_TuneCP5_13TeV-amcatnloFXFX-pythia8" == dataset
+            or "WJetsToLNu_1J_TuneCP5_13TeV-amcatnloFXFX-pythia8" == dataset
+        ):
+            events = events[events.LHE.Vpt < 100]
+        if "WJetsToLNu_TuneCP5_13TeV-madgraphMLM-pythia8" == dataset:
+            events = events[events.LHE.HT < 70]
+        if "LHE" in events.fields:
+            output["LHE_Vpt"].fill(
+                events.LHE.Vpt, weight=events.genWeight / abs(events.genWeight)
             )
+            output["LHE_HT"].fill(
+                events.LHE.HT, weight=events.genWeight / abs(events.genWeight)
+            )
+        # weights = Weights(len(events), storeIndividual=True)
+        # if isRealData:
+        #     weights.add("genweight", np.ones(len(events)))
+        # else:
+        #     weights.add("genweight", events.genWeight / abs(events.genWeight))
+        # ##############
+        # if isRealData:
+        #     output["cutflow"][dataset]["all"] += 1.0
+        # else:
+        #     output["cutflow"][dataset]["all"] += ak.sum(
+        #         events.genWeight / abs(events.genWeight)
+        #     )
 
-        genc = events.GenPart[
-            # (abs(events.GenPart.pdgId) < 6)&(abs(events.GenPart.pdgId)!= 4) 
-            (abs(events.GenPart.pdgId)==4) 
-            & (events.GenPart.pt != 0)
-            & (events.GenPart.hasFlags(["fromHardProcess"]) == True)
-            & (events.GenPart.hasFlags(["isHardProcess"]) == True)
-            & (events.GenPart.pt > 25)
-        ]
-    
-        matchj = genc.nearest(events.Jet, threshold=0.1)
+        # genc = events.GenPart[
+        #     # (abs(events.GenPart.pdgId) < 6)&(abs(events.GenPart.pdgId)!= 4)
+        #     (abs(events.GenPart.pdgId)==4)
+        #     & (events.GenPart.pt != 0)
+        #     & (events.GenPart.hasFlags(["fromHardProcess"]) == True)
+        #     & (events.GenPart.hasFlags(["isHardProcess"]) == True)
+        #     & (events.GenPart.pt > 25)
+        # ]
 
-        # print(ak.type(matchj))
-        # if "WW" in dataset : momid=24
-        # else :momid=23
-        if "Tau" in dataset:
-            genlep = events.GenPart[
-            (
-                (abs(events.GenPart.pdgId) == 11)
-                | (abs(events.GenPart.pdgId) == 13)
-                # | (abs(events.GenPart.pdgId) == 15)
-            )
-            & (events.GenPart.hasFlags(["isDirectHardProcessTauDecayProduct"]) == True)
-            & (events.GenPart.hasFlags(["isHardProcessTauDecayProduct"]) == True)
-        ]
-        else:
-            genlep = events.GenPart[
-            (
-                (abs(events.GenPart.pdgId) == 11)
-                | (abs(events.GenPart.pdgId) == 13)
-                # | (abs(events.GenPart.pdgId) == 15)
-            )
-                & (events.GenPart.hasFlags(["fromHardProcess"]) == True)
-            #& (events.GenPart.hasFlags(["isHardProcess"]) == True)
-        ]
+        # matchj = genc.nearest(events.Jet, threshold=0.1)
 
-        # print(events.GenPart.hasFlags(["fromHardProcess"]) )
-        # print(genlep.hasFlags(["isHardProcessTauDecayProduct"]))
-        # print(genlep.hasFlags["fromHardProcess"],genlep.hasFlags["isHardProcess"],)
-        if "2Nu" in dataset:
-            '''if "Tau" in dataset:
-                gennu = events.GenPart[
-                    (
-                        (abs(events.GenPart.pdgId) == 12)
-                        | (abs(events.GenPart.pdgId) == 14)
-                        # | (abs(events.GenPart.pdgId) == 16)
-                    )
-                    & (events.GenPart.hasFlags(["isHardProcessTauDecayProduct"]) == True)
-                    & (events.GenPart.hasFlags(["isDirectHardProcessTauDecayProduct"]) == True)
-                ]
-            else:'''
-            gennu = events.GenPart[
-                (
-                    (abs(events.GenPart.pdgId) == 12)
-                    | (abs(events.GenPart.pdgId) == 14)
-                    | (abs(events.GenPart.pdgId) == 16)
-                    )
-                & (events.GenPart.hasFlags(["fromHardProcess"]) == True)
-                & (events.GenPart.hasFlags(["isHardProcess"]) == True)
-                ]
+        # # print(ak.type(matchj))
+        # # if "WW" in dataset : momid=24
+        # # else :momid=23
+        # if "Tau" in dataset:
+        #     genlep = events.GenPart[
+        #     (
+        #         (abs(events.GenPart.pdgId) == 11)
+        #         | (abs(events.GenPart.pdgId) == 13)
+        #         # | (abs(events.GenPart.pdgId) == 15)
+        #     )
+        #     & (events.GenPart.hasFlags(["isDirectHardProcessTauDecayProduct"]) == True)
+        #     & (events.GenPart.hasFlags(["isHardProcessTauDecayProduct"]) == True)
+        # ]
+        # else:
+        #     genlep = events.GenPart[
+        #     (
+        #         (abs(events.GenPart.pdgId) == 11)
+        #         | (abs(events.GenPart.pdgId) == 13)
+        #         # | (abs(events.GenPart.pdgId) == 15)
+        #     )
+        #         & (events.GenPart.hasFlags(["fromHardProcess"]) == True)
+        #     #& (events.GenPart.hasFlags(["isHardProcess"]) == True)
+        # ]
 
-            gennunu = ak.zip(
-                {
-                    "pt": (gennu[:, 0] + gennu[:, 1]).pt,
-                    "phi": (gennu[:, 0] + gennu[:, 1]).phi,
-                    "energy": (gennu[:, 0] + gennu[:, 1]).energy,
-                },
-                with_name="PtEtaPhiMLorentzVector",
-            )
-            genmet = ak.zip(
-                {
-                    "pt": events.GenMET.pt,
-                    "phi": events.GenMET.phi,
-                    "eta":ak.zeros_like( events.GenMET.phi),
-                    "energy":ak.zeros_like(events.GenMET.phi),
-                },
-                with_name="PtEtaPhiMLorentzVector",
-            )
-            genh =  genlep[:, 0] + genlep[:, 1] + genmet
-        else:
-            genjet = events.GenPart[
-                (abs(events.GenPart.pdgId) < 6)
-                & (events.GenPart.hasFlags(["fromHardProcess"]) == True)
-                & (events.GenPart.hasFlags(["isHardProcess"]) == True)
-            ]
-            genjet = genjet[genjet.parent.pdgId == 23]
-            genh =  genlep[:, 0] + genlep[:, 1] + genjet[:,0]+genjet[:,1]
-            genzj = genjet[:, 0] + genjet[:, 1]
+        # # print(events.GenPart.hasFlags(["fromHardProcess"]) )
+        # # print(genlep.hasFlags(["isHardProcessTauDecayProduct"]))
+        # # print(genlep.hasFlags["fromHardProcess"],genlep.hasFlags["isHardProcess"],)
+        # if "2Nu" in dataset:
+        #     '''if "Tau" in dataset:
+        #         gennu = events.GenPart[
+        #             (
+        #                 (abs(events.GenPart.pdgId) == 12)
+        #                 | (abs(events.GenPart.pdgId) == 14)
+        #                 # | (abs(events.GenPart.pdgId) == 16)
+        #             )
+        #             & (events.GenPart.hasFlags(["isHardProcessTauDecayProduct"]) == True)
+        #             & (events.GenPart.hasFlags(["isDirectHardProcessTauDecayProduct"]) == True)
+        #         ]
+        #     else:'''
+        #     gennu = events.GenPart[
+        #         (
+        #             (abs(events.GenPart.pdgId) == 12)
+        #             | (abs(events.GenPart.pdgId) == 14)
+        #             | (abs(events.GenPart.pdgId) == 16)
+        #             )
+        #         & (events.GenPart.hasFlags(["fromHardProcess"]) == True)
+        #         & (events.GenPart.hasFlags(["isHardProcess"]) == True)
+        #         ]
 
-        genzl = genlep[:, 0] + genlep[:, 1]
-        # print(ak.type(genh.pt),ak.type(genh[(ak.count(genc.pt,axis=1)>0)].pt))
-        # print(events[(ak.count(genc.pt,axis=1)>0)][0].GenPart.pdgId.tolist())
-        output["cutflow"][dataset]["select c"] += ak.sum(events[(ak.count(genc.pt,axis=1)>0)].genWeight / abs(events[(ak.count(genc.pt,axis=1)>0)].genWeight))
-        output["cutflow"][dataset]["lep"] += ak.sum(events[(genlep[:,0].pt>25)&(genlep[:,1].pt>12)&(abs(genlep[:,0].eta)<2.5)&(abs(genlep[:,1].eta)<2.5)&(genzl.mass>12)&(genlep[:,0].delta_r(genlep[:,1])>0.4)].genWeight / abs(events[(genlep[:,0].pt>25)&(genlep[:,1].pt>12)&(abs(genlep[:,0].eta)<2.5)&(abs(genlep[:,1].eta)<2.5)&(genzl.mass>12)&(genlep[:,0].delta_r(genlep[:,1])>0.4)].genWeight))
-        output["cutflow"][dataset]["nu"] += ak.sum(events[(genlep[:,0].pt>25)&(genlep[:,1].pt>12)&(abs(genlep[:,0].eta)<2.5)&(abs(genlep[:,1].eta)<2.5)&(genzl.mass>12)&(genlep[:,0].delta_r(genlep[:,1])>0.4)&(genmet.pt>45)&(mT(genlep[:,1],genmet)>30)&(mT(genzl,genmet)>60)].genWeight / abs(events[(genlep[:,0].pt>25)&(genlep[:,1].pt>12)&(abs(genlep[:,0].eta)<2.5)&(abs(genlep[:,1].eta)<2.5)&(genzl.mass>12)&(genmet.pt>45)&(mT(genlep[:,1],genmet)>30)&(mT(genzl,genmet)>60)&(genlep[:,0].delta_r(genlep[:,1])>0.4)].genWeight))
-        output["cutflow"][dataset]["jet"] += ak.sum(events[(genlep[:,0].pt>25)&(genlep[:,1].pt>12)&(abs(genlep[:,0].eta)<2.5)&(abs(genlep[:,1].eta)<2.5)&(genzl.mass>12)&(genlep[:,0].delta_r(genlep[:,1])>0.4)&(genmet.pt>45)&(mT(genlep[:,1],genmet)>30)&(mT(genzl,genmet)>60)&(ak.count((genc.pt>20)&(abs(genc.eta)<2.4)&(genc.delta_r(genlep[:,0])>0.4)&(genc.delta_r(genlep[:,1])>0.4),axis=1)>0)].genWeight / abs(events[(genlep[:,0].pt>25)&(genlep[:,1].pt>12)&(abs(genlep[:,0].eta)<2.5)&(abs(genlep[:,1].eta)<2.5)&(genzl.mass>12)&(genmet.pt>45)&(mT(genlep[:,1],genmet)>30)&(mT(genzl,genmet)>60)&(ak.count((genc.pt>20)&(abs(genc.eta)<2.4)&(genc.delta_r(genlep[:,0])>0.4)&(genc.delta_r(genlep[:,1])>0.4),axis=1)>0)&(genlep[:,0].delta_r(genlep[:,1])>0.4)].genWeight))
-        # &(genc.delta_r(genlep[:,0])>0.4)
-        
-        genlep = genlep[(ak.count(genc.pt,axis=1)>0)]
-        genzl = genzl[(ak.count(genc.pt,axis=1)>0)]
-        genh = genh[(ak.count(genc.pt,axis=1)>0)]    
-        genc = genc[(ak.count(genc.pt,axis=1)>0)]
-        output["genlep1_pt"].fill(dataset=dataset, pt=flatten(genlep[:, 0].pt))
-        output["genlep1_eta"].fill(dataset=dataset, eta=flatten(genlep[:, 0].eta))
-        output["genlep1_phi"].fill(dataset=dataset, phi=flatten(genlep[:, 0].phi))
-        output["genlep2_pt"].fill(dataset=dataset, pt=flatten(genlep[:, 1].pt))
-        output["genlep2_eta"].fill(dataset=dataset, eta=flatten(genlep[:, 1].eta))
-        output["genlep2_phi"].fill(dataset=dataset, phi=flatten(genlep[:, 1].phi))
-        output["genll_pt"].fill(dataset=dataset, pt=flatten(genzl.pt))
-        output["genll_eta"].fill(dataset=dataset, eta=flatten(genzl.eta))
-        output["genll_phi"].fill(dataset=dataset, phi=flatten(genzl.phi))
-        output["genll_mass"].fill(dataset=dataset, mass=flatten(genzl.mass))
-        output["genc_pt"].fill(dataset=dataset, pt=flatten(genc.pt))
-        output["genc_eta"].fill(dataset=dataset, eta=flatten(genc.eta))
-        output["genc_phi"].fill(dataset=dataset, phi=flatten(genc.phi))
-        output["genc_mass"].fill(dataset=dataset, mass=flatten(genc.mass))
-        output["genh_pt"].fill(dataset=dataset, pt=flatten(genh[(ak.count(genc.pt,axis=1)>0)].pt))
-        output["genh_eta"].fill(dataset=dataset, eta=flatten(genh.eta))
-        output["genh_phi"].fill(dataset=dataset, phi=flatten(genh.phi))
-        output["genh_mass"].fill(dataset=dataset, mass=flatten(genh.mass))
-       
-        output["genll_dr"].fill(
-            dataset=dataset, dr=flatten(genlep[:, 0].delta_r(genlep[:, 1]))
-        )
-        output["genllc_dr"].fill(dataset=dataset, dr=flatten(genzl.delta_r(genc)))
-        output["genl1c_dr"].fill(
-            dataset=dataset, dr=flatten(genlep[:, 0].delta_r(genc))
-        )
-        output["genl2c_dr"].fill(
-            dataset=dataset, dr=flatten(genlep[:, 1].delta_r(genc))
-        )
-        output["matched_deepJet"].fill(
-            dataset=dataset,
-            flav=flatten(
-                matchj.hadronFlavour
-                + 1 * ((matchj.partonFlavour == 0) & (matchj.hadronFlavour == 0))
-            ),
-            CvL=flatten(matchj.btagDeepFlavCvL),
-            CvB=flatten(matchj.btagDeepFlavCvB),
-        )
-        output["matched_deepCSV"].fill(
-            dataset=dataset,
-            flav=flatten(
-                matchj.hadronFlavour
-                + 1 * ((matchj.partonFlavour == 0) & (matchj.hadronFlavour == 0))
-            ),
-            CvL=flatten(matchj.btagDeepCvL),
-            CvB=flatten(matchj.btagDeepCvB),
-        )
+        #     gennunu = ak.zip(
+        #         {
+        #             "pt": (gennu[:, 0] + gennu[:, 1]).pt,
+        #             "phi": (gennu[:, 0] + gennu[:, 1]).phi,
+        #             "energy": (gennu[:, 0] + gennu[:, 1]).energy,
+        #         },
+        #         with_name="PtEtaPhiMLorentzVector",
+        #     )
+        #     genmet = ak.zip(
+        #         {
+        #             "pt": events.GenMET.pt,
+        #             "phi": events.GenMET.phi,
+        #             "eta":ak.zeros_like( events.GenMET.phi),
+        #             "energy":ak.zeros_like(events.GenMET.phi),
+        #         },
+        #         with_name="PtEtaPhiMLorentzVector",
+        #     )
+        #     genh =  genlep[:, 0] + genlep[:, 1] + genmet
+        # else:
+        #     genjet = events.GenPart[
+        #         (abs(events.GenPart.pdgId) < 6)
+        #         & (events.GenPart.hasFlags(["fromHardProcess"]) == True)
+        #         & (events.GenPart.hasFlags(["isHardProcess"]) == True)
+        #     ]
+        #     genjet = genjet[genjet.parent.pdgId == 23]
+        #     genh =  genlep[:, 0] + genlep[:, 1] + genjet[:,0]+genjet[:,1]
+        #     genzj = genjet[:, 0] + genjet[:, 1]
 
-        if "2Nu" in dataset:
-            gennu = gennu[(ak.count(genc.pt,axis=1)>0)]
-            gennunu = gennunu[(ak.count(genc.pt,axis=1)>0)]
-            genmet = genmet[(ak.count(genc.pt,axis=1)>0)]
-            output["gennu_pt"].fill(dataset=dataset, pt=flatten(gennunu.pt))
-            output["gennu_phi"].fill(dataset=dataset, phi=flatten(gennunu.phi))
-            output["gennuc_dphi"].fill(
-                dataset=dataset, phi=flatten(gennunu.delta_phi(genc))
-            )
-            output["gennul_dphi"].fill(
-                dataset=dataset, phi=flatten(gennunu.delta_phi(genlep))
-            )
-            output["gennull_dphi"].fill(
-                dataset=dataset, phi=flatten(gennunu.delta_phi(genzl))
-            )
-            output["genmet_pt"].fill(dataset=dataset, pt=flatten(events.GenMET.pt))
-            output["genmet_phi"].fill(dataset=dataset, phi=flatten(events.GenMET.phi))
-            output["genmetc_dphi"].fill(
-                dataset=dataset, phi=flatten(genmet.delta_phi(genc))
-            )
-            output["genmetl_dphi"].fill(
-                dataset=dataset, phi=flatten(genmet.delta_phi(genlep))
-            )
-            output["genmetll_dphi"].fill(
-                dataset=dataset, phi=flatten(genmet.delta_phi(genzl))
-            )
-            output["genmet_mt"].fill(dataset=dataset, mass=flatten(mT(genmet, genzl)))
+        # genzl = genlep[:, 0] + genlep[:, 1]
+        # # print(ak.type(genh.pt),ak.type(genh[(ak.count(genc.pt,axis=1)>0)].pt))
+        # # print(events[(ak.count(genc.pt,axis=1)>0)][0].GenPart.pdgId.tolist())
+        # output["cutflow"][dataset]["select c"] += ak.sum(events[(ak.count(genc.pt,axis=1)>0)].genWeight / abs(events[(ak.count(genc.pt,axis=1)>0)].genWeight))
+        # output["cutflow"][dataset]["lep"] += ak.sum(events[(genlep[:,0].pt>25)&(genlep[:,1].pt>12)&(abs(genlep[:,0].eta)<2.5)&(abs(genlep[:,1].eta)<2.5)&(genzl.mass>12)&(genlep[:,0].delta_r(genlep[:,1])>0.4)].genWeight / abs(events[(genlep[:,0].pt>25)&(genlep[:,1].pt>12)&(abs(genlep[:,0].eta)<2.5)&(abs(genlep[:,1].eta)<2.5)&(genzl.mass>12)&(genlep[:,0].delta_r(genlep[:,1])>0.4)].genWeight))
+        # output["cutflow"][dataset]["nu"] += ak.sum(events[(genlep[:,0].pt>25)&(genlep[:,1].pt>12)&(abs(genlep[:,0].eta)<2.5)&(abs(genlep[:,1].eta)<2.5)&(genzl.mass>12)&(genlep[:,0].delta_r(genlep[:,1])>0.4)&(genmet.pt>45)&(mT(genlep[:,1],genmet)>30)&(mT(genzl,genmet)>60)].genWeight / abs(events[(genlep[:,0].pt>25)&(genlep[:,1].pt>12)&(abs(genlep[:,0].eta)<2.5)&(abs(genlep[:,1].eta)<2.5)&(genzl.mass>12)&(genmet.pt>45)&(mT(genlep[:,1],genmet)>30)&(mT(genzl,genmet)>60)&(genlep[:,0].delta_r(genlep[:,1])>0.4)].genWeight))
+        # output["cutflow"][dataset]["jet"] += ak.sum(events[(genlep[:,0].pt>25)&(genlep[:,1].pt>12)&(abs(genlep[:,0].eta)<2.5)&(abs(genlep[:,1].eta)<2.5)&(genzl.mass>12)&(genlep[:,0].delta_r(genlep[:,1])>0.4)&(genmet.pt>45)&(mT(genlep[:,1],genmet)>30)&(mT(genzl,genmet)>60)&(ak.count((genc.pt>20)&(abs(genc.eta)<2.4)&(genc.delta_r(genlep[:,0])>0.4)&(genc.delta_r(genlep[:,1])>0.4),axis=1)>0)].genWeight / abs(events[(genlep[:,0].pt>25)&(genlep[:,1].pt>12)&(abs(genlep[:,0].eta)<2.5)&(abs(genlep[:,1].eta)<2.5)&(genzl.mass>12)&(genmet.pt>45)&(mT(genlep[:,1],genmet)>30)&(mT(genzl,genmet)>60)&(ak.count((genc.pt>20)&(abs(genc.eta)<2.4)&(genc.delta_r(genlep[:,0])>0.4)&(genc.delta_r(genlep[:,1])>0.4),axis=1)>0)&(genlep[:,0].delta_r(genlep[:,1])>0.4)].genWeight))
+        # # &(genc.delta_r(genlep[:,0])>0.4)
 
-            output["genmet_mt2"].fill(dataset=dataset, mass=flatten(mT2(genzl, genmet)))
-            output["genhc_dr"].fill(dataset=dataset, dr=flatten(genh.delta_r(genc)))
-            output["genhll_dr"].fill(dataset=dataset, dr=flatten(genh.delta_r(genzl)))
-            output["genhmet_dphi"].fill(dataset=dataset, phi=flatten(genh.delta_phi(genmet)))
+        # genlep = genlep[(ak.count(genc.pt,axis=1)>0)]
+        # genzl = genzl[(ak.count(genc.pt,axis=1)>0)]
+        # genh = genh[(ak.count(genc.pt,axis=1)>0)]
+        # genc = genc[(ak.count(genc.pt,axis=1)>0)]
+        # output["genlep1_pt"].fill(dataset=dataset, pt=flatten(genlep[:, 0].pt))
+        # output["genlep1_eta"].fill(dataset=dataset, eta=flatten(genlep[:, 0].eta))
+        # output["genlep1_phi"].fill(dataset=dataset, phi=flatten(genlep[:, 0].phi))
+        # output["genlep2_pt"].fill(dataset=dataset, pt=flatten(genlep[:, 1].pt))
+        # output["genlep2_eta"].fill(dataset=dataset, eta=flatten(genlep[:, 1].eta))
+        # output["genlep2_phi"].fill(dataset=dataset, phi=flatten(genlep[:, 1].phi))
+        # output["genll_pt"].fill(dataset=dataset, pt=flatten(genzl.pt))
+        # output["genll_eta"].fill(dataset=dataset, eta=flatten(genzl.eta))
+        # output["genll_phi"].fill(dataset=dataset, phi=flatten(genzl.phi))
+        # output["genll_mass"].fill(dataset=dataset, mass=flatten(genzl.mass))
+        # output["genc_pt"].fill(dataset=dataset, pt=flatten(genc.pt))
+        # output["genc_eta"].fill(dataset=dataset, eta=flatten(genc.eta))
+        # output["genc_phi"].fill(dataset=dataset, phi=flatten(genc.phi))
+        # output["genc_mass"].fill(dataset=dataset, mass=flatten(genc.mass))
+        # output["genh_pt"].fill(dataset=dataset, pt=flatten(genh[(ak.count(genc.pt,axis=1)>0)].pt))
+        # output["genh_eta"].fill(dataset=dataset, eta=flatten(genh.eta))
+        # output["genh_phi"].fill(dataset=dataset, phi=flatten(genh.phi))
+        # output["genh_mass"].fill(dataset=dataset, mass=flatten(genh.mass))
 
-        else:
-            output["genjet1_pt"].fill(dataset=dataset, pt=flatten(genjet[:, 0].pt))
-            output["genjet1_eta"].fill(dataset=dataset, eta=flatten(genjet[:, 0].eta))
-            output["genjet1_phi"].fill(dataset=dataset, phi=flatten(genjet[:, 0].phi))
-            output["genjet2_pt"].fill(dataset=dataset, pt=flatten(genjet[:, 1].pt))
-            output["genjet2_eta"].fill(dataset=dataset, eta=flatten(genjet[:, 1].eta))
-            output["genjet2_phi"].fill(dataset=dataset, phi=flatten(genjet[:, 1].phi))
-            output["genjj_pt"].fill(dataset=dataset, pt=flatten(genzj.pt))
-            output["genjj_eta"].fill(dataset=dataset, eta=flatten(genzj.eta))
-            output["genjj_phi"].fill(dataset=dataset, phi=flatten(genzj.phi))
-            output["genjj_mass"].fill(dataset=dataset, mass=flatten(genzj.mass))
-            output["genjj_dr"].fill(
-                dataset=dataset, dr=flatten(genjet[:, 0].delta_r(genjet[:, 1]))
-            )
-            output["genjjc_dr"].fill(dataset=dataset, dr=flatten(genzj.delta_r(genc)))
-            output["genj1c_dr"].fill(
-                dataset=dataset, dr=flatten(genjet[:, 0].delta_r(genc))
-            )
-            output["genj2c_dr"].fill(
-                dataset=dataset, dr=flatten(genjet[:, 1].delta_r(genc))
-            )
+        # output["genll_dr"].fill(
+        #     dataset=dataset, dr=flatten(genlep[:, 0].delta_r(genlep[:, 1]))
+        # )
+        # output["genllc_dr"].fill(dataset=dataset, dr=flatten(genzl.delta_r(genc)))
+        # output["genl1c_dr"].fill(
+        #     dataset=dataset, dr=flatten(genlep[:, 0].delta_r(genc))
+        # )
+        # output["genl2c_dr"].fill(
+        #     dataset=dataset, dr=flatten(genlep[:, 1].delta_r(genc))
+        # )
+        # output["matched_deepJet"].fill(
+        #     dataset=dataset,
+        #     flav=flatten(
+        #         matchj.hadronFlavour
+        #         + 1 * ((matchj.partonFlavour == 0) & (matchj.hadronFlavour == 0))
+        #     ),
+        #     CvL=flatten(matchj.btagDeepFlavCvL),
+        #     CvB=flatten(matchj.btagDeepFlavCvB),
+        # )
+        # output["matched_deepCSV"].fill(
+        #     dataset=dataset,
+        #     flav=flatten(
+        #         matchj.hadronFlavour
+        #         + 1 * ((matchj.partonFlavour == 0) & (matchj.hadronFlavour == 0))
+        #     ),
+        #     CvL=flatten(matchj.btagDeepCvL),
+        #     CvB=flatten(matchj.btagDeepCvB),
+        # )
 
-            # if 'LNu' in dataset:
-            #     output['genmetcphi'].fill(dataset=dataset,phi=flatten(genmet.delta_phi(genc)))
-            #     output['genmetlphi'].fill(dataset=dataset,phi=flatten(genmet.delta_phi(genlep)))
-            #     output['genmetllphi'].fill(dataset=dataset,phi=flatten(genmet.delta_phi(genzl)))
+        # if "2Nu" in dataset:
+        #     gennu = gennu[(ak.count(genc.pt,axis=1)>0)]
+        #     gennunu = gennunu[(ak.count(genc.pt,axis=1)>0)]
+        #     genmet = genmet[(ak.count(genc.pt,axis=1)>0)]
+        #     output["gennu_pt"].fill(dataset=dataset, pt=flatten(gennunu.pt))
+        #     output["gennu_phi"].fill(dataset=dataset, phi=flatten(gennunu.phi))
+        #     output["gennuc_dphi"].fill(
+        #         dataset=dataset, phi=flatten(gennunu.delta_phi(genc))
+        #     )
+        #     output["gennul_dphi"].fill(
+        #         dataset=dataset, phi=flatten(gennunu.delta_phi(genlep))
+        #     )
+        #     output["gennull_dphi"].fill(
+        #         dataset=dataset, phi=flatten(gennunu.delta_phi(genzl))
+        #     )
+        #     output["genmet_pt"].fill(dataset=dataset, pt=flatten(events.GenMET.pt))
+        #     output["genmet_phi"].fill(dataset=dataset, phi=flatten(events.GenMET.phi))
+        #     output["genmetc_dphi"].fill(
+        #         dataset=dataset, phi=flatten(genmet.delta_phi(genc))
+        #     )
+        #     output["genmetl_dphi"].fill(
+        #         dataset=dataset, phi=flatten(genmet.delta_phi(genlep))
+        #     )
+        #     output["genmetll_dphi"].fill(
+        #         dataset=dataset, phi=flatten(genmet.delta_phi(genzl))
+        #     )
+        #     output["genmet_mt"].fill(dataset=dataset, mass=flatten(mT(genmet, genzl)))
 
-        return output
+        #     output["genmet_mt2"].fill(dataset=dataset, mass=flatten(mT2(genzl, genmet)))
+        #     output["genhc_dr"].fill(dataset=dataset, dr=flatten(genh.delta_r(genc)))
+        #     output["genhll_dr"].fill(dataset=dataset, dr=flatten(genh.delta_r(genzl)))
+        #     output["genhmet_dphi"].fill(dataset=dataset, phi=flatten(genh.delta_phi(genmet)))
+
+        # else:
+        #     output["genjet1_pt"].fill(dataset=dataset, pt=flatten(genjet[:, 0].pt))
+        #     output["genjet1_eta"].fill(dataset=dataset, eta=flatten(genjet[:, 0].eta))
+        #     output["genjet1_phi"].fill(dataset=dataset, phi=flatten(genjet[:, 0].phi))
+        #     output["genjet2_pt"].fill(dataset=dataset, pt=flatten(genjet[:, 1].pt))
+        #     output["genjet2_eta"].fill(dataset=dataset, eta=flatten(genjet[:, 1].eta))
+        #     output["genjet2_phi"].fill(dataset=dataset, phi=flatten(genjet[:, 1].phi))
+        #     output["genjj_pt"].fill(dataset=dataset, pt=flatten(genzj.pt))
+        #     output["genjj_eta"].fill(dataset=dataset, eta=flatten(genzj.eta))
+        #     output["genjj_phi"].fill(dataset=dataset, phi=flatten(genzj.phi))
+        #     output["genjj_mass"].fill(dataset=dataset, mass=flatten(genzj.mass))
+        #     output["genjj_dr"].fill(
+        #         dataset=dataset, dr=flatten(genjet[:, 0].delta_r(genjet[:, 1]))
+        #     )
+        #     output["genjjc_dr"].fill(dataset=dataset, dr=flatten(genzj.delta_r(genc)))
+        #     output["genj1c_dr"].fill(
+        #         dataset=dataset, dr=flatten(genjet[:, 0].delta_r(genc))
+        #     )
+        #     output["genj2c_dr"].fill(
+        #         dataset=dataset, dr=flatten(genjet[:, 1].delta_r(genc))
+        #     )
+
+        # if 'LNu' in dataset:
+        #     output['genmetcphi'].fill(dataset=dataset,phi=flatten(genmet.delta_phi(genc)))
+        #     output['genmetlphi'].fill(dataset=dataset,phi=flatten(genmet.delta_phi(genlep)))
+        #     output['genmetllphi'].fill(dataset=dataset,phi=flatten(genmet.delta_phi(genzl)))
+
+        return {dataset: output}
 
     def postprocess(self, accumulator):
         return accumulator

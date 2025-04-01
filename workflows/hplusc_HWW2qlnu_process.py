@@ -583,7 +583,6 @@ class NanoProcessor(processor.ProcessorABC):
         for histname, h in output.items():
             for ch in lepflav:
                 for r in region:
-
                     cut = selection.all(
                         "jetsel",
                         "lepsel",
